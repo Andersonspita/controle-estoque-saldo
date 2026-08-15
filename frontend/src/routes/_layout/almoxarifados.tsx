@@ -6,11 +6,12 @@ import { Fragment, useState } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import { toast } from "sonner"
 import useAuth from "../../hooks/useAuth"
+import { pageTitle } from "@/lib/brand"
 
 export const Route = createFileRoute("/_layout/almoxarifados")({
   component: Almoxarifados,
   head: () => ({
-    meta: [{ title: "Almoxarifados - Controle de Estoque" }],
+    meta: [{ title: pageTitle("Almoxarifados") }],
   }),
 })
 

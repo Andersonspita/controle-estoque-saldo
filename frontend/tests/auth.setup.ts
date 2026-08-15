@@ -25,7 +25,7 @@ setup("autenticar administrador", async ({ page, request }) => {
   await page.goto("/login")
   await page.getByTestId("email-input").fill(e2eAdmin.email)
   await page.getByTestId("password-input").fill(e2eAdmin.password)
-  await page.getByRole("button", { name: "Log In" }).click()
+  await page.getByRole("button", { name: "Entrar" }).click()
 
   await expect(page).toHaveURL("/")
   await expect(page.getByTestId("dashboard-greeting")).toBeVisible({

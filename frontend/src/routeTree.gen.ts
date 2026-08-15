@@ -19,7 +19,6 @@ import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
 import { Route as LayoutAlmoxarifadosRouteImport } from './routes/_layout/almoxarifados'
 import { Route as LayoutContratosRouteImport } from './routes/_layout/contratos'
 import { Route as LayoutFornecedoresRouteImport } from './routes/_layout/fornecedores'
-import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
 import { Route as LayoutNotasFiscaisRouteImport } from './routes/_layout/notas-fiscais'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 
@@ -72,11 +71,6 @@ const LayoutFornecedoresRoute = LayoutFornecedoresRouteImport.update({
   path: '/fornecedores',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutItemsRoute = LayoutItemsRouteImport.update({
-  id: '/items',
-  path: '/items',
-  getParentRoute: () => LayoutRoute,
-} as any)
 const LayoutNotasFiscaisRoute = LayoutNotasFiscaisRouteImport.update({
   id: '/notas-fiscais',
   path: '/notas-fiscais',
@@ -98,7 +92,6 @@ export interface FileRoutesByFullPath {
   '/almoxarifados': typeof LayoutAlmoxarifadosRoute
   '/contratos': typeof LayoutContratosRoute
   '/fornecedores': typeof LayoutFornecedoresRoute
-  '/items': typeof LayoutItemsRoute
   '/notas-fiscais': typeof LayoutNotasFiscaisRoute
   '/settings': typeof LayoutSettingsRoute
 }
@@ -111,7 +104,6 @@ export interface FileRoutesByTo {
   '/almoxarifados': typeof LayoutAlmoxarifadosRoute
   '/contratos': typeof LayoutContratosRoute
   '/fornecedores': typeof LayoutFornecedoresRoute
-  '/items': typeof LayoutItemsRoute
   '/notas-fiscais': typeof LayoutNotasFiscaisRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
@@ -127,7 +119,6 @@ export interface FileRoutesById {
   '/_layout/almoxarifados': typeof LayoutAlmoxarifadosRoute
   '/_layout/contratos': typeof LayoutContratosRoute
   '/_layout/fornecedores': typeof LayoutFornecedoresRoute
-  '/_layout/items': typeof LayoutItemsRoute
   '/_layout/notas-fiscais': typeof LayoutNotasFiscaisRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
@@ -144,7 +135,6 @@ export interface FileRouteTypes {
     | '/almoxarifados'
     | '/contratos'
     | '/fornecedores'
-    | '/items'
     | '/notas-fiscais'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
@@ -157,7 +147,6 @@ export interface FileRouteTypes {
     | '/almoxarifados'
     | '/contratos'
     | '/fornecedores'
-    | '/items'
     | '/notas-fiscais'
     | '/settings'
     | '/'
@@ -172,7 +161,6 @@ export interface FileRouteTypes {
     | '/_layout/almoxarifados'
     | '/_layout/contratos'
     | '/_layout/fornecedores'
-    | '/_layout/items'
     | '/_layout/notas-fiscais'
     | '/_layout/settings'
     | '/_layout/'
@@ -258,13 +246,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutFornecedoresRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/items': {
-      id: '/_layout/items'
-      path: '/items'
-      fullPath: '/items'
-      preLoaderRoute: typeof LayoutItemsRouteImport
-      parentRoute: typeof LayoutRoute
-    }
     '/_layout/notas-fiscais': {
       id: '/_layout/notas-fiscais'
       path: '/notas-fiscais'
@@ -287,7 +268,6 @@ interface LayoutRouteChildren {
   LayoutAlmoxarifadosRoute: typeof LayoutAlmoxarifadosRoute
   LayoutContratosRoute: typeof LayoutContratosRoute
   LayoutFornecedoresRoute: typeof LayoutFornecedoresRoute
-  LayoutItemsRoute: typeof LayoutItemsRoute
   LayoutNotasFiscaisRoute: typeof LayoutNotasFiscaisRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
@@ -298,7 +278,6 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAlmoxarifadosRoute: LayoutAlmoxarifadosRoute,
   LayoutContratosRoute: LayoutContratosRoute,
   LayoutFornecedoresRoute: LayoutFornecedoresRoute,
-  LayoutItemsRoute: LayoutItemsRoute,
   LayoutNotasFiscaisRoute: LayoutNotasFiscaisRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,

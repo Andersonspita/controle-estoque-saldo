@@ -1,6 +1,6 @@
-# Estado do Projeto - Controle de Estoque e Saldos
+# Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 15/08/2026 — Compose de produção (Postgres, API e Nginx separados) para VPS
+> **Última Atualização:** 15/08/2026 — Tela Admin: cadastro de usuários e perfis (ADMIN/OPERADOR)
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -11,7 +11,7 @@ Este documento guia quem assume ou retoma o projeto. Para rodar localmente e exe
 
 ## Regra de negócio do saldo
 
-O estoque controlado pelo sistema é o **saldo dos itens do contrato**, não o almoxarifado.
+O produto chama-se **SaldoContratual**. O estoque controlado é o **saldo dos itens do contrato**, não o almoxarifado.
 
 Exemplo: contrato de 12 meses com 1 item de 100 unidades → entram 100 unidades de saldo nesse item. Cada baixa de NF abate esse saldo. O almoxarifado é apenas o **destino físico** do material após a baixa.
 
@@ -62,19 +62,20 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - Frontend (`frontend/src/services/api.ts`) envia `Authorization: Bearer` a partir de `localStorage.access_token`. A origem da API ignora um `/api/v1` extra no `.env`, para o login (`/login/access-token` e `/users/me`) e o axios (`/api/v1/...`) apontarem para o mesmo backend.
 - Correção: `/users/me` deixou de usar uma SECRET_KEY dummy (que caía no primeiro usuário do banco).
 - **`GET /users/me`** devolve `perfil` (`ADMIN` ou `OPERADOR`) e `is_superuser` (`true` só para ADMIN).
-- **ADMIN:** cadastra fornecedores, contratos, licitações e almoxarifados; vê o menu Admin.
-- **OPERADOR:** consulta cadastros, importa/parseia NF, vincula itens e dá baixa. POST de cadastro → **403**.
-- Na interface, os botões “Novo Fornecedor / Contrato / Almoxarifado” só aparecem para ADMIN.
+- **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos, licitações e almoxarifados.
+- **OPERADOR:** consulta cadastros, importa/parseia NF, vincula itens e dá baixa. POST de cadastro (incluindo usuários) → **403**.
+- **Usuários (ADMIN):** `GET/POST /users/`, `PATCH/DELETE /users/{id}`. Perfil `ADMIN` ou `OPERADOR`; não permite excluir a própria conta nem remover o último administrador. `PATCH /users/me` e `PATCH /users/me/password` atualizam dados da conta logada.
 
 ## 7. E2E autenticado (Playwright)
 
-O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://localhost:5173`), reutilizando processos já em execução. Specs: visitante → login; ADMIN autentica, vê o dashboard e o botão “Novo Contrato”. Requer Postgres e o usuário de testes.
+O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://localhost:5173`), reutilizando processos já em execução. Specs: visitante → login; ADMIN autentica, vê o dashboard, a tela Admin de usuários e o botão “Novo Contrato”. Requer Postgres e o usuário de testes.
 
 ## 8. Deploy de produção
 
-`compose.prod.yml` sobe Postgres (rede interna), FastAPI (`src.main:app`, rede interna) e Nginx na porta 80 (SPA + proxy de `/api/v1`, `/login`, `/users` e `/health`). Segredos em `.env.production` (modelo: `.env.production.example`). Roteiro da VPS: `docs/GUIA_TECNICO.md` §6.
+`compose.prod.yml` sobe Postgres (rede interna), FastAPI (`src.main:app`, rede interna) e Nginx na porta **8080** (SPA + proxy de `/api/v1`, `/login`, `/users` e `/health`). Segredos em `.env.production` (modelo: `.env.production.example`). Roteiro da VPS: `docs/GUIA_TECNICO.md` §6.
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-1. **Melhorias de NF:** OCR de PDF é mais lento que XML; quando existir o XML da NF-e, preferi-lo. Conferência visual dos vínculos NF × contrato em notas já importadas.
-2. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
+1. **Conferência visual NF × contrato** — tela para revisar e ajustar os vínculos de itens em notas já importadas (antes da baixa). Preferir XML da NF-e ao OCR de PDF quando o XML existir.
+2. **Telas de conta ainda em inglês** — Configurações (textos) e cadastro público ainda usam trechos do template.
+3. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.

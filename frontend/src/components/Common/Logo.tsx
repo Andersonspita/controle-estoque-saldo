@@ -1,11 +1,8 @@
 import { Link } from "@tanstack/react-router"
+import { Scale } from "lucide-react"
 
-import { useTheme } from "@/components/theme-provider"
+import { APP_NAME } from "@/lib/brand"
 import { cn } from "@/lib/utils"
-import icon from "/assets/images/fastapi-icon.svg"
-import iconLight from "/assets/images/fastapi-icon-light.svg"
-import logo from "/assets/images/fastapi-logo.svg"
-import logoLight from "/assets/images/fastapi-logo-light.svg"
 
 interface LogoProps {
   variant?: "full" | "icon" | "responsive"
@@ -18,43 +15,47 @@ export function Logo({
   className,
   asLink = true,
 }: LogoProps) {
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === "dark"
-
-  const fullLogo = isDark ? logoLight : logo
-  const iconLogo = isDark ? iconLight : icon
-
   const content =
     variant === "responsive" ? (
       <>
-        <img
-          src={fullLogo}
-          alt="FastAPI"
+        <span
           className={cn(
-            "h-6 w-auto group-data-[collapsible=icon]:hidden",
+            "flex items-center gap-2 font-semibold tracking-tight group-data-[collapsible=icon]:hidden",
             className,
           )}
-        />
-        <img
-          src={iconLogo}
-          alt="FastAPI"
+        >
+          <Scale className="size-5 shrink-0" aria-hidden />
+          {APP_NAME}
+        </span>
+        <Scale
           className={cn(
             "size-5 hidden group-data-[collapsible=icon]:block",
             className,
           )}
+          aria-label={APP_NAME}
         />
       </>
+    ) : variant === "full" ? (
+      <span
+        className={cn(
+          "flex items-center gap-2 font-semibold tracking-tight",
+          className,
+        )}
+      >
+        <Scale className="size-8 shrink-0" aria-hidden />
+        <span className="text-2xl leading-none">{APP_NAME}</span>
+      </span>
     ) : (
-      <img
-        src={variant === "full" ? fullLogo : iconLogo}
-        alt="FastAPI"
-        className={cn(variant === "full" ? "h-6 w-auto" : "size-5", className)}
-      />
+      <Scale className={cn("size-5", className)} aria-label={APP_NAME} />
     )
 
   if (!asLink) {
     return content
   }
 
-  return <Link to="/">{content}</Link>
+  return (
+    <Link to="/" aria-label={APP_NAME}>
+      {content}
+    </Link>
+  )
 }

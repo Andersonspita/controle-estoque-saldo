@@ -12,7 +12,7 @@ export type UserTableData = UserPublic & {
 export const columns: ColumnDef<UserTableData>[] = [
   {
     accessorKey: "full_name",
-    header: "Full Name",
+    header: "Nome",
     cell: ({ row }) => {
       const fullName = row.original.full_name
       return (
@@ -24,7 +24,7 @@ export const columns: ColumnDef<UserTableData>[] = [
           </span>
           {row.original.isCurrentUser && (
             <Badge variant="outline" className="text-xs">
-              You
+              Você
             </Badge>
           )}
         </div>
@@ -39,13 +39,18 @@ export const columns: ColumnDef<UserTableData>[] = [
     ),
   },
   {
-    accessorKey: "is_superuser",
-    header: "Role",
-    cell: ({ row }) => (
-      <Badge variant={row.original.is_superuser ? "default" : "secondary"}>
-        {row.original.is_superuser ? "Superuser" : "User"}
-      </Badge>
-    ),
+    accessorKey: "perfil",
+    header: "Perfil",
+    cell: ({ row }) => {
+      const isAdmin =
+        row.original.is_superuser ||
+        (row.original.perfil || "").toUpperCase() === "ADMIN"
+      return (
+        <Badge variant={isAdmin ? "default" : "secondary"}>
+          {isAdmin ? "Administrador" : "Operador"}
+        </Badge>
+      )
+    },
   },
   {
     accessorKey: "is_active",
@@ -59,7 +64,7 @@ export const columns: ColumnDef<UserTableData>[] = [
           )}
         />
         <span className={row.original.is_active ? "" : "text-muted-foreground"}>
-          {row.original.is_active ? "Active" : "Inactive"}
+          {row.original.is_active ? "Ativo" : "Inativo"}
         </span>
       </div>
     ),

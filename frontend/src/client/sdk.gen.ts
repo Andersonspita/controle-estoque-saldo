@@ -249,6 +249,14 @@ export class LoginService {
             }
         });
     }
+
+    public static recoverPassword(_options?: unknown) {
+        return Promise.reject(new Error("Recuperação de senha não está disponível nesta API"));
+    }
+
+    public static resetPassword(_options?: unknown) {
+        return Promise.reject(new Error("Redefinição de senha não está disponível nesta API"));
+    }
 }
 
 export class UsersService {
@@ -263,6 +271,88 @@ export class UsersService {
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/users/me',
             ...options
+        });
+    }
+
+    public static registerUser(_options?: unknown) {
+        return Promise.reject(new Error("Cadastro público não está disponível nesta API"));
+    }
+
+    public static readUsers<ThrowOnError extends boolean = true>(options?: Options<TDataShape, ThrowOnError>) {
+        return (options?.client ?? client).get({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/users/',
+            ...options
+        });
+    }
+
+    public static createUser<ThrowOnError extends boolean = true>(options: Options<TDataShape, ThrowOnError>) {
+        return (options.client ?? client).post({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/users/',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    public static updateUser<ThrowOnError extends boolean = true>(
+        options: Options<TDataShape, ThrowOnError> & { path: { user_id: number } },
+    ) {
+        return (options.client ?? client).patch({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: `/users/${options.path.user_id}`,
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    public static deleteUser<ThrowOnError extends boolean = true>(
+        options: Options<TDataShape, ThrowOnError> & { path: { user_id: number } },
+    ) {
+        return (options.client ?? client).delete({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: `/users/${options.path.user_id}`,
+            ...options
+        });
+    }
+
+    public static updateUserMe<ThrowOnError extends boolean = true>(options: Options<TDataShape, ThrowOnError>) {
+        return (options.client ?? client).patch({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/users/me',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    public static deleteUserMe(_options?: unknown) {
+        return Promise.reject(new Error("Exclusão da própria conta não está disponível nesta API"));
+    }
+
+    public static updatePasswordMe<ThrowOnError extends boolean = true>(options: Options<TDataShape, ThrowOnError>) {
+        return (options.client ?? client).patch({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/users/me/password',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
         });
     }
 }

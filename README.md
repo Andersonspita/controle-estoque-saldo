@@ -1,6 +1,6 @@
-# Controle de Estoque e Saldos
+# SaldoContratual
 
-Sistema web para acompanhar o **saldo dos itens de contratos de licitação** e registrar baixas a partir de Notas Fiscais Eletrônicas (NF-e).
+Sistema web de **gestão de saldos e itens de contratos de licitação**. Acompanhe o saldo contratual e registre baixas a partir de Notas Fiscais Eletrônicas (NF-e).
 
 O estoque controlado **não é o almoxarifado**. Cada item do contrato entra com um saldo (a quantidade contratada). Cada baixa de NF abate esse saldo. O almoxarifado é só o **destino físico** do material depois da baixa.
 
@@ -102,7 +102,7 @@ Relatório HTML: `npx playwright show-report`.
 
 ## Deploy na VPS
 
-Banco, API e frontend sobem em containers separados (`compose.prod.yml`). Só a porta **80** fica pública. Passo a passo (firewall, Docker, `.env.production`, primeiro ADMIN): [docs/GUIA_TECNICO.md](docs/GUIA_TECNICO.md#6-deploy-na-vps-banco-api-e-frontend-separados).
+Banco, API e frontend sobem em containers separados (`compose.prod.yml`). A porta pública padrão é **8080**. Passo a passo (firewall, Docker, `.env.production`, primeiro ADMIN): [docs/GUIA_TECNICO.md](docs/GUIA_TECNICO.md#6-deploy-na-vps-banco-api-e-frontend-separados).
 
 Resumo, no servidor (usuário não-root):
 

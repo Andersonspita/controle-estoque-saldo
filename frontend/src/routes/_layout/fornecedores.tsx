@@ -5,9 +5,13 @@ import { fornecedoresService } from "../../services/api"
 import { Truck, Plus } from "lucide-react"
 import { AddFornecedorModal } from "../../components/Fornecedores/AddFornecedorModal"
 import useAuth from "../../hooks/useAuth"
+import { pageTitle } from "@/lib/brand"
 
 export const Route = createFileRoute("/_layout/fornecedores")({
   component: FornecedoresPage,
+  head: () => ({
+    meta: [{ title: pageTitle("Fornecedores") }],
+  }),
 })
 
 function FornecedoresPage() {

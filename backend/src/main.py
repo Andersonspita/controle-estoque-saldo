@@ -25,8 +25,8 @@ def _cors_origins() -> list[str]:
 
 
 app = FastAPI(
-    title="Sistema Web de Controle de Estoque e Saldos de Contratos de Licitação",
-    description="API para gestão de contratos, itens e baixas de saldo via NF-e",
+    title="SaldoContratual",
+    description="API de gestão de saldos e itens de contratos de licitação",
     version="1.0.0",
     generate_unique_id_function=custom_generate_unique_id,
 )

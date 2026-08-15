@@ -12,6 +12,16 @@ test("administrador entra no dashboard autenticado", async ({ page }) => {
   })
 })
 
+test("administrador abre a gestão de usuários", async ({ page }) => {
+  await page.goto("/admin")
+  await expect(page).not.toHaveURL(/\/login/)
+  await expect(page.getByRole("heading", { name: /usuários/i })).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByRole("button", { name: "Novo usuário" })).toBeVisible()
+  await expect(page.getByText("Oops!")).toHaveCount(0)
+})
+
 test("administrador vê o cadastro de contrato", async ({ page }) => {
   await page.goto("/contratos")
   await expect(page.getByRole("heading", { name: /contratos/i })).toBeVisible()
