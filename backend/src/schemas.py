@@ -1,6 +1,8 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 from typing import Optional, List
 from datetime import date, datetime
+
+from .services.documento import formatar_cpf_cnpj
 
 class AlmoxarifadoBase(BaseModel):
     nome: str
@@ -42,11 +44,42 @@ class FornecedorBase(BaseModel):
     ativo: bool = True
 
 class FornecedorCreate(FornecedorBase):
-    pass
+    @field_validator("cnpj")
+    @classmethod
+    def validar_cpf_cnpj(cls, valor: str) -> str:
+        try:
+            return formatar_cpf_cnpj(valor)
+        except ValueError as exc:
+            raise ValueError("CPF ou CNPJ inválido") from exc
 
-class FornecedorUpdate(FornecedorBase):
+    @field_validator("estado")
+    @classmethod
+    def normalizar_uf(cls, valor: Optional[str]) -> Optional[str]:
+        if valor is None or valor.strip() == "":
+            return None
+        return valor.strip().upper()[:2]
+
+class FornecedorUpdate(BaseModel):
     razao_social: Optional[str] = None
+    nome_fantasia: Optional[str] = None
     cnpj: Optional[str] = None
+    inscricao_estadual: Optional[str] = None
+    endereco: Optional[str] = None
+    cidade: Optional[str] = None
+    estado: Optional[str] = None
+    telefone: Optional[str] = None
+    email: Optional[EmailStr] = None
+    ativo: Optional[bool] = None
+
+    @field_validator("cnpj")
+    @classmethod
+    def validar_cpf_cnpj_opcional(cls, valor: Optional[str]) -> Optional[str]:
+        if valor is None or valor.strip() == "":
+            return valor
+        try:
+            return formatar_cpf_cnpj(valor)
+        except ValueError as exc:
+            raise ValueError("CPF ou CNPJ inválido") from exc
 
 class FornecedorOut(FornecedorBase):
     id: int
@@ -93,6 +126,23 @@ class ItemContratoCreate(BaseModel):
 
 class ContratoCreate(ContratoBase):
     itens: List[ItemContratoCreate] = []
+
+class ItemContratoUpdate(BaseModel):
+    id: Optional[int] = None
+    codigo: Optional[str] = None
+    descricao: str
+    unidade: str = "UN"
+    quantidade_contratada: float
+    valor_unitario: float
+
+class ContratoUpdate(BaseModel):
+    fornecedor_id: Optional[int] = None
+    numero: Optional[str] = None
+    ano: Optional[int] = None
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
+    situacao: Optional[str] = None
+    itens: Optional[List[ItemContratoUpdate]] = None
 
 class ContratoOut(ContratoBase):
     id: int

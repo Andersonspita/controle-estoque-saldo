@@ -5,6 +5,8 @@ import { DollarSign, FileText, Activity, AlertCircle, ArrowDownRight, CheckCircl
 
 import useAuth from "../../hooks/useAuth"
 import { pageTitle } from "@/lib/brand"
+import { formatarMoeda } from "@/lib/money"
+import { TableScroll } from "@/components/ui/table-scroll"
 
 export const Route = createFileRoute("/_layout/")({
   component: Dashboard,
@@ -47,7 +49,7 @@ function Dashboard() {
 
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="min-w-0 space-y-6 animate-in fade-in duration-500">
       <div className="mb-8">
         <h1
           data-testid="dashboard-greeting"
@@ -73,7 +75,7 @@ function Dashboard() {
           </div>
           <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
             <AlertCircle size={12} />
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalContratosValor)} empenhados
+            {formatarMoeda(totalContratosValor)} empenhados
           </div>
         </div>
 
@@ -109,31 +111,30 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-colors">
+      <div className="grid min-w-0 grid-cols-1 lg:grid-cols-2 gap-6">
+        <TableScroll className="rounded-2xl border-slate-100 dark:border-slate-800">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Últimas 5 Baixas de NF</h2>
           </div>
-          <div className="p-0 overflow-x-auto">
-            <table className="w-full text-sm text-left">
+          <table className="w-full min-w-[36rem] text-sm text-left">
               <thead className="bg-slate-50 dark:bg-slate-950 border-b dark:border-slate-800 text-slate-600 dark:text-slate-400 font-medium">
                 <tr>
-                  <th className="px-6 py-4">ID Nota Fiscal</th>
-                  <th className="px-6 py-4">Data/Hora</th>
-                  <th className="px-6 py-4">Movimento</th>
-                  <th className="px-6 py-4 text-right">Qtd</th>
+                  <th className="px-6 py-4 whitespace-nowrap">ID Nota Fiscal</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Data/Hora</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Movimento</th>
+                  <th className="px-6 py-4 text-right whitespace-nowrap">Qtd</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {ultimasMovimentacoes.map((mov: any) => (
                   <tr key={mov.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">
+                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                       #{mov.nota_fiscal_id}
                     </td>
-                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
+                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {new Date(mov.data_hora).toLocaleString('pt-BR')}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 inline-flex items-center gap-1">
                         <ArrowDownRight size={12} /> {mov.tipo_movimento}
                       </span>
@@ -150,22 +151,20 @@ function Dashboard() {
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
+        </TableScroll>
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-colors">
+        <TableScroll className="rounded-2xl border-slate-100 dark:border-slate-800">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Alertas de Esgotamento (45 dias)</h2>
-            <AlertCircle size={20} className="text-amber-500" />
+            <AlertCircle size={20} className="text-amber-500 shrink-0" />
           </div>
-          <div className="p-0 overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="w-full min-w-[36rem] text-sm text-left">
               <thead className="bg-slate-50 dark:bg-slate-950 border-b dark:border-slate-800 text-slate-600 dark:text-slate-400 font-medium">
                 <tr>
-                  <th className="px-6 py-4">Item</th>
-                  <th className="px-6 py-4">Contrato</th>
-                  <th className="px-6 py-4">Saldo</th>
-                  <th className="px-6 py-4 text-right">Previsão</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Item</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Contrato</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Saldo</th>
+                  <th className="px-6 py-4 text-right whitespace-nowrap">Previsão</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -200,8 +199,7 @@ function Dashboard() {
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
+        </TableScroll>
       </div>
     </div>
   )

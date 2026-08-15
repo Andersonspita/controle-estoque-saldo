@@ -93,7 +93,11 @@ export const contratosService = {
   criar: async (dados: any) => {
     const response = await api.post("/contratos/", dados);
     return response.data;
-  }
+  },
+  atualizar: async (id: number, dados: any) => {
+    const response = await api.patch(`/contratos/${id}`, dados);
+    return response.data;
+  },
 };
 
 export const fornecedoresService = {

@@ -74,7 +74,7 @@ async def test_users_me_retorna_perfil_operador(async_client: AsyncClient, as_op
         ),
         (
             "/api/v1/fornecedores/",
-            {"razao_social": "Fornecedor Teste", "cnpj": "00000000000000"},
+            {"razao_social": "Fornecedor Teste", "cnpj": "11444777000161"},
         ),
         (
             "/api/v1/almoxarifados/",
@@ -96,6 +96,22 @@ async def test_operador_nao_cria_cadastros(async_client: AsyncClient, as_operado
     response = await async_client.post(url, json=payload)
     assert response.status_code == 403
     assert "administradores" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_operador_nao_edita_contrato(async_client: AsyncClient, as_operador):
+    response = await async_client.patch("/api/v1/contratos/1", json={"situacao": "Suspenso"})
+    assert response.status_code == 403
+    assert "administradores" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_fornecedor_documento_invalido_rejeitado(async_client: AsyncClient):
+    response = await async_client.post(
+        "/api/v1/fornecedores/",
+        json={"razao_social": "Inválido", "cnpj": "00000000000000"},
+    )
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio

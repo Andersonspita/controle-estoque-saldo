@@ -7,6 +7,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { toast } from "sonner"
 import useAuth from "../../hooks/useAuth"
 import { pageTitle } from "@/lib/brand"
+import { TableScroll } from "@/components/ui/table-scroll"
 
 export const Route = createFileRoute("/_layout/almoxarifados")({
   component: Almoxarifados,
@@ -54,11 +55,11 @@ function Almoxarifados() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="min-w-0 space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-2">
-            <Box size={28} className="text-blue-600" /> Almoxarifados
+            <Box size={28} className="text-blue-600 shrink-0" /> Almoxarifados
           </h1>
           <p className="text-muted-foreground mt-1 dark:text-slate-400">
             Destino físico dos materiais após a baixa. O saldo controlado permanece no contrato.
@@ -67,21 +68,21 @@ function Almoxarifados() {
         {isAdmin && (
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shrink-0 self-start"
           >
             <Plus size={18} /> Novo Almoxarifado
           </button>
         )}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
-        <table className="w-full text-sm text-left">
+      <TableScroll className="rounded-2xl border-slate-100 dark:border-slate-800">
+        <table className="w-full min-w-[40rem] text-sm text-left">
           <thead className="bg-slate-50 dark:bg-slate-950 border-b dark:border-slate-800 text-slate-600 dark:text-slate-400 font-medium">
             <tr>
               <th className="px-4 py-4 w-8"></th>
-              <th className="px-6 py-4">Nome</th>
-              <th className="px-6 py-4">Localização</th>
-              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4 whitespace-nowrap">Nome</th>
+              <th className="px-6 py-4 whitespace-nowrap">Localização</th>
+              <th className="px-6 py-4 whitespace-nowrap">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -109,13 +110,13 @@ function Almoxarifados() {
                       <td className="px-4 py-4 text-slate-400">
                         {expandido ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                       </td>
-                      <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">
+                      <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                         {al.nome}
                       </td>
-                      <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
+                      <td className="px-6 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {al.localizacao || "-"}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${al.ativo ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"}`}>
                           {al.ativo ? "Ativo" : "Inativo"}
                         </span>
@@ -129,7 +130,8 @@ function Almoxarifados() {
                           ) : !detalhe?.destinos?.length ? (
                             <p className="text-sm text-slate-500">Nenhum material destinado a este almoxarifado após baixas.</p>
                           ) : (
-                            <table className="w-full text-xs">
+                            <div className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                            <table className="w-full min-w-[32rem] text-xs">
                               <thead className="text-slate-500">
                                 <tr>
                                   <th className="py-2 text-left font-medium">Item / Contrato</th>
@@ -157,6 +159,7 @@ function Almoxarifados() {
                                 ))}
                               </tbody>
                             </table>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -167,12 +170,12 @@ function Almoxarifados() {
             )}
           </tbody>
         </table>
-      </div>
+      </TableScroll>
 
       {isAdmin && <Dialog.Root open={isModalOpen} onOpenChange={setIsModalOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
-          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white p-6 shadow-xl sm:rounded-2xl">
+          <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white p-6 shadow-xl sm:rounded-2xl">
             <Dialog.Title className="text-xl font-semibold text-slate-800">
               Novo Almoxarifado
             </Dialog.Title>

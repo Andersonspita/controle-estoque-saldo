@@ -40,6 +40,7 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 |--------|------|-----|
 | GET | `/contratos/` | Lista contratos com itens e saldos |
 | POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN**. Sem licitação |
+| PATCH | `/contratos/{id}` | Edita cabeçalho e itens (**ADMIN**). Quantidade ≥ já baixado; item com movimentação não é removido |
 | GET | `/contratos/previsao-consumo` | Dias restantes por item (taxa diária) |
 | GET | `/notas-fiscais/` | Lista NFs |
 | POST | `/notas-fiscais/parse-xml` | Extrai dados de XML NF-e |
@@ -51,7 +52,7 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | GET | `/almoxarifados/` | Lista almoxarifados |
 | GET | `/almoxarifados/{id}` | Destinação física + saldo do contrato |
 | POST | `/almoxarifados/` | Cria almoxarifado (**ADMIN**) |
-| POST | `/fornecedores/` | Cria fornecedor (**ADMIN**) |
+| POST | `/fornecedores/` | Cria fornecedor (**ADMIN**). Campo `cnpj` aceita CPF (11 dígitos) ou CNPJ (14); grava formatado |
 | POST | `/login/access-token` | Login (público). Form `username` + `password` |
 | GET | `/users/me` | Usuário logado (`perfil`, `is_superuser`) |
 | PATCH | `/users/me` | Atualiza nome/e-mail da conta logada |
@@ -64,7 +65,9 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 
 Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token>`, exceto login e health.
 
-**Perfis:** `OPERADOR` lista, importa NF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria usuários, fornecedor, contrato e almoxarifado (`require_admin` → 403 para os demais).
+**Perfis:** `OPERADOR` lista, importa NF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria usuários, fornecedor, contrato e almoxarifado, e edita contratos (`require_admin` → 403 para os demais).
+
+Cadastro de fornecedor: UF em select e municípios pela API do IBGE (`https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome`). Valores monetários na interface usam BRL (`R$ 1.234,56`). Tabelas no mobile rolam na horizontal.
 
 ## 5. Como Executar os Testes
 
@@ -79,7 +82,8 @@ Testes relevantes do domínio:
 - `tests/test_nfe_parser.py` / `test_parse_xml_endpoint.py`
 - `tests/test_item_matcher.py`
 - `tests/test_danfe_parser.py` (rápido; usa fixture OCR)
-- `tests/test_auth.py` (401 sem token; `/health` público; OPERADOR recebe 403 em POST de cadastro e nas rotas de usuários)
+- `tests/test_auth.py` (401 sem token; `/health` público; OPERADOR recebe 403 em POST de cadastro, PATCH de contrato e nas rotas de usuários)
+- `tests/test_documento.py` (validação e formatação de CPF/CNPJ; schema `FornecedorCreate`)
 - `tests/test_parse_pdf_endpoint.py` (PDF real; OCR ~20s)
 
 Fixture DANFE: `backend/tests/fixtures/sample_danfe.pdf` (mesmo arquivo que `docs/NF 29260832183420000147550010000000691333202248.pdf`).

@@ -83,7 +83,7 @@ export function DataTable<TData, TValue>({
                 colSpan={columns.length}
                 className="h-32 text-center text-muted-foreground"
               >
-                No results found.
+                Nenhum resultado encontrado.
               </TableCell>
             </TableRow>
           )}
@@ -94,22 +94,22 @@ export function DataTable<TData, TValue>({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border-t bg-muted/20">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="text-sm text-muted-foreground">
-              Showing{" "}
+              Exibindo{" "}
               {table.getState().pagination.pageIndex *
                 table.getState().pagination.pageSize +
                 1}{" "}
-              to{" "}
+              a{" "}
               {Math.min(
                 (table.getState().pagination.pageIndex + 1) *
                   table.getState().pagination.pageSize,
                 data.length,
               )}{" "}
-              of{" "}
+              de{" "}
               <span className="font-medium text-foreground">{data.length}</span>{" "}
-              entries
+              registros
             </div>
             <div className="flex items-center gap-x-2">
-              <p className="text-sm text-muted-foreground">Rows per page</p>
+              <p className="text-sm text-muted-foreground">Linhas por página</p>
               <Select
                 value={`${table.getState().pagination.pageSize}`}
                 onValueChange={(value) => {
@@ -134,11 +134,11 @@ export function DataTable<TData, TValue>({
 
           <div className="flex items-center gap-x-6">
             <div className="flex items-center gap-x-1 text-sm text-muted-foreground">
-              <span>Page</span>
+              <span>Página</span>
               <span className="font-medium text-foreground">
                 {table.getState().pagination.pageIndex + 1}
               </span>
-              <span>of</span>
+              <span>de</span>
               <span className="font-medium text-foreground">
                 {table.getPageCount()}
               </span>

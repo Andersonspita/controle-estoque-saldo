@@ -97,7 +97,7 @@ export function ConferenciaModal({
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
           <Dialog.Title className="text-xl font-semibold text-slate-800 dark:text-slate-100">
             Conferir vínculos da NF #{nf?.numero}
           </Dialog.Title>
@@ -117,8 +117,8 @@ export function ConferenciaModal({
               <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
                 <Link2 size={16} /> NF → itens do contrato {contrato ? `${contrato.numero}/${contrato.ano}` : ""}
               </h4>
-              <div className="border rounded-lg overflow-hidden dark:border-slate-800">
-                <table className="w-full text-xs">
+              <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border dark:border-slate-800 [-webkit-overflow-scrolling:touch]">
+                <table className="w-full min-w-[36rem] text-xs">
                   <thead className="bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400">
                     <tr>
                       <th className="px-3 py-2 text-left">Item da NF</th>

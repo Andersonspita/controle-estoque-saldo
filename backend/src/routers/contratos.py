@@ -5,8 +5,8 @@ from typing import List
 
 from ..database.session import get_db
 from ..deps import get_current_active_user, require_admin
-from ..database.models import Contrato, ItemContrato
-from ..schemas import ContratoCreate, ContratoOut, ContratoDetalhadoOut, PrevisaoConsumoOut
+from ..database.models import Contrato, ItemContrato, Movimentacao
+from ..schemas import ContratoCreate, ContratoUpdate, ContratoOut, ContratoDetalhadoOut, PrevisaoConsumoOut
 from sqlalchemy import func
 from datetime import date
 
@@ -116,4 +116,102 @@ async def previsao_consumo_contratos(db: AsyncSession = Depends(get_db)):
     previsoes_sem_dias = [p for p in previsoes if p.dias_restantes is None]
     
     return previsoes_com_dias + previsoes_sem_dias
+
+
+@router.patch("/{contrato_id}", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_admin)])
+async def update_contrato(
+    contrato_id: int,
+    contrato_in: ContratoUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy.orm import selectinload
+
+    stmt = (
+        select(Contrato)
+        .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+        .where(Contrato.id == contrato_id)
+    )
+    result = await db.execute(stmt)
+    contrato = result.scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+
+    dados = contrato_in.model_dump(exclude_unset=True, exclude={"itens"})
+    for campo, valor in dados.items():
+        setattr(contrato, campo, valor)
+
+    if contrato_in.itens is not None:
+        itens_atuais = {item.id: item for item in contrato.itens}
+        ids_enviados: set[int] = set()
+        proximo_numero = max((it.numero_item or 0 for it in contrato.itens), default=0)
+
+        for item_in in contrato_in.itens:
+            if item_in.id:
+                item = itens_atuais.get(item_in.id)
+                if not item:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Item {item_in.id} não pertence a este contrato",
+                    )
+                consumido = (item.quantidade_contratada or 0) - (item.saldo_atual or 0)
+                if item_in.quantidade_contratada < consumido:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"A quantidade do item '{item.descricao}' não pode ser menor "
+                            f"do que o já baixado ({consumido})"
+                        ),
+                    )
+                item.codigo = item_in.codigo
+                item.descricao = item_in.descricao
+                item.unidade = item_in.unidade
+                item.quantidade_contratada = item_in.quantidade_contratada
+                item.valor_unitario = item_in.valor_unitario
+                item.saldo_atual = item_in.quantidade_contratada - consumido
+                ids_enviados.add(item.id)
+            else:
+                proximo_numero += 1
+                db.add(ItemContrato(
+                    contrato_id=contrato.id,
+                    numero_item=proximo_numero,
+                    codigo=item_in.codigo,
+                    descricao=item_in.descricao,
+                    unidade=item_in.unidade,
+                    quantidade_contratada=item_in.quantidade_contratada,
+                    valor_unitario=item_in.valor_unitario,
+                    saldo_atual=item_in.quantidade_contratada,
+                ))
+
+        for item_id, item in itens_atuais.items():
+            if item_id in ids_enviados:
+                continue
+            mov = await db.execute(
+                select(Movimentacao.id).where(Movimentacao.item_contrato_id == item_id).limit(1)
+            )
+            if mov.scalar_one_or_none() is not None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"O item '{item.descricao}' já teve baixa e não pode ser removido",
+                )
+            db.delete(item)
+
+        await db.flush()
+        itens_depois = (
+            await db.execute(select(ItemContrato).where(ItemContrato.contrato_id == contrato.id))
+        ).scalars().all()
+        contrato.valor_total = sum(
+            (it.quantidade_contratada or 0) * (it.valor_unitario or 0) for it in itens_depois
+        )
+
+    try:
+        await db.commit()
+        result = await db.execute(
+            select(Contrato)
+            .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+            .where(Contrato.id == contrato.id)
+        )
+        return result.scalar_one()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 

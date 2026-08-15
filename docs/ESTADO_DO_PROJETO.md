@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 15/08/2026 — Contrato sem licitação; conferência de NF; login e configurações em PT-BR
+> **Última Atualização:** 15/08/2026 — CPF/CNPJ, municípios IBGE, valores em R$, edição de contratos e scroll das grids no mobile
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -50,9 +50,13 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 
 - **Previsão de consumo:** `GET /api/v1/contratos/previsao-consumo`. Alertas de esgotamento (45 dias) no Dashboard.
 - **Cadastro de contrato:** `POST /api/v1/contratos/` persiste os itens. `saldo_atual` inicia igual à quantidade contratada. `licitacao_id` é opcional (a interface não envia).
-- **Tela Contratos:** expandir a linha mostra, por item, quantidade contratada, saldo atual e percentual restante.
+- **Edição de contrato (ADMIN):** `PATCH /api/v1/contratos/{id}` atualiza cabeçalho e itens. A quantidade contratada não pode ficar abaixo do já baixado. Item com movimentação não pode ser excluído. O `valor_total` é recalculado pelos itens. OPERADOR recebe **403**.
+- **Tela Contratos:** expandir a linha mostra, por item, quantidade contratada, saldo atual, valor unitário (R$) e percentual restante. ADMIN edita pelo botão na linha.
+- **Valores monetários:** campos de valor (unitário, totais) são exibidos e digitados em BRL (`R$ 1.234,56`). Quantidade permanece numérica.
 - **Almoxarifados:** CRUD em `/api/v1/almoxarifados/`. `GET /api/v1/almoxarifados/{id}` lista destinação física após baixas, lado a lado com o saldo do contrato.
 - **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` exige almoxarifado, deduz o saldo do item do contrato, grava movimentação e atualiza `estoque_almoxarifados`. O `usuario_id` vem do token JWT, não do corpo da requisição.
+- **Fornecedor:** o campo `cnpj` aceita **CPF (11) ou CNPJ (14)** com dígitos verificadores; a UI rotula **CPF/CNPJ**. UF em select; municípios vêm da API do IBGE (`/estados/{UF}/municipios`). Unicidade compara só os dígitos. Documentos já gravados não são revalidados na listagem.
+- **Grids no mobile:** tabelas rolam na horizontal (`overflow-x-auto`, `min-w-0` no layout). Cabeçalhos e ações (editar, conferir, baixa) não ficam cortados.
 
 ## 6. Autenticação JWT e perfis
 
@@ -63,8 +67,8 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - Frontend (`frontend/src/services/api.ts`) envia `Authorization: Bearer` a partir de `localStorage.access_token`. A origem da API ignora um `/api/v1` extra no `.env`, para o login (`/login/access-token` e `/users/me`) e o axios (`/api/v1/...`) apontarem para o mesmo backend.
 - Correção: `/users/me` deixou de usar uma SECRET_KEY dummy (que caía no primeiro usuário do banco).
 - **`GET /users/me`** devolve `perfil` (`ADMIN` ou `OPERADOR`) e `is_superuser` (`true` só para ADMIN).
-- **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos e almoxarifados.
-- **OPERADOR:** consulta cadastros, importa/parseia NF, vincula itens e dá baixa. POST de cadastro (incluindo usuários) → **403**.
+- **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos e almoxarifados; edita contratos.
+- **OPERADOR:** consulta cadastros, importa/parseia NF, vincula itens e dá baixa. POST/PATCH de cadastro (incluindo usuários e contratos) → **403**.
 - **Usuários (ADMIN):** `GET/POST /users/`, `PATCH/DELETE /users/{id}`. Perfil `ADMIN` ou `OPERADOR`; não permite excluir a própria conta nem remover o último administrador. `PATCH /users/me` e `PATCH /users/me/password` atualizam dados da conta logada.
 
 ## 7. E2E autenticado (Playwright)
@@ -76,6 +80,8 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 `compose.prod.yml` sobe Postgres (rede interna), FastAPI (`src.main:app`, rede interna) e Nginx na porta **8080** (SPA + proxy de `/api/v1`, `/login`, `/users` e `/health`). Segredos em `.env.production` (modelo: `.env.production.example`). Roteiro da VPS: `docs/GUIA_TECNICO.md` §6.
 
 ## 9. De Onde Retomar (Próximos Passos)
+
+Concluído neste ciclo: validação CPF/CNPJ no fornecedor, lookup UF→municípios IBGE, valores em real, PATCH de contratos (ADMIN) e rolagem das grids no mobile.
 
 1. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
 2. Preferir XML da NF-e ao OCR de PDF quando o XML existir.

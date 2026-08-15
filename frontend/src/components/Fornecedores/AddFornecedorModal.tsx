@@ -1,30 +1,59 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { fornecedoresService } from "../../services/api"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
-
 import * as Dialog from "@radix-ui/react-dialog"
 
-const formatCNPJ = (value: string) => {
-  return value
-    .replace(/\D/g, "")
-    .replace(/^(\d{2})(\d)/, "$1.$2")
-    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
-    .replace(/\.(\d{3})(\d)/, ".$1/$2")
-    .replace(/(\d{4})(\d)/, "$1-$2")
-    .substring(0, 18);
+import { fornecedoresService } from "../../services/api"
+import { cpfOuCnpjValido, formatarCpfCnpj } from "@/lib/documento"
+import { UFS, listarMunicipiosPorUf, type MunicipioIbge } from "@/lib/ibge"
+
+const campo = "w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-2 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 [&>option]:text-slate-900 [&>option]:dark:bg-slate-900"
+
+const formVazio = {
+  razao_social: "",
+  nome_fantasia: "",
+  cnpj: "",
+  cidade: "",
+  estado: "",
 }
 
-export function AddFornecedorModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+export function AddFornecedorModal({
+  isOpen,
+  onOpenChange,
+}: {
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const queryClient = useQueryClient()
-  const [formData, setFormData] = useState({
-    razao_social: "",
-    nome_fantasia: "",
-    cnpj: "",
-    cidade: "",
-    estado: "",
-  })
+  const [formData, setFormData] = useState(formVazio)
+  const [municipios, setMunicipios] = useState<MunicipioIbge[]>([])
+  const [carregandoCidades, setCarregandoCidades] = useState(false)
+
+  useEffect(() => {
+    if (!formData.estado) {
+      setMunicipios([])
+      return
+    }
+    let ativo = true
+    setCarregandoCidades(true)
+    listarMunicipiosPorUf(formData.estado)
+      .then((lista) => {
+        if (ativo) setMunicipios(lista)
+      })
+      .catch(() => {
+        if (ativo) {
+          setMunicipios([])
+          toast.error("Não foi possível carregar os municípios da UF")
+        }
+      })
+      .finally(() => {
+        if (ativo) setCarregandoCidades(false)
+      })
+    return () => {
+      ativo = false
+    }
+  }, [formData.estado])
 
   const mutation = useMutation({
     mutationFn: fornecedoresService.criar,
@@ -32,17 +61,21 @@ export function AddFornecedorModal({ isOpen, onOpenChange }: { isOpen: boolean, 
       toast.success("Fornecedor cadastrado com sucesso!")
       queryClient.invalidateQueries({ queryKey: ["fornecedores"] })
       onOpenChange(false)
-      setFormData({ razao_social: "", nome_fantasia: "", cnpj: "", cidade: "", estado: "" })
+      setFormData(formVazio)
     },
     onError: (error: any) => {
-      toast.error("Erro ao cadastrar Fornecedor", {
+      toast.error("Erro ao cadastrar fornecedor", {
         description: error.response?.data?.detail || error.message,
       })
-    }
+    },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!cpfOuCnpjValido(formData.cnpj)) {
+      toast.error("Informe um CPF ou CNPJ válido")
+      return
+    }
     mutation.mutate(formData)
   }
 
@@ -50,72 +83,97 @@ export function AddFornecedorModal({ isOpen, onOpenChange }: { isOpen: boolean, 
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl">
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
           <Dialog.Title className="text-xl font-semibold text-slate-800 dark:text-slate-100">
             Cadastrar Fornecedor
           </Dialog.Title>
           <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-            Insira os dados do fornecedor vencedor da licitação.
+            Informe os dados do fornecedor. O CPF/CNPJ é validado pelos dígitos verificadores.
           </Dialog.Description>
 
           <form onSubmit={handleSubmit} className="space-y-4 mt-4 text-sm">
             <div className="space-y-1">
               <label className="font-medium text-slate-700 dark:text-slate-300">Razão Social *</label>
-              <input 
+              <input
                 required
                 value={formData.razao_social}
-                onChange={e => setFormData({...formData, razao_social: e.target.value})}
-                className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-2 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500" 
+                onChange={(e) => setFormData({ ...formData, razao_social: e.target.value })}
+                className={campo}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="font-medium text-slate-700 dark:text-slate-300">CNPJ *</label>
-                <input 
+                <label className="font-medium text-slate-700 dark:text-slate-300">CPF/CNPJ *</label>
+                <input
                   required
                   value={formData.cnpj}
-                  onChange={e => setFormData({...formData, cnpj: formatCNPJ(e.target.value)})}
-                  placeholder="00.000.000/0000-00"
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-2 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500" 
+                  onChange={(e) => setFormData({ ...formData, cnpj: formatarCpfCnpj(e.target.value) })}
+                  placeholder="CPF ou CNPJ"
+                  className={campo}
                 />
               </div>
               <div className="space-y-1">
                 <label className="font-medium text-slate-700 dark:text-slate-300">Nome Fantasia</label>
-                <input 
+                <input
                   value={formData.nome_fantasia}
-                  onChange={e => setFormData({...formData, nome_fantasia: e.target.value})}
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-2 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500" 
+                  onChange={(e) => setFormData({ ...formData, nome_fantasia: e.target.value })}
+                  className={campo}
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="font-medium text-slate-700 dark:text-slate-300">Cidade</label>
-                <input 
-                  value={formData.cidade}
-                  onChange={e => setFormData({...formData, cidade: e.target.value})}
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-2 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="font-medium text-slate-700 dark:text-slate-300">Estado (UF)</label>
-                <input 
+                <select
                   value={formData.estado}
-                  maxLength={2}
-                  onChange={e => setFormData({...formData, estado: e.target.value.toUpperCase()})}
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-2 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500" 
-                />
+                  onChange={(e) =>
+                    setFormData({ ...formData, estado: e.target.value, cidade: "" })
+                  }
+                  className={campo}
+                >
+                  <option value="">Selecione a UF</option>
+                  {UFS.map((uf) => (
+                    <option key={uf.sigla} value={uf.sigla}>
+                      {uf.sigla} — {uf.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="font-medium text-slate-700 dark:text-slate-300">Município</label>
+                <select
+                  value={formData.cidade}
+                  onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
+                  disabled={!formData.estado || carregandoCidades}
+                  className={campo}
+                >
+                  <option value="">
+                    {!formData.estado
+                      ? "Selecione a UF primeiro"
+                      : carregandoCidades
+                        ? "Carregando..."
+                        : "Selecione o município"}
+                  </option>
+                  {municipios.map((m) => (
+                    <option key={m.id} value={m.nome}>
+                      {m.nome}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 mt-6">
               <Dialog.Close asChild>
-                <button type="button" className="px-4 py-2 font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors">
+                <button
+                  type="button"
+                  className="px-4 py-2 font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                >
                   Cancelar
                 </button>
               </Dialog.Close>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={mutation.isPending}
                 className="px-4 py-2 font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-md flex items-center gap-2"
               >
