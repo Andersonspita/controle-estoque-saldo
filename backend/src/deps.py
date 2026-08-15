@@ -50,4 +50,25 @@ async def get_current_active_user(
     return current_user
 
 
+def _perfil(user: Usuario) -> str:
+    return (user.perfil or "").strip().upper()
+
+
+def is_admin(user: Usuario) -> bool:
+    return _perfil(user) == "ADMIN"
+
+
+async def require_admin(
+    current_user: Annotated[Usuario, Depends(get_current_active_user)],
+) -> Usuario:
+    if not is_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas administradores podem executar esta operação",
+        )
+    return current_user
+
+
 CurrentUser = Annotated[Usuario, Depends(get_current_active_user)]
+RequireAdmin = Annotated[Usuario, Depends(require_admin)]
+

@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 from typing import List
 
 from ..database.session import get_db
-from ..deps import get_current_active_user
+from ..deps import get_current_active_user, require_admin
 from ..database.models import Contrato, ItemContrato
 from ..schemas import ContratoCreate, ContratoOut, ContratoDetalhadoOut, PrevisaoConsumoOut
 from sqlalchemy import func
@@ -16,7 +16,7 @@ router = APIRouter(
     dependencies=[Depends(get_current_active_user)],
 )
 
-@router.post("/", response_model=ContratoOut)
+@router.post("/", response_model=ContratoOut, dependencies=[Depends(require_admin)])
 async def create_contrato(contrato: ContratoCreate, db: AsyncSession = Depends(get_db)):
     dados_contrato = contrato.model_dump(exclude={"itens"})
     db_contrato = Contrato(**dados_contrato)

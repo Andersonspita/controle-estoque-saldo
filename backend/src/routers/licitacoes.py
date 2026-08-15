@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 from typing import List
 
 from ..database.session import get_db
-from ..deps import get_current_active_user
+from ..deps import get_current_active_user, require_admin
 from ..database.models import Licitacao
 from ..schemas import LicitacaoCreate, LicitacaoUpdate, LicitacaoOut
 
@@ -14,7 +14,7 @@ router = APIRouter(
     dependencies=[Depends(get_current_active_user)],
 )
 
-@router.post("/", response_model=LicitacaoOut)
+@router.post("/", response_model=LicitacaoOut, dependencies=[Depends(require_admin)])
 async def create_licitacao(licitacao: LicitacaoCreate, db: AsyncSession = Depends(get_db)):
     db_lic = Licitacao(**licitacao.model_dump())
     db.add(db_lic)

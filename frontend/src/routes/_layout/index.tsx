@@ -48,7 +48,10 @@ function Dashboard() {
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+        <h1
+          data-testid="dashboard-greeting"
+          className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight"
+        >
           Olá, {currentUser?.full_name || currentUser?.email} 👋
         </h1>
         <p className="text-muted-foreground mt-1 dark:text-slate-400">

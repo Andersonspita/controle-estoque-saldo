@@ -1,0 +1,21 @@
+import { expect, test } from "@playwright/test"
+
+test("administrador entra no dashboard autenticado", async ({ page }) => {
+  await page.goto("/")
+  await expect(page).not.toHaveURL(/\/login/)
+  await expect(page.getByTestId("dashboard-greeting")).toBeVisible()
+  await expect(
+    page.getByText(/visão geral do controle de saldo/i),
+  ).toBeVisible()
+  await expect(page.getByRole("link", { name: "Admin" })).toBeVisible({
+    timeout: 15_000,
+  })
+})
+
+test("administrador vê o cadastro de contrato", async ({ page }) => {
+  await page.goto("/contratos")
+  await expect(page.getByRole("heading", { name: /contratos/i })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Novo Contrato" })).toBeVisible({
+    timeout: 15_000,
+  })
+})
