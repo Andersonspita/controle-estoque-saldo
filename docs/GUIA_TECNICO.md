@@ -69,6 +69,8 @@ Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token
 
 Cadastro de fornecedor: UF em select e municípios pela API do IBGE (`https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome`). Valores monetários na interface usam BRL (`R$ 1.234,56`). Tabelas no mobile rolam na horizontal.
 
+Cadastro/edição de contrato: itens podem ser digitados ou importados de planilha (`.xlsx`, `.xls`, `.csv` ou `.ods`) no modal. Colunas reconhecidas: descrição/item/produto (obrigatória), código, unidade, quantidade e valor unitário. Números no formato BR (`1.234,56`) são aceitos. Há **Baixar modelo** (CSV). Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON.
+
 ## 5. Como Executar os Testes
 
 ### Backend

@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 15/08/2026 — CPF/CNPJ, municípios IBGE, valores em R$, edição de contratos e scroll das grids no mobile
+> **Última Atualização:** 15/08/2026 — importação de planilha nos itens do contrato
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -49,7 +49,7 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 ## 5. Etapa 2 — Previsão, contratos e destinação
 
 - **Previsão de consumo:** `GET /api/v1/contratos/previsao-consumo`. Alertas de esgotamento (45 dias) no Dashboard.
-- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste os itens. `saldo_atual` inicia igual à quantidade contratada. `licitacao_id` é opcional (a interface não envia).
+- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste os itens. `saldo_atual` inicia igual à quantidade contratada. `licitacao_id` é opcional (a interface não envia). No modal, os itens podem ser **digitados** ou **importados de planilha** (`.xlsx` / `.csv`); há um modelo CSV para baixar. Colunas esperadas: descrição (obrigatória), código, unidade, quantidade e valor unitário. Na edição, a importação **acrescenta** itens novos (não substitui os que já existem).
 - **Edição de contrato (ADMIN):** `PATCH /api/v1/contratos/{id}` atualiza cabeçalho e itens. A quantidade contratada não pode ficar abaixo do já baixado. Item com movimentação não pode ser excluído. O `valor_total` é recalculado pelos itens. OPERADOR recebe **403**.
 - **Tela Contratos:** expandir a linha mostra, por item, quantidade contratada, saldo atual, valor unitário (R$) e percentual restante. ADMIN edita pelo botão na linha.
 - **Valores monetários:** campos de valor (unitário, totais) são exibidos e digitados em BRL (`R$ 1.234,56`). Quantidade permanece numérica.
@@ -81,7 +81,7 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo: validação CPF/CNPJ no fornecedor, lookup UF→municípios IBGE, valores em real, PATCH de contratos (ADMIN) e rolagem das grids no mobile.
+Concluído neste ciclo: importação de itens do contrato por planilha (.xlsx/.csv), com modelo para download, além da digitação manual.
 
 1. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
 2. Preferir XML da NF-e ao OCR de PDF quando o XML existir.

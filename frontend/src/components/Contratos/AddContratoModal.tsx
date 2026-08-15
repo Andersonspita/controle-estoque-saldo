@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { Download, FileSpreadsheet, Loader2, Plus, Trash2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
 import { contratosService, fornecedoresService } from "../../services/api"
 import { formatarCpfCnpj } from "@/lib/documento"
 import { formatarMoeda } from "@/lib/money"
+import {
+  baixarModeloPlanilhaItens,
+  lerItensDeArquivo,
+} from "@/lib/planilhaItensContrato"
 import { MoneyInput } from "@/components/ui/money-input"
 
 type ItemForm = {
@@ -55,6 +59,8 @@ export function AddContratoModal({
     situacao: "Ativo",
   })
   const [itens, setItens] = useState<ItemForm[]>([itemVazio()])
+  const [importando, setImportando] = useState(false)
+  const planilhaRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!isOpen) return
@@ -107,6 +113,37 @@ export function AddContratoModal({
   })
 
   const addItem = () => setItens([...itens, itemVazio()])
+
+  const importarPlanilha = async (arquivo?: File | null) => {
+    if (!arquivo) return
+    setImportando(true)
+    try {
+      const importados = await lerItensDeArquivo(arquivo)
+      if (!importados.length) {
+        toast.error("Nenhum item encontrado na planilha", {
+          description: "Confira o modelo: descrição, quantidade e valor unitário.",
+        })
+        return
+      }
+      setItens((atuais) => {
+        const soRascunho = atuais.every((item) => !item.id && !item.descricao.trim())
+        if (soRascunho) return importados
+        return [...atuais, ...importados]
+      })
+      toast.success(
+        `${importados.length} ${importados.length === 1 ? "item importado" : "itens importados"}`,
+        { description: "Revise os dados antes de salvar o contrato." },
+      )
+    } catch (erro: any) {
+      toast.error("Não foi possível ler a planilha", {
+        description: erro?.message || "Use o modelo CSV ou um arquivo .xlsx.",
+      })
+    } finally {
+      setImportando(false)
+      if (planilhaRef.current) planilhaRef.current.value = ""
+    }
+  }
+
   const removeItem = (index: number) => {
     const item = itens[index]
     const consumido =
@@ -149,7 +186,8 @@ export function AddContratoModal({
             {editando ? "Editar Contrato" : "Novo Contrato"}
           </Dialog.Title>
           <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-            Cadastre os dados do contrato e os itens previstos. Valores unitários em reais.
+            Cadastre os dados do contrato e os itens previstos. Você pode digitar os itens
+            ou importar uma planilha (.xlsx ou .csv). Valores unitários em reais.
           </Dialog.Description>
 
           <form onSubmit={handleSubmit} className="space-y-6 mt-2 text-sm">
@@ -209,15 +247,44 @@ export function AddContratoModal({
             </div>
 
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex justify-between items-center mb-4 gap-3">
+              <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
                 <h3 className="font-semibold text-slate-800 dark:text-slate-200">Itens do Contrato</h3>
-                <button
-                  type="button"
-                  onClick={addItem}
-                  className="text-blue-600 hover:text-blue-700 text-xs font-medium flex items-center gap-1 shrink-0"
-                >
-                  <Plus size={14} /> Adicionar Item
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={baixarModeloPlanilhaItens}
+                    className="text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 text-xs font-medium flex items-center gap-1"
+                  >
+                    <Download size={14} /> Baixar modelo
+                  </button>
+                  <input
+                    ref={planilhaRef}
+                    type="file"
+                    accept=".xlsx,.xls,.csv,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                    className="hidden"
+                    onChange={(e) => importarPlanilha(e.target.files?.[0])}
+                  />
+                  <button
+                    type="button"
+                    disabled={importando}
+                    onClick={() => planilhaRef.current?.click()}
+                    className="text-blue-600 hover:text-blue-700 disabled:opacity-50 text-xs font-medium flex items-center gap-1"
+                  >
+                    {importando ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <FileSpreadsheet size={14} />
+                    )}
+                    Importar planilha
+                  </button>
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    className="text-blue-600 hover:text-blue-700 text-xs font-medium flex items-center gap-1 shrink-0"
+                  >
+                    <Plus size={14} /> Digitar item
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-3">
