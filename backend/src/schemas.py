@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, computed_field, field_validator
 from typing import Optional, List
 from datetime import date, datetime
 
@@ -11,6 +11,11 @@ class AlmoxarifadoBase(BaseModel):
 
 class AlmoxarifadoCreate(AlmoxarifadoBase):
     pass
+
+class AlmoxarifadoUpdate(BaseModel):
+    nome: Optional[str] = None
+    localizacao: Optional[str] = None
+    ativo: Optional[bool] = None
 
 class AlmoxarifadoOut(AlmoxarifadoBase):
     id: int
@@ -80,6 +85,13 @@ class FornecedorUpdate(BaseModel):
             return formatar_cpf_cnpj(valor)
         except ValueError as exc:
             raise ValueError("CPF ou CNPJ inválido") from exc
+
+    @field_validator("estado")
+    @classmethod
+    def normalizar_uf(cls, valor: Optional[str]) -> Optional[str]:
+        if valor is None or valor.strip() == "":
+            return None
+        return valor.strip().upper()[:2]
 
 class FornecedorOut(FornecedorBase):
     id: int
@@ -162,9 +174,24 @@ class ItemContratoOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @computed_field
+    @property
+    def valor_contratado(self) -> float:
+        return round((self.quantidade_contratada or 0) * (self.valor_unitario or 0), 2)
+
+    @computed_field
+    @property
+    def saldo_monetario(self) -> float:
+        return round((self.saldo_atual or 0) * (self.valor_unitario or 0), 2)
+
 class ContratoDetalhadoOut(ContratoOut):
     fornecedor: Optional[FornecedorOut] = None
     itens: List[ItemContratoOut] = []
+
+    @computed_field
+    @property
+    def saldo_atual(self) -> float:
+        return round(sum(item.saldo_monetario for item in self.itens), 2)
 
 class ItemNFEntrada(BaseModel):
     codigo: Optional[str] = None
@@ -231,6 +258,11 @@ class NotaFiscalOut(NotaFiscalCreate):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @computed_field
+    @property
+    def tem_arquivo(self) -> bool:
+        return bool(self.arquivo_pdf_path)
+
 class ItemVinculoUpdate(BaseModel):
     id: int
     item_contrato_id: int
@@ -265,6 +297,8 @@ class PrevisaoConsumoOut(BaseModel):
     item_id: int
     item_descricao: str
     saldo_atual: float
+    valor_unitario: float = 0
+    saldo_monetario: float = 0
     total_baixado: float
     taxa_diaria: float
     dias_restantes: Optional[int] = None

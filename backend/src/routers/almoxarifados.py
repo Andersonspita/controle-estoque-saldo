@@ -5,7 +5,13 @@ from typing import List
 from ..database.session import get_db
 from ..deps import get_current_active_user, require_admin
 from ..database.models import Almoxarifado, EstoqueAlmoxarifado, ItemContrato
-from ..schemas import AlmoxarifadoCreate, AlmoxarifadoOut, AlmoxarifadoDetalhadoOut, DestinacaoItemOut
+from ..schemas import (
+    AlmoxarifadoCreate,
+    AlmoxarifadoUpdate,
+    AlmoxarifadoOut,
+    AlmoxarifadoDetalhadoOut,
+    DestinacaoItemOut,
+)
 
 router = APIRouter(
     prefix="/api/v1/almoxarifados",
@@ -32,7 +38,7 @@ async def get_almoxarifado(almoxarifado_id: int, db: AsyncSession = Depends(get_
     result_alm = await db.execute(stmt_alm)
     almoxarifado = result_alm.scalar_one_or_none()
     if not almoxarifado:
-        raise HTTPException(status_code=404, detail="Almoxarifado não encontrado")
+        raise HTTPException(status_code=404, detail="Órgão não encontrado")
 
     stmt = (
         select(EstoqueAlmoxarifado)
@@ -76,3 +82,25 @@ async def create_almoxarifado(almoxarifado: AlmoxarifadoCreate, db: AsyncSession
     await db.commit()
     await db.refresh(db_almoxarifado)
     return db_almoxarifado
+
+
+@router.patch("/{almoxarifado_id}", response_model=AlmoxarifadoOut, dependencies=[Depends(require_admin)])
+async def update_almoxarifado(
+    almoxarifado_id: int,
+    almoxarifado_in: AlmoxarifadoUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy.future import select
+
+    result = await db.execute(select(Almoxarifado).where(Almoxarifado.id == almoxarifado_id))
+    almoxarifado = result.scalar_one_or_none()
+    if not almoxarifado:
+        raise HTTPException(status_code=404, detail="Órgão não encontrado")
+
+    dados = almoxarifado_in.model_dump(exclude_unset=True)
+    for campo, valor in dados.items():
+        setattr(almoxarifado, campo, valor)
+
+    await db.commit()
+    await db.refresh(almoxarifado)
+    return almoxarifado

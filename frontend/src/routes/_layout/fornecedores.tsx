@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { fornecedoresService } from "../../services/api"
-import { Truck, Plus } from "lucide-react"
+import { Pencil, Plus, Truck } from "lucide-react"
 import { AddFornecedorModal } from "../../components/Fornecedores/AddFornecedorModal"
 import useAuth from "../../hooks/useAuth"
 import { pageTitle } from "@/lib/brand"
@@ -18,12 +18,16 @@ export const Route = createFileRoute("/_layout/fornecedores")({
 
 function FornecedoresPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [fornecedorEdicao, setFornecedorEdicao] = useState<any | null>(null)
   const { isAdmin } = useAuth()
+  const modalAberto = isAddModalOpen || !!fornecedorEdicao
 
   const { data: fornecedores = [], isLoading } = useQuery({
     queryKey: ["fornecedores"],
     queryFn: () => fornecedoresService.listar(),
   })
+
+  const colunas = isAdmin ? 6 : 5
 
   return (
     <div className="min-w-0 space-y-6 animate-in fade-in duration-500">
@@ -38,7 +42,10 @@ function FornecedoresPage() {
         </div>
         {isAdmin && (
           <button
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              setFornecedorEdicao(null)
+              setIsAddModalOpen(true)
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all flex gap-2 items-center px-4 py-2 rounded-md font-medium text-sm shrink-0 self-start"
           >
             <Plus size={18} />
@@ -48,7 +55,7 @@ function FornecedoresPage() {
       </div>
 
       <TableScroll>
-        <table className="w-full min-w-[44rem] text-sm text-left">
+        <table className="w-full min-w-[48rem] text-sm text-left">
           <thead className="bg-slate-50 dark:bg-slate-950 border-b dark:border-slate-800 text-slate-600 dark:text-slate-400 font-medium">
             <tr>
               <th className="px-6 py-4 whitespace-nowrap">ID</th>
@@ -56,6 +63,7 @@ function FornecedoresPage() {
               <th className="px-6 py-4 whitespace-nowrap">CPF/CNPJ</th>
               <th className="px-6 py-4 whitespace-nowrap">Localização</th>
               <th className="px-6 py-4 whitespace-nowrap">Status</th>
+              {isAdmin && <th className="px-6 py-4 text-right whitespace-nowrap">Ações</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -72,18 +80,43 @@ function FornecedoresPage() {
                     {forn.ativo ? 'Ativo' : 'Inativo'}
                   </span>
                 </td>
+                {isAdmin && (
+                  <td className="px-6 py-4 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddModalOpen(false)
+                        setFornecedorEdicao(forn)
+                      }}
+                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                    >
+                      <Pencil size={14} /> Editar
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
             {fornecedores.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Nenhum fornecedor cadastrado.</td>
+                <td colSpan={colunas} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Nenhum fornecedor cadastrado.</td>
               </tr>
             )}
           </tbody>
         </table>
       </TableScroll>
 
-      {isAdmin && <AddFornecedorModal isOpen={isAddModalOpen} onOpenChange={setIsAddModalOpen} />}
+      {isAdmin && (
+        <AddFornecedorModal
+          isOpen={modalAberto}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsAddModalOpen(false)
+              setFornecedorEdicao(null)
+            }
+          }}
+          fornecedor={fornecedorEdicao}
+        />
+      )}
     </div>
   )
 }

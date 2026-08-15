@@ -16,19 +16,39 @@ const formVazio = {
   cnpj: "",
   cidade: "",
   estado: "",
+  ativo: true,
 }
 
 export function AddFornecedorModal({
   isOpen,
   onOpenChange,
+  fornecedor,
 }: {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
+  fornecedor?: any | null
 }) {
   const queryClient = useQueryClient()
+  const editando = Boolean(fornecedor?.id)
   const [formData, setFormData] = useState(formVazio)
   const [municipios, setMunicipios] = useState<MunicipioIbge[]>([])
   const [carregandoCidades, setCarregandoCidades] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (fornecedor) {
+      setFormData({
+        razao_social: fornecedor.razao_social || "",
+        nome_fantasia: fornecedor.nome_fantasia || "",
+        cnpj: formatarCpfCnpj(fornecedor.cnpj || ""),
+        cidade: fornecedor.cidade || "",
+        estado: (fornecedor.estado || "").toUpperCase(),
+        ativo: fornecedor.ativo !== false,
+      })
+    } else {
+      setFormData(formVazio)
+    }
+  }, [isOpen, fornecedor])
 
   useEffect(() => {
     if (!formData.estado) {
@@ -56,15 +76,18 @@ export function AddFornecedorModal({
   }, [formData.estado])
 
   const mutation = useMutation({
-    mutationFn: fornecedoresService.criar,
+    mutationFn: (dados: typeof formData) =>
+      editando
+        ? fornecedoresService.atualizar(fornecedor.id, dados)
+        : fornecedoresService.criar(dados),
     onSuccess: () => {
-      toast.success("Fornecedor cadastrado com sucesso!")
+      toast.success(editando ? "Fornecedor atualizado" : "Fornecedor cadastrado com sucesso!")
       queryClient.invalidateQueries({ queryKey: ["fornecedores"] })
       onOpenChange(false)
       setFormData(formVazio)
     },
     onError: (error: any) => {
-      toast.error("Erro ao cadastrar fornecedor", {
+      toast.error(editando ? "Erro ao atualizar fornecedor" : "Erro ao cadastrar fornecedor", {
         description: error.response?.data?.detail || error.message,
       })
     },
@@ -85,7 +108,7 @@ export function AddFornecedorModal({
         <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
         <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
           <Dialog.Title className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-            Cadastrar Fornecedor
+            {editando ? "Editar Fornecedor" : "Cadastrar Fornecedor"}
           </Dialog.Title>
           <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
             Informe os dados do fornecedor. O CPF/CNPJ é validado pelos dígitos verificadores.
@@ -162,6 +185,16 @@ export function AddFornecedorModal({
                 </select>
               </div>
             </div>
+            {editando && (
+              <label className="flex items-center gap-2 font-medium text-slate-700 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={formData.ativo}
+                  onChange={(e) => setFormData({ ...formData, ativo: e.target.checked })}
+                />
+                Fornecedor ativo
+              </label>
+            )}
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 mt-6">
               <Dialog.Close asChild>
@@ -178,7 +211,7 @@ export function AddFornecedorModal({
                 className="px-4 py-2 font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-md flex items-center gap-2"
               >
                 {mutation.isPending && <Loader2 size={16} className="animate-spin" />}
-                Salvar Fornecedor
+                {editando ? "Salvar alterações" : "Salvar Fornecedor"}
               </button>
             </div>
           </form>

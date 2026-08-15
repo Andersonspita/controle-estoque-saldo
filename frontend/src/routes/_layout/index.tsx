@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { contratosService, movimentacoesService } from "../../services/api"
-import { DollarSign, FileText, Activity, AlertCircle, ArrowDownRight, CheckCircle2 } from "lucide-react"
+import { DollarSign, FileText, Activity, AlertCircle, ArrowDownRight, CheckCircle2, Wallet } from "lucide-react"
 
 import useAuth from "../../hooks/useAuth"
 import { pageTitle } from "@/lib/brand"
-import { formatarMoeda } from "@/lib/money"
+import { formatarMoeda, totaisContrato } from "@/lib/money"
 import { TableScroll } from "@/components/ui/table-scroll"
 
 export const Route = createFileRoute("/_layout/")({
@@ -37,12 +37,20 @@ function Dashboard() {
     queryFn: () => contratosService.previsaoConsumo(),
   })
 
-  // Calculate total balance from all items of all contracts
-  const totalSaldos = contratos.reduce((acc: number, c: any) => {
-    return acc + (c.itens?.reduce((itemAcc: number, item: any) => itemAcc + (item.saldo_atual || 0), 0) || 0)
-  }, 0)
-  
-  const totalContratosValor = contratos.reduce((acc: number, c: any) => acc + (c.valor_total || 0), 0)
+  const contratosAtivos = contratos.filter((c: any) => c.situacao === "Ativo")
+  const totais = contratosAtivos.reduce(
+    (acc: ReturnType<typeof totaisContrato>, c: any) => {
+      const t = totaisContrato(c)
+      return {
+        valorContratado: acc.valorContratado + t.valorContratado,
+        saldoAtual: acc.saldoAtual + t.saldoAtual,
+        consumido: acc.consumido + t.consumido,
+        qtdSaldo: acc.qtdSaldo + t.qtdSaldo,
+        qtdContratada: acc.qtdContratada + t.qtdContratada,
+      }
+    },
+    { valorContratado: 0, saldoAtual: 0, consumido: 0, qtdSaldo: 0, qtdContratada: 0 },
+  )
 
   const ultimasMovimentacoes = movimentacoes.slice(0, 5)
   const itensEmAlerta = previsoes.filter((p: any) => p.dias_restantes !== null && p.dias_restantes <= 45).slice(0, 5)
@@ -62,36 +70,49 @@ function Dashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col gap-4 transition-colors">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total de Contratos (Ativos)</h3>
+            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Contratos ativos</h3>
             <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
               <FileText size={20} />
             </div>
           </div>
           <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">
-            {loadingContratos ? "..." : contratos.length}
+            {loadingContratos ? "..." : contratosAtivos.length}
           </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-            <AlertCircle size={12} />
-            {formatarMoeda(totalContratosValor)} empenhados
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            Valor contratado {loadingContratos ? "..." : formatarMoeda(totais.valorContratado)}
           </div>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col gap-4 transition-colors">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Saldo Disponível (Itens)</h3>
+            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Saldo atual</h3>
             <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
+              <Wallet size={20} />
+            </div>
+          </div>
+          <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+            {loadingContratos ? "..." : formatarMoeda(totais.saldoAtual)}
+          </div>
+          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+            {totais.qtdSaldo.toLocaleString("pt-BR")} unidades restantes
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col gap-4 transition-colors">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Valor baixado</h3>
+            <div className="p-2 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg">
               <DollarSign size={20} />
             </div>
           </div>
           <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">
-            {loadingContratos ? "..." : totalSaldos.toLocaleString('pt-BR')} 
-            <span className="text-base font-normal text-slate-500 dark:text-slate-400 ml-1">unidades</span>
+            {loadingContratos ? "..." : formatarMoeda(totais.consumido)}
           </div>
-          <div className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-            Saldos reais deduzidos
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            Consumido do valor contratado
           </div>
         </div>
 
@@ -176,8 +197,11 @@ function Dashboard() {
                     <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
                       {prev.contrato_numero}
                     </td>
-                    <td className="px-6 py-4 font-medium">
-                      {prev.saldo_atual}
+                    <td className="px-6 py-4 font-medium whitespace-nowrap">
+                      {formatarMoeda(prev.saldo_monetario ?? 0)}
+                      <span className="block text-xs font-normal text-slate-400">
+                        {prev.saldo_atual} unid.
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${

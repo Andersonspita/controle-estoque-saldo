@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
@@ -30,6 +31,35 @@ async def list_notas_fiscais(skip: int = 0, limit: int = 100, db: AsyncSession =
     stmt = select(NotaFiscal).options(selectinload(NotaFiscal.itens)).order_by(NotaFiscal.criado_em.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
+
+@router.get("/{nf_id}/arquivo")
+async def baixar_arquivo_nf(nf_id: int, db: AsyncSession = Depends(get_db)):
+    from sqlalchemy.future import select
+
+    result = await db.execute(select(NotaFiscal).where(NotaFiscal.id == nf_id))
+    nf = result.scalar_one_or_none()
+    if not nf:
+        raise HTTPException(status_code=404, detail="Nota fiscal não encontrada")
+    if not nf.arquivo_pdf_path:
+        raise HTTPException(status_code=404, detail="Arquivo da nota fiscal não disponível")
+
+    caminho = os.path.abspath(nf.arquivo_pdf_path)
+    pasta_uploads = os.path.abspath(UPLOAD_DIR)
+    try:
+        comum = os.path.commonpath([caminho, pasta_uploads])
+    except ValueError:
+        comum = ""
+    if comum != pasta_uploads or not os.path.isfile(caminho):
+        raise HTTPException(status_code=404, detail="Arquivo da nota fiscal não encontrado")
+
+    nome = os.path.basename(caminho)
+    prefixo, _, resto = nome.partition("_")
+    if resto and prefixo.isdigit():
+        nome = resto
+    media = "application/pdf" if nome.lower().endswith(".pdf") else None
+    if nome.lower().endswith(".xml"):
+        media = "application/xml"
+    return FileResponse(caminho, filename=nome, media_type=media)
 
 @router.patch("/{nf_id}/vinculos", response_model=NotaFiscalOut)
 async def atualizar_vinculos_nf(

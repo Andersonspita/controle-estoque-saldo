@@ -106,6 +106,20 @@ async def test_operador_nao_edita_contrato(async_client: AsyncClient, as_operado
 
 
 @pytest.mark.asyncio
+async def test_operador_nao_edita_fornecedor(async_client: AsyncClient, as_operador):
+    response = await async_client.patch("/api/v1/fornecedores/1", json={"razao_social": "X"})
+    assert response.status_code == 403
+    assert "administradores" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_operador_nao_edita_orgao(async_client: AsyncClient, as_operador):
+    response = await async_client.patch("/api/v1/almoxarifados/1", json={"nome": "X"})
+    assert response.status_code == 403
+    assert "administradores" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_fornecedor_documento_invalido_rejeitado(async_client: AsyncClient):
     response = await async_client.post(
         "/api/v1/fornecedores/",
@@ -145,3 +159,9 @@ async def test_operador_pode_parsear_xml(async_client: AsyncClient, as_operador)
     )
     assert response.status_code == 200
     assert response.json()["numero"] == "12345"
+
+
+@pytest.mark.asyncio
+async def test_download_arquivo_nf_inexistente(async_client: AsyncClient):
+    response = await async_client.get("/api/v1/notas-fiscais/999999/arquivo")
+    assert response.status_code == 404

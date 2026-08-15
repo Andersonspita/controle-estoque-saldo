@@ -55,3 +55,31 @@ async def get_fornecedor(fornecedor_id: int, db: AsyncSession = Depends(get_db))
     if not forn:
         raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
     return forn
+
+
+@router.patch("/{fornecedor_id}", response_model=FornecedorOut, dependencies=[Depends(require_admin)])
+async def update_fornecedor(
+    fornecedor_id: int,
+    fornecedor_in: FornecedorUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Fornecedor).where(Fornecedor.id == fornecedor_id))
+    forn = result.scalars().first()
+    if not forn:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+
+    dados = fornecedor_in.model_dump(exclude_unset=True)
+    if "cnpj" in dados and dados["cnpj"]:
+        if await _cnpj_em_uso(db, dados["cnpj"], exclude_id=fornecedor_id):
+            raise HTTPException(status_code=400, detail="Já existe um fornecedor com este CPF/CNPJ")
+
+    for campo, valor in dados.items():
+        setattr(forn, campo, valor)
+
+    try:
+        await db.commit()
+        await db.refresh(forn)
+        return forn
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))

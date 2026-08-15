@@ -5,7 +5,8 @@ import { BaixaModal } from "../../components/NotasFiscais/BaixaModal"
 import { ConferenciaModal } from "../../components/NotasFiscais/ConferenciaModal"
 import { useQuery } from "@tanstack/react-query"
 import { notasFiscaisService } from "../../services/api"
-import { FileText, Link2, Play } from "lucide-react"
+import { Download, FileText, Link2, Play } from "lucide-react"
+import { toast } from "sonner"
 import { pageTitle } from "@/lib/brand"
 import { formatarMoeda } from "@/lib/money"
 import { TableScroll } from "@/components/ui/table-scroll"
@@ -21,11 +22,35 @@ function NotasFiscaisPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [baixaModalNF, setBaixaModalNF] = useState<any | null>(null)
   const [conferenciaNF, setConferenciaNF] = useState<any | null>(null)
+  const [baixandoId, setBaixandoId] = useState<number | null>(null)
 
   const { data: notas = [], isLoading } = useQuery({
     queryKey: ["notas-fiscais"],
     queryFn: () => notasFiscaisService.listar(),
   })
+
+  const baixarArquivo = async (nf: any) => {
+    setBaixandoId(nf.id)
+    try {
+      await notasFiscaisService.downloadArquivo(nf)
+    } catch (erro: any) {
+      let descricao = erro.message
+      const data = erro.response?.data
+      if (data instanceof Blob) {
+        try {
+          const parsed = JSON.parse(await data.text())
+          descricao = parsed.detail || descricao
+        } catch {
+          /* ignore */
+        }
+      } else if (data?.detail) {
+        descricao = data.detail
+      }
+      toast.error("Não foi possível baixar o arquivo da nota", { description: descricao })
+    } finally {
+      setBaixandoId(null)
+    }
+  }
 
   return (
     <div className="min-w-0 space-y-6 animate-in fade-in duration-500">
@@ -70,22 +95,34 @@ function NotasFiscaisPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right whitespace-nowrap">
-                  {nf.status !== "Baixada" && (
-                    <div className="flex items-center justify-end gap-3">
+                  <div className="flex items-center justify-end gap-3">
+                    {nf.tem_arquivo !== false && (
                       <button
-                        onClick={() => setConferenciaNF(nf)}
-                        className="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-sm flex items-center gap-1 transition-colors"
+                        type="button"
+                        disabled={baixandoId === nf.id}
+                        onClick={() => baixarArquivo(nf)}
+                        className="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 font-medium text-sm flex items-center gap-1 transition-colors"
                       >
-                        <Link2 size={14} /> Conferir vínculos
+                        <Download size={14} /> {baixandoId === nf.id ? "Baixando..." : "Baixar PDF"}
                       </button>
-                      <button
-                        onClick={() => setBaixaModalNF(nf)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm flex items-center gap-1 transition-colors"
-                      >
-                        <Play size={14} /> Executar Baixa
-                      </button>
-                    </div>
-                  )}
+                    )}
+                    {nf.status !== "Baixada" && (
+                      <>
+                        <button
+                          onClick={() => setConferenciaNF(nf)}
+                          className="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-sm flex items-center gap-1 transition-colors"
+                        >
+                          <Link2 size={14} /> Conferir vínculos
+                        </button>
+                        <button
+                          onClick={() => setBaixaModalNF(nf)}
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm flex items-center gap-1 transition-colors"
+                        >
+                          <Play size={14} /> Executar Baixa
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
