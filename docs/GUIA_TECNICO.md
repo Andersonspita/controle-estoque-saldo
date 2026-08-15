@@ -104,7 +104,7 @@ Relatório HTML: `npx playwright show-report`.
 
 ## 6. Deploy na VPS (banco, API e frontend separados)
 
-O Compose de produção é `compose.prod.yml`. Só o Nginx publica a **porta 80**. Postgres e FastAPI ficam na rede interna do Docker.
+O Compose de produção é `compose.prod.yml`. Postgres e FastAPI ficam na rede interna. O Nginx publica `${HTTP_PORT}` (padrão **8080**), para não disputar a porta 80 de painéis de hospedagem.
 
 Acesse por `http://SEU_IP` enquanto não houver domínio (sem HTTPS). **Não** use `compose.yml` do template FastAPI neste deploy.
 
@@ -128,7 +128,7 @@ Firewall: só SSH e HTTP.
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow 22/tcp
-ufw allow 80/tcp
+ufw allow 8080/tcp
 ufw enable
 ```
 
@@ -154,7 +154,8 @@ python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 Edite `.env.production`:
 
 - `POSTGRES_PASSWORD` e `SECRET_KEY`: use as strings geradas (SECRET_KEY com pelo menos 32 bytes)
-- `FRONTEND_HOST=http://SEU_IP_PUBLICO` (sem barra no final)
+- `FRONTEND_HOST=http://SEU_IP_PUBLICO:8080` (sem barra no final)
+- `HTTP_PORT=8080` (porta pública do site; a 80 costuma estar ocupada pelo painel)
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `ADMIN_NOME`: o primeiro administrador (não reutilize a senha de teste local)
 
 Não commite `.env.production`.
@@ -169,8 +170,8 @@ docker compose -f compose.prod.yml --env-file .env.production exec backend pytho
 
 O backend já executa `alembic upgrade head` na subida. Conferir:
 
-- `http://SEU_IP/health`
-- interface em `http://SEU_IP`
+- `http://SEU_IP:8080/health`
+- interface em `http://SEU_IP:8080`
 - logs: `docker compose -f compose.prod.yml --env-file .env.production logs -f`
 
 ### 6.4. Quando houver domínio

@@ -102,7 +102,7 @@ Relatório HTML: `npx playwright show-report`.
 
 ## Deploy na VPS
 
-Banco, API e frontend sobem em containers separados (`compose.prod.yml`). Só a porta **80** fica pública. Passo a passo (firewall, Docker, `.env.production`, primeiro ADMIN): [docs/GUIA_TECNICO.md](docs/GUIA_TECNICO.md#6-deploy-na-vps-banco-api-e-frontend-separados).
+Banco, API e frontend sobem em containers separados (`compose.prod.yml`). A porta pública padrão é **8080**. Passo a passo (firewall, Docker, `.env.production`, primeiro ADMIN): [docs/GUIA_TECNICO.md](docs/GUIA_TECNICO.md#6-deploy-na-vps-banco-api-e-frontend-separados).
 
 Resumo, no servidor (usuário não-root):
 

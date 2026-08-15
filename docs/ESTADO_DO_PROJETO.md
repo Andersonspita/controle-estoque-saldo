@@ -72,7 +72,7 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 8. Deploy de produção
 
-`compose.prod.yml` sobe Postgres (rede interna), FastAPI (`src.main:app`, rede interna) e Nginx na porta 80 (SPA + proxy de `/api/v1`, `/login`, `/users` e `/health`). Segredos em `.env.production` (modelo: `.env.production.example`). Roteiro da VPS: `docs/GUIA_TECNICO.md` §6.
+`compose.prod.yml` sobe Postgres (rede interna), FastAPI (`src.main:app`, rede interna) e Nginx na porta **8080** (SPA + proxy de `/api/v1`, `/login`, `/users` e `/health`). Segredos em `.env.production` (modelo: `.env.production.example`). Roteiro da VPS: `docs/GUIA_TECNICO.md` §6.
 
 ## 9. De Onde Retomar (Próximos Passos)
 
