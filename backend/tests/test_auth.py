@@ -8,6 +8,16 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 @pytest.mark.no_auth_override
 @pytest.mark.asyncio
+async def test_atualizar_vinculos_sem_token(async_client: AsyncClient):
+    response = await async_client.patch(
+        "/api/v1/notas-fiscais/1/vinculos",
+        json={"itens": [{"id": 1, "item_contrato_id": 1}]},
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.no_auth_override
+@pytest.mark.asyncio
 async def test_rota_protegida_sem_token(async_client: AsyncClient):
     response = await async_client.get("/api/v1/contratos/")
     assert response.status_code == 401
@@ -54,7 +64,6 @@ async def test_users_me_retorna_perfil_operador(async_client: AsyncClient, as_op
         (
             "/api/v1/contratos/",
             {
-                "licitacao_id": 1,
                 "fornecedor_id": 1,
                 "numero": "1",
                 "ano": 2026,

@@ -11,6 +11,7 @@ from ..database.models import NotaFiscal, ItemNotaFiscal, Contrato, Fornecedor, 
 from ..schemas import (
     NotaFiscalCreate, ItemNotaFiscalCreate, NotaFiscalOut,
     VincularItensRequest, VincularItensResponse, ItemVinculoSugerido,
+    AtualizarVinculosRequest,
 )
 
 router = APIRouter(
@@ -29,6 +30,68 @@ async def list_notas_fiscais(skip: int = 0, limit: int = 100, db: AsyncSession =
     stmt = select(NotaFiscal).options(selectinload(NotaFiscal.itens)).order_by(NotaFiscal.criado_em.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
+
+@router.patch("/{nf_id}/vinculos", response_model=NotaFiscalOut)
+async def atualizar_vinculos_nf(
+    nf_id: int,
+    body: AtualizarVinculosRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Atualiza os vínculos NF × item do contrato em uma nota ainda não baixada."""
+    from sqlalchemy.future import select
+    from sqlalchemy.orm import selectinload
+
+    stmt = (
+        select(NotaFiscal)
+        .options(selectinload(NotaFiscal.itens))
+        .where(NotaFiscal.id == nf_id)
+    )
+    result = await db.execute(stmt)
+    nf = result.scalar_one_or_none()
+    if not nf:
+        raise HTTPException(status_code=404, detail="Nota fiscal não encontrada")
+    if nf.status == "Baixada":
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível alterar vínculos de uma nota já baixada",
+        )
+    if not body.itens:
+        raise HTTPException(status_code=400, detail="Informe ao menos um item para vincular")
+
+    stmt_contrato = (
+        select(Contrato)
+        .options(selectinload(Contrato.itens))
+        .where(Contrato.id == nf.contrato_id)
+    )
+    result_contrato = await db.execute(stmt_contrato)
+    contrato = result_contrato.scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato da nota não encontrado")
+
+    ids_contrato = {item.id for item in contrato.itens}
+    itens_por_id = {item.id: item for item in nf.itens}
+
+    for vinculo in body.itens:
+        item_nf = itens_por_id.get(vinculo.id)
+        if not item_nf:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Item {vinculo.id} não pertence a esta nota fiscal",
+            )
+        if vinculo.item_contrato_id not in ids_contrato:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Item de contrato {vinculo.item_contrato_id} não pertence ao contrato da nota",
+            )
+        item_nf.item_contrato_id = vinculo.item_contrato_id
+        item_nf.status_identificacao = "MANUAL"
+
+    nf.status = "Aguardando conferência"
+    await db.commit()
+
+    stmt = select(NotaFiscal).options(selectinload(NotaFiscal.itens)).where(NotaFiscal.id == nf.id)
+    result = await db.execute(stmt)
+    return result.scalar_one()
 
 @router.post("/importar", response_model=NotaFiscalOut)
 async def importar_nota_fiscal(

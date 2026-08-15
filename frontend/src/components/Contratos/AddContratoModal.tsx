@@ -15,7 +15,6 @@ export function AddContratoModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   })
 
   const [formData, setFormData] = useState({
-    licitacao_id: 1, // Mock para MVP se nao houver dropdown de licitação
     fornecedor_id: "",
     numero: "",
     ano: new Date().getFullYear(),
@@ -32,7 +31,7 @@ export function AddContratoModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       queryClient.invalidateQueries({ queryKey: ["contratos"] })
       onOpenChange(false)
       // reset
-      setFormData({ licitacao_id: 1, fornecedor_id: "", numero: "", ano: new Date().getFullYear(), valor_total: 0, situacao: "Ativo" })
+      setFormData({ fornecedor_id: "", numero: "", ano: new Date().getFullYear(), valor_total: 0, situacao: "Ativo" })
       setItens([{ codigo: "", descricao: "", unidade: "UN", quantidade_contratada: 1, valor_unitario: 0 }])
     },
     onError: (error: any) => {
@@ -56,9 +55,11 @@ export function AddContratoModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     // O backend cria o contrato, mas pode nao ter endpoint que aceita itens junto se não estiver implementado.
     // Vamos mandar tudo caso o backend suporte, ou então, no backend precisaremos ajustar. 
     mutation.mutate({
-      ...formData,
       fornecedor_id: parseInt(formData.fornecedor_id),
+      numero: formData.numero,
+      ano: formData.ano,
       valor_total: total,
+      situacao: formData.situacao,
       itens: itens
     })
   }

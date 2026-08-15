@@ -70,7 +70,15 @@ export const notasFiscaisService = {
   listar: async () => {
     const response = await api.get("/notas-fiscais/");
     return response.data;
-  }
+  },
+
+  atualizarVinculos: async (
+    nfId: number,
+    itens: { id: number; item_contrato_id: number }[],
+  ) => {
+    const response = await api.patch(`/notas-fiscais/${nfId}/vinculos`, { itens });
+    return response.data;
+  },
 };
 
 export const contratosService = {

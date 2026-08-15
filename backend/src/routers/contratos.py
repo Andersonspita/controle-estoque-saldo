@@ -19,6 +19,8 @@ router = APIRouter(
 @router.post("/", response_model=ContratoOut, dependencies=[Depends(require_admin)])
 async def create_contrato(contrato: ContratoCreate, db: AsyncSession = Depends(get_db)):
     dados_contrato = contrato.model_dump(exclude={"itens"})
+    if not dados_contrato.get("licitacao_id"):
+        dados_contrato.pop("licitacao_id", None)
     db_contrato = Contrato(**dados_contrato)
     db.add(db_contrato)
     try:

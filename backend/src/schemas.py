@@ -74,7 +74,7 @@ class LicitacaoOut(LicitacaoBase):
     model_config = ConfigDict(from_attributes=True)
 
 class ContratoBase(BaseModel):
-    licitacao_id: int
+    licitacao_id: Optional[int] = None
     fornecedor_id: int
     numero: str
     ano: int
@@ -180,6 +180,13 @@ class NotaFiscalOut(NotaFiscalCreate):
     itens: List[ItemNotaFiscalOut] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+class ItemVinculoUpdate(BaseModel):
+    id: int
+    item_contrato_id: int
+
+class AtualizarVinculosRequest(BaseModel):
+    itens: List[ItemVinculoUpdate]
 
 class BaixaRequest(BaseModel):
     justificativa: Optional[str] = None

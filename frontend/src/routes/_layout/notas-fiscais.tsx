@@ -2,9 +2,10 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import { ImportNFModal } from "../../components/NotasFiscais/ImportNFModal"
 import { BaixaModal } from "../../components/NotasFiscais/BaixaModal"
+import { ConferenciaModal } from "../../components/NotasFiscais/ConferenciaModal"
 import { useQuery } from "@tanstack/react-query"
 import { notasFiscaisService } from "../../services/api"
-import { FileText, Play } from "lucide-react"
+import { FileText, Link2, Play } from "lucide-react"
 import { pageTitle } from "@/lib/brand"
 
 export const Route = createFileRoute("/_layout/notas-fiscais")({
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/_layout/notas-fiscais")({
 function NotasFiscaisPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [baixaModalNF, setBaixaModalNF] = useState<any | null>(null)
+  const [conferenciaNF, setConferenciaNF] = useState<any | null>(null)
 
   // Os dados são carregados em tempo real da API
   const { data: notas = [], isLoading } = useQuery({
@@ -66,12 +68,20 @@ function NotasFiscaisPage() {
                 </td>
                 <td className="px-6 py-4 text-right">
                   {nf.status !== "Baixada" && (
-                    <button 
-                      onClick={() => setBaixaModalNF(nf)}
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm flex items-center justify-end gap-1 w-full transition-colors"
-                    >
-                      <Play size={14} /> Executar Baixa
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => setConferenciaNF(nf)}
+                        className="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-sm flex items-center gap-1 transition-colors"
+                      >
+                        <Link2 size={14} /> Conferir vínculos
+                      </button>
+                      <button
+                        onClick={() => setBaixaModalNF(nf)}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm flex items-center gap-1 transition-colors"
+                      >
+                        <Play size={14} /> Executar Baixa
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>
@@ -86,6 +96,13 @@ function NotasFiscaisPage() {
       </div>
 
       <ImportNFModal isOpen={isImportModalOpen} onOpenChange={setIsImportModalOpen} />
+      {conferenciaNF && (
+        <ConferenciaModal
+          nf={conferenciaNF}
+          isOpen={!!conferenciaNF}
+          onOpenChange={(open: boolean) => !open && setConferenciaNF(null)}
+        />
+      )}
       {baixaModalNF && (
         <BaixaModal nf={baixaModalNF} isOpen={!!baixaModalNF} onOpenChange={(open: boolean) => !open && setBaixaModalNF(null)} />
       )}

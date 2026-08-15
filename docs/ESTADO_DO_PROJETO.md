@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 15/08/2026 — Tela Admin: cadastro de usuários e perfis (ADMIN/OPERADOR)
+> **Última Atualização:** 15/08/2026 — Contrato sem licitação; conferência de NF; login e configurações em PT-BR
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -11,7 +11,7 @@ Este documento guia quem assume ou retoma o projeto. Para rodar localmente e exe
 
 ## Regra de negócio do saldo
 
-O produto chama-se **SaldoContratual**. O estoque controlado é o **saldo dos itens do contrato**, não o almoxarifado.
+O produto chama-se **SaldoContratual**. O estoque controlado é o **saldo dos itens do contrato**, não o almoxarifado. O contrato **não é ligado a licitação** — cadastra-se o contrato e seus itens diretamente.
 
 Exemplo: contrato de 12 meses com 1 item de 100 unidades → entram 100 unidades de saldo nesse item. Cada baixa de NF abate esse saldo. O almoxarifado é apenas o **destino físico** do material após a baixa.
 
@@ -42,13 +42,14 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - Matching em `item_matcher.py`: código, GTIN e similaridade de descrição (`CONFIRMADO` / `PROVAVEL` / `SUGERIDO` / `NAO_IDENTIFICADO`).
 - Endpoint: `POST /api/v1/notas-fiscais/vincular-itens/{contrato_id}`.
 - O modal mostra a tabela NF → item do contrato (com saldo) e permite ajuste manual. A importação só segue se todos os itens estiverem vinculados.
+- Notas já importadas (ainda não baixadas) podem ser conferidas de novo em **Conferir vínculos** (`PATCH /api/v1/notas-fiscais/{id}/vinculos`).
 - `POST /api/v1/notas-fiscais/importar` rejeita item sem vínculo ou com `item_contrato_id` de outro contrato.
 - Testes: `backend/tests/test_item_matcher.py`.
 
 ## 5. Etapa 2 — Previsão, contratos e destinação
 
 - **Previsão de consumo:** `GET /api/v1/contratos/previsao-consumo`. Alertas de esgotamento (45 dias) no Dashboard.
-- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste os itens. `saldo_atual` inicia igual à quantidade contratada.
+- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste os itens. `saldo_atual` inicia igual à quantidade contratada. `licitacao_id` é opcional (a interface não envia).
 - **Tela Contratos:** expandir a linha mostra, por item, quantidade contratada, saldo atual e percentual restante.
 - **Almoxarifados:** CRUD em `/api/v1/almoxarifados/`. `GET /api/v1/almoxarifados/{id}` lista destinação física após baixas, lado a lado com o saldo do contrato.
 - **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` exige almoxarifado, deduz o saldo do item do contrato, grava movimentação e atualiza `estoque_almoxarifados`. O `usuario_id` vem do token JWT, não do corpo da requisição.
@@ -58,11 +59,11 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - Login: `POST /login/access-token` (público). Token HS256 com `settings.SECRET_KEY`.
 - Dependência: `src/deps.py` (`get_current_user` / `get_current_active_user` / `require_admin`). Token inválido ou ausente → **401**. Usuário inativo → **403**.
 - Rotas de contratos, NFs, fornecedores, licitações, movimentações, almoxarifados e `GET /users/me` exigem Bearer token.
-- Públicos: `GET /health` e `POST /login/access-token`.
+- Públicos: `GET /health` e `POST /login/access-token`. Não há cadastro público nem recuperação de senha (rotas `/signup` e `/recover-password` redirecionam ao login).
 - Frontend (`frontend/src/services/api.ts`) envia `Authorization: Bearer` a partir de `localStorage.access_token`. A origem da API ignora um `/api/v1` extra no `.env`, para o login (`/login/access-token` e `/users/me`) e o axios (`/api/v1/...`) apontarem para o mesmo backend.
 - Correção: `/users/me` deixou de usar uma SECRET_KEY dummy (que caía no primeiro usuário do banco).
 - **`GET /users/me`** devolve `perfil` (`ADMIN` ou `OPERADOR`) e `is_superuser` (`true` só para ADMIN).
-- **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos, licitações e almoxarifados.
+- **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos e almoxarifados.
 - **OPERADOR:** consulta cadastros, importa/parseia NF, vincula itens e dá baixa. POST de cadastro (incluindo usuários) → **403**.
 - **Usuários (ADMIN):** `GET/POST /users/`, `PATCH/DELETE /users/{id}`. Perfil `ADMIN` ou `OPERADOR`; não permite excluir a própria conta nem remover o último administrador. `PATCH /users/me` e `PATCH /users/me/password` atualizam dados da conta logada.
 
@@ -76,6 +77,5 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-1. **Conferência visual NF × contrato** — tela para revisar e ajustar os vínculos de itens em notas já importadas (antes da baixa). Preferir XML da NF-e ao OCR de PDF quando o XML existir.
-2. **Telas de conta ainda em inglês** — Configurações (textos) e cadastro público ainda usam trechos do template.
-3. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
+1. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
+2. Preferir XML da NF-e ao OCR de PDF quando o XML existir.

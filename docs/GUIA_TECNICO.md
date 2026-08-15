@@ -8,7 +8,7 @@
 - **NF-e:** `xmltodict` (XML), `pymupdf` + `rapidocr` + `onnxruntime` (DANFE em PDF).
 
 ## 2. Regra de saldo
-O saldo controlado é o do **item do contrato** (`itens_contrato.saldo_atual`). Almoxarifado (`estoque_almoxarifados`) registra apenas para onde o material foi destinado após a baixa.
+O saldo controlado é o do **item do contrato** (`itens_contrato.saldo_atual`). O contrato **não depende de licitação**. Almoxarifado (`estoque_almoxarifados`) registra apenas para onde o material foi destinado após a baixa.
 
 ## 3. Como Rodar o Projeto Localmente
 
@@ -39,19 +39,19 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | Método | Rota | Uso |
 |--------|------|-----|
 | GET | `/contratos/` | Lista contratos com itens e saldos |
-| POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN** |
+| POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN**. Sem licitação |
 | GET | `/contratos/previsao-consumo` | Dias restantes por item (taxa diária) |
 | GET | `/notas-fiscais/` | Lista NFs |
 | POST | `/notas-fiscais/parse-xml` | Extrai dados de XML NF-e |
 | POST | `/notas-fiscais/parse-pdf` | Extrai dados de DANFE (OCR) |
 | POST | `/notas-fiscais/vincular-itens/{contrato_id}` | Sugere vínculo item NF → item do contrato |
 | POST | `/notas-fiscais/importar` | Grava NF + itens (vínculo obrigatório) |
+| PATCH | `/notas-fiscais/{id}/vinculos` | Ajusta vínculos NF × contrato em nota ainda não baixada |
 | POST | `/notas-fiscais/{id}/baixar` | Baixa saldo do contrato (usuário vem do JWT) e destina ao almoxarifado |
 | GET | `/almoxarifados/` | Lista almoxarifados |
 | GET | `/almoxarifados/{id}` | Destinação física + saldo do contrato |
 | POST | `/almoxarifados/` | Cria almoxarifado (**ADMIN**) |
 | POST | `/fornecedores/` | Cria fornecedor (**ADMIN**) |
-| POST | `/licitacoes/` | Cria licitação (**ADMIN**) |
 | POST | `/login/access-token` | Login (público). Form `username` + `password` |
 | GET | `/users/me` | Usuário logado (`perfil`, `is_superuser`) |
 | PATCH | `/users/me` | Atualiza nome/e-mail da conta logada |
@@ -64,7 +64,7 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 
 Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token>`, exceto login e health.
 
-**Perfis:** `OPERADOR` lista, importa NF, vincula e dá baixa. `ADMIN` faz o mesmo e ainda cria usuários, fornecedor, contrato, licitação e almoxarifado (`require_admin` → 403 para os demais).
+**Perfis:** `OPERADOR` lista, importa NF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria usuários, fornecedor, contrato e almoxarifado (`require_admin` → 403 para os demais).
 
 ## 5. Como Executar os Testes
 

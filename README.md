@@ -8,13 +8,13 @@ Exemplo: contrato de 12 meses com 1 item de 100 unidades → o item começa com 
 
 ## O que o sistema faz
 
-- Cadastro de fornecedores, licitações, contratos e itens (com saldo inicial igual à quantidade contratada)
+- Cadastro de fornecedores, contratos e itens (com saldo inicial igual à quantidade contratada)
 - Importação de NF-e em **XML** ou **PDF (DANFE)** com OCR
 - Vínculo de cada item da NF a um item do contrato (código, GTIN ou similaridade de descrição)
 - Baixa transacional: desconta o saldo do contrato, registra a movimentação e destina o material ao almoxarifado
 - Previsão de consumo e alertas de esgotamento no dashboard (45 dias)
 - Autenticação JWT com dois perfis:
-  - **ADMIN** — consulta, importa NF, dá baixa e cadastra fornecedor, contrato, licitação e almoxarifado
+  - **ADMIN** — consulta, importa NF, dá baixa e cadastra usuário, fornecedor, contrato e almoxarifado
   - **OPERADOR** — consulta, importa NF, vincula itens e dá baixa (não cadastra)
 
 ## Tecnologias
