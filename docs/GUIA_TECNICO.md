@@ -40,7 +40,8 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 |--------|------|-----|
 | GET | `/contratos/` | Lista contratos com itens, `valor_contratado`/`saldo_monetario` por item e `saldo_atual` monetário do contrato |
 | POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN**. Sem licitação |
-| PATCH | `/contratos/{id}` | Edita cabeçalho, itens e **aditivo %** (**ADMIN**). Percentual incide sobre o contrato inicial; quantidade ≥ já baixado |
+| PATCH | `/contratos/{id}` | Edita cabeçalho e itens (**ADMIN**). Quantidade ≥ já baixado; item com baixa não pode ser removido |
+| POST | `/contratos/{id}/aditivo` | Aditivo seletivo (**ADMIN**): itens escolhidos recebem quantidade extra e, opcionalmente, novo valor unitário |
 | GET | `/contratos/previsao-consumo` | Dias restantes por item (taxa diária) + saldo monetário |
 | GET | `/notas-fiscais/` | Lista NFs (`tem_arquivo` indica se o PDF/XML está disponível) |
 | POST | `/notas-fiscais/parse-xml` | Extrai dados de XML NF-e |
@@ -68,13 +69,13 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 
 Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token>`, exceto login e health.
 
-**Perfis:** `OPERADOR` lista, importa NF, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato e órgão (`require_admin` → 403 para os demais).
+**Perfis:** `OPERADOR` lista, importa NF, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato, órgão e aplica aditivo (`require_admin` → 403 para os demais).
 
 Cadastro de fornecedor: UF em select e municípios pela API do IBGE (`https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome`). ADMIN edita pelo botão na linha. Valores monetários na interface usam BRL (`R$ 1.234,56`). Tabelas no mobile rolam na horizontal.
 
 Cadastro/edição de contrato: itens podem ser digitados ou importados de planilha (`.xlsx`, `.xls`, `.csv` ou `.ods`) no modal. Colunas reconhecidas: descrição/item/produto (obrigatória), código, unidade, quantidade e valor unitário. Números no formato BR (`1.234,56`) são aceitos. Há **Baixar modelo** (CSV). Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON.
 
-Na edição (**ADMIN**) há o campo **Aditivo (%)**. O percentual incide sobre o **contrato inicial**: quantidade e valor total de cada item sobem na mesma proporção; o valor unitário permanece; o saldo ganha as unidades extras. Trocar 10% por 25% recalcula a partir do inicial, não acumula 1,10 × 1,25.
+Na edição (**ADMIN**) o modal altera dados cadastrais e a quantidade/valor atuais. Para acrescentar quantidade em itens já existentes, o botão **Aditivo** abre outro modal: o usuário marca os itens, informa a quantidade extra (inteira em UN) e o valor unitário. A quantidade inicial do contrato não muda. OPERADOR recebe **403**.
 
 A tela **Órgãos** (menu; URL `/almoxarifados`) permite criar e editar (**ADMIN**). Na baixa da NF o destino é o órgão.
 

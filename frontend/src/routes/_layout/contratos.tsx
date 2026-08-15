@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router"
 import { Fragment, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { contratosService } from "../../services/api"
-import { ChevronDown, ChevronRight, FileSignature, Pencil, Plus } from "lucide-react"
+import { ChevronDown, ChevronRight, FilePlus2, FileSignature, Pencil, Plus } from "lucide-react"
 import { AddContratoModal } from "../../components/Contratos/AddContratoModal"
+import { AditivoContratoModal } from "../../components/Contratos/AditivoContratoModal"
 import useAuth from "../../hooks/useAuth"
 import { pageTitle } from "@/lib/brand"
 import { formatarMoeda, saldoMonetarioItem, totaisContrato, valorContratadoItem } from "@/lib/money"
@@ -27,9 +28,19 @@ function corBarra(percentual: number) {
   return "bg-emerald-500"
 }
 
+function itemTemAditivo(item: any) {
+  if (item.quantidade_inicial == null) return false
+  return Number(item.quantidade_contratada) !== Number(item.quantidade_inicial)
+}
+
+function contratoTemAditivo(contrato: any) {
+  return (contrato.itens || []).some(itemTemAditivo)
+}
+
 function ContratosPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [contratoEdicao, setContratoEdicao] = useState<any | null>(null)
+  const [contratoAditivo, setContratoAditivo] = useState<any | null>(null)
   const [expandidoId, setExpandidoId] = useState<number | null>(null)
   const { isAdmin } = useAuth()
   const modalAberto = isAddModalOpen || !!contratoEdicao
@@ -102,9 +113,9 @@ function ContratosPage() {
                     </td>
                     <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
                       {formatarMoeda(totais.valorContratado)}
-                      {contrato.percentual_aditivo > 0 && (
+                      {contratoTemAditivo(contrato) && (
                         <p className="text-xs font-normal text-slate-400">
-                          Aditivo {contrato.percentual_aditivo}%
+                          Com aditivo
                           {contrato.valor_total_inicial != null
                             ? ` · inicial ${formatarMoeda(contrato.valor_total_inicial)}`
                             : ""}
@@ -124,17 +135,32 @@ function ContratosPage() {
                     </td>
                     {isAdmin && (
                       <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setIsAddModalOpen(false)
-                            setContratoEdicao(contrato)
-                          }}
-                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-                        >
-                          <Pencil size={14} /> Editar
-                        </button>
+                        <div className="inline-flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setIsAddModalOpen(false)
+                              setContratoAditivo(null)
+                              setContratoEdicao(contrato)
+                            }}
+                            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                          >
+                            <Pencil size={14} /> Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setIsAddModalOpen(false)
+                              setContratoEdicao(null)
+                              setContratoAditivo(contrato)
+                            }}
+                            className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100 font-medium"
+                          >
+                            <FilePlus2 size={14} /> Aditivo
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -167,7 +193,7 @@ function ContratosPage() {
                                       </td>
                                       <td className="py-2 text-right text-slate-600 dark:text-slate-400 whitespace-nowrap">
                                         {item.quantidade_contratada} {item.unidade}
-                                        {contrato.percentual_aditivo > 0 && item.quantidade_inicial != null && (
+                                        {itemTemAditivo(item) && (
                                           <p className="text-[11px] text-slate-400">
                                             Inicial: {item.quantidade_inicial}
                                           </p>
@@ -234,16 +260,25 @@ function ContratosPage() {
       </TableScroll>
 
       {isAdmin && (
-        <AddContratoModal
-          isOpen={modalAberto}
-          onOpenChange={(open) => {
-            if (!open) {
-              setIsAddModalOpen(false)
-              setContratoEdicao(null)
-            }
-          }}
-          contrato={contratoEdicao}
-        />
+        <>
+          <AddContratoModal
+            isOpen={modalAberto}
+            onOpenChange={(open) => {
+              if (!open) {
+                setIsAddModalOpen(false)
+                setContratoEdicao(null)
+              }
+            }}
+            contrato={contratoEdicao}
+          />
+          <AditivoContratoModal
+            isOpen={!!contratoAditivo}
+            onOpenChange={(open) => {
+              if (!open) setContratoAditivo(null)
+            }}
+            contrato={contratoAditivo}
+          />
+        </>
       )}
     </div>
   )
