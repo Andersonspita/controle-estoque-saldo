@@ -1,0 +1,21 @@
+---
+description: Sempre atualizar a documentação do projeto ao concluir trabalho
+alwaysApply: true
+---
+
+# Documentação do projeto
+
+Ao concluir qualquer implementação, correção ou mudança de regra de negócio, **atualize os docs no mesmo turno** — não deixe para depois.
+
+Arquivos a manter alinhados com o código:
+
+- `docs/ESTADO_DO_PROJETO.md` — o que está pronto, o que mudou agora e de onde retomar
+- `docs/GUIA_TECNICO.md` — como rodar, testar e quais endpoints/fluxos existem
+
+Regras:
+
+- Atualize a data e o resumo de “última atualização” em `ESTADO_DO_PROJETO.md`
+- Marque o passo concluído em “De Onde Retomar” e avance o próximo
+- Corrija trechos obsoletos (não deixe documentação contradizendo o código)
+- Se a regra de negócio mudar (ex.: saldo é do contrato, não do almoxarifado), descreva isso claramente
+- Não precisa criar docs novos sem pedido; atualize os existentes

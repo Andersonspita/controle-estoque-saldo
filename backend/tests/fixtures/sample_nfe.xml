@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+    <infNFe Id="NFe35201214234567890123456789012345678901234" versao="4.00">
+      <ide>
+        <nNF>12345</nNF>
+        <serie>1</serie>
+        <dhEmi>2024-03-21T14:30:00-03:00</dhEmi>
+      </ide>
+      <emit>
+        <CNPJ>12345678000199</CNPJ>
+        <xNome>FORNECEDOR TESTE LTDA</xNome>
+      </emit>
+      <dest>
+        <CNPJ>98765432000188</CNPJ>
+        <xNome>ORGAO PUBLICO TESTE</xNome>
+      </dest>
+      <det nItem="1">
+        <prod>
+          <cProd>MON-001</cProd>
+          <xProd>Monitor 24 Polegadas</xProd>
+          <NCM>84713012</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>2.0000</qCom>
+          <vUnCom>1000.0000000000</vUnCom>
+          <vProd>2000.00</vProd>
+        </prod>
+      </det>
+      <total>
+        <ICMSTot>
+          <vNF>2000.00</vNF>
+        </ICMSTot>
+      </total>
+    </infNFe>
+  </NFe>
+</nfeProc>

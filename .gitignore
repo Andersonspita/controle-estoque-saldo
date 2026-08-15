@@ -1,0 +1,31 @@
+.vscode/*
+!.vscode/extensions.json
+node_modules/
+backend/app/frontend/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Ambientes e caches
+.venv/
+venv/
+backend/venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+*.pyc
+
+# Segredos e uploads locais
+.env
+.env.*
+!.env.example
+**/.env
+docs/Chave GTP.txt
+backend/uploads/
+
+# Relatórios Playwright (frontend)
+frontend/test-results/
+frontend/playwright-report/
+frontend/playwright/.auth/
+
