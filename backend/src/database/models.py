@@ -71,7 +71,7 @@ class Contrato(Base):
     __tablename__ = "contratos"
 
     id = Column(Integer, primary_key=True, index=True)
-    licitacao_id = Column(Integer, ForeignKey("licitacoes.id"), nullable=False)
+    licitacao_id = Column(Integer, ForeignKey("licitacoes.id"), nullable=True)
     fornecedor_id = Column(Integer, ForeignKey("fornecedores.id"), nullable=False)
     numero = Column(String, nullable=False)
     ano = Column(Integer, nullable=False)

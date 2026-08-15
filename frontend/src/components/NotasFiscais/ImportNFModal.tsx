@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { UploadCloud, CheckCircle2, Loader2, Link2, AlertTriangle } from "lucide-react"
 
 import * as Dialog from "@radix-ui/react-dialog"
+import { formatarMoeda } from "@/lib/money"
 
 type VinculoItem = {
   indice_nf: number
@@ -165,7 +166,7 @@ export function ImportNFModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpe
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 z-50" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-2xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white p-6 shadow-xl sm:rounded-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] max-h-[90vh] overflow-y-auto">
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-2xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white p-6 shadow-xl sm:rounded-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] max-h-[90vh] overflow-y-auto">
           <Dialog.Title className="text-xl font-semibold text-slate-800">
             Importar Nota Fiscal
           </Dialog.Title>
@@ -259,9 +260,7 @@ export function ImportNFModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpe
                   <p><strong>Nº NF:</strong> {parsedData.numero}</p>
                   <p><strong>Fornecedor:</strong> {parsedData.fornecedor?.nome}</p>
                   <p><strong>Itens detectados:</strong> {parsedData.itens?.length || 0} item(s)</p>
-                  <p><strong>Valor Total:</strong> {
-                    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parsedData.valor_total || 0)
-                  }</p>
+                  <p><strong>Valor Total:</strong> {formatarMoeda(parsedData.valor_total || 0)}</p>
                 </div>
               </div>
             )}
@@ -285,8 +284,8 @@ export function ImportNFModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpe
                         <span>{itensPendentes} item(ns) sem correspondência. Selecione manualmente o item do contrato.</span>
                       </div>
                     )}
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full text-xs">
+                    <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border [-webkit-overflow-scrolling:touch]">
+                      <table className="w-full min-w-[36rem] text-xs">
                         <thead className="bg-slate-100 text-slate-600">
                           <tr>
                             <th className="px-3 py-2 text-left">Item da NF</th>
@@ -304,7 +303,9 @@ export function ImportNFModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpe
                                     {v.descricao_nf}
                                   </p>
                                   {v.codigo_nf && <p className="text-slate-500">Cód: {v.codigo_nf}</p>}
-                                  <p className="text-slate-500">{v.quantidade} {v.unidade}</p>
+                                  <p className="text-slate-500">
+                                    {v.quantidade} {v.unidade} · {formatarMoeda(v.valor_unitario)}
+                                  </p>
                                 </td>
                                 <td className="px-3 py-2">
                                   <select

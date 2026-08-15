@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 15/08/2026 — Tela Admin: cadastro de usuários e perfis (ADMIN/OPERADOR)
+> **Última Atualização:** 15/08/2026 — PDF da NF para download, saldo monetário, edição de fornecedor/órgão e dashboard em R$
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -11,17 +11,17 @@ Este documento guia quem assume ou retoma o projeto. Para rodar localmente e exe
 
 ## Regra de negócio do saldo
 
-O produto chama-se **SaldoContratual**. O estoque controlado é o **saldo dos itens do contrato**, não o almoxarifado.
+O produto chama-se **SaldoContratual**. O estoque controlado é o **saldo dos itens do contrato** (quantidade **e** valor em R$), não o órgão de destino. O contrato **não é ligado a licitação** — cadastra-se o contrato e seus itens diretamente.
 
-Exemplo: contrato de 12 meses com 1 item de 100 unidades → entram 100 unidades de saldo nesse item. Cada baixa de NF abate esse saldo. O almoxarifado é apenas o **destino físico** do material após a baixa.
+Exemplo: contrato de 12 meses com 1 item de 100 unidades a R$ 10,00 → entram 100 unidades e R$ 1.000,00 de saldo nesse item. Cada baixa de NF abate quantidade e, proporcionalmente, o saldo monetário (`saldo_atual × valor_unitario`). O **órgão** é apenas o **destino físico** do material após a baixa.
 
 ## 1. Fases 1–5 — Integração frontend ↔ backend
 
 Mocks iniciais da interface foram removidos. O frontend consome a API real:
 
-- **Dashboard:** `GET /api/v1/contratos/`, `GET /api/v1/movimentacoes/` e `GET /api/v1/contratos/previsao-consumo`. Dark Mode.
-- **Notas Fiscais:** listagem em `GET /api/v1/notas-fiscais/`.
-- **Contratos, fornecedores e almoxarifados:** telas ligadas às rotas correspondentes.
+- **Dashboard:** `GET /api/v1/contratos/`, `GET /api/v1/movimentacoes/` e `GET /api/v1/contratos/previsao-consumo`. Cards de valor contratado, saldo atual (R$) e valor baixado. Dark Mode.
+- **Notas Fiscais:** listagem em `GET /api/v1/notas-fiscais/` com download do arquivo em `GET /api/v1/notas-fiscais/{id}/arquivo`.
+- **Contratos, fornecedores e órgãos:** telas ligadas às rotas correspondentes (API de órgãos permanece em `/almoxarifados`).
 
 ## 2. Fase 6 — Infraestrutura de testes
 
@@ -42,28 +42,34 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - Matching em `item_matcher.py`: código, GTIN e similaridade de descrição (`CONFIRMADO` / `PROVAVEL` / `SUGERIDO` / `NAO_IDENTIFICADO`).
 - Endpoint: `POST /api/v1/notas-fiscais/vincular-itens/{contrato_id}`.
 - O modal mostra a tabela NF → item do contrato (com saldo) e permite ajuste manual. A importação só segue se todos os itens estiverem vinculados.
+- Notas já importadas (ainda não baixadas) podem ser conferidas de novo em **Conferir vínculos** (`PATCH /api/v1/notas-fiscais/{id}/vinculos`).
 - `POST /api/v1/notas-fiscais/importar` rejeita item sem vínculo ou com `item_contrato_id` de outro contrato.
 - Testes: `backend/tests/test_item_matcher.py`.
 
 ## 5. Etapa 2 — Previsão, contratos e destinação
 
 - **Previsão de consumo:** `GET /api/v1/contratos/previsao-consumo`. Alertas de esgotamento (45 dias) no Dashboard.
-- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste os itens. `saldo_atual` inicia igual à quantidade contratada.
-- **Tela Contratos:** expandir a linha mostra, por item, quantidade contratada, saldo atual e percentual restante.
-- **Almoxarifados:** CRUD em `/api/v1/almoxarifados/`. `GET /api/v1/almoxarifados/{id}` lista destinação física após baixas, lado a lado com o saldo do contrato.
-- **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` exige almoxarifado, deduz o saldo do item do contrato, grava movimentação e atualiza `estoque_almoxarifados`. O `usuario_id` vem do token JWT, não do corpo da requisição.
+- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste os itens. `saldo_atual` inicia igual à quantidade contratada. `licitacao_id` é opcional (a interface não envia). No modal, os itens podem ser **digitados** ou **importados de planilha** (`.xlsx` / `.csv`); há um modelo CSV para baixar. Colunas esperadas: descrição (obrigatória), código, unidade, quantidade e valor unitário. Na edição, a importação **acrescenta** itens novos (não substitui os que já existem).
+- **Edição de contrato (ADMIN):** `PATCH /api/v1/contratos/{id}` atualiza cabeçalho e itens. A quantidade contratada não pode ficar abaixo do já baixado. Item com movimentação não pode ser excluído. O `valor_total` é recalculado pelos itens. OPERADOR recebe **403**.
+- **Tela Contratos:** a linha mostra valor total (contratado) e **saldo atual do contrato** em R$ (soma de `saldo_atual × valor_unitario`), com quantidade restante. Expandir a linha mostra, por item, quantidade contratada, **saldo total** (R$ contratado), **saldo atual** (R$ e unidades), valor unitário e percentual restante. ADMIN edita pelo botão na linha.
+- **Valores monetários:** campos de valor (unitário, totais, saldos) são exibidos e digitados em BRL (`R$ 1.234,56`). Quantidade permanece numérica. A API devolve `valor_contratado` e `saldo_monetario` em cada item e `saldo_atual` monetário no contrato detalhado.
+- **Órgãos:** interface usa o nome **Órgão** (API/tabelas continuam `almoxarifados`). CRUD em `/api/v1/almoxarifados/` com `POST` e `PATCH` (**ADMIN**). `GET /api/v1/almoxarifados/{id}` lista destinação física após baixas, lado a lado com o saldo do contrato.
+- **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` exige órgão de destino, deduz o saldo do item do contrato, grava movimentação e atualiza `estoque_almoxarifados`. O `usuario_id` vem do token JWT, não do corpo da requisição.
+- **Fornecedor:** o campo `cnpj` aceita **CPF (11) ou CNPJ (14)** com dígitos verificadores; a UI rotula **CPF/CNPJ**. UF em select; municípios vêm da API do IBGE (`/estados/{UF}/municipios`). Unicidade compara só os dígitos. Documentos já gravados não são revalidados na listagem. **ADMIN** cria e edita (`PATCH /api/v1/fornecedores/{id}`).
+- **Arquivo da NF:** a importação grava o PDF/XML em disco; a listagem oferece **Baixar PDF** (`GET /api/v1/notas-fiscais/{id}/arquivo`), inclusive após a baixa.
+- **Grids no mobile:** tabelas rolam na horizontal (`overflow-x-auto`, `min-w-0` no layout). Cabeçalhos e ações (editar, conferir, baixa) não ficam cortados.
 
 ## 6. Autenticação JWT e perfis
 
 - Login: `POST /login/access-token` (público). Token HS256 com `settings.SECRET_KEY`.
 - Dependência: `src/deps.py` (`get_current_user` / `get_current_active_user` / `require_admin`). Token inválido ou ausente → **401**. Usuário inativo → **403**.
 - Rotas de contratos, NFs, fornecedores, licitações, movimentações, almoxarifados e `GET /users/me` exigem Bearer token.
-- Públicos: `GET /health` e `POST /login/access-token`.
+- Públicos: `GET /health` e `POST /login/access-token`. Não há cadastro público nem recuperação de senha (rotas `/signup` e `/recover-password` redirecionam ao login).
 - Frontend (`frontend/src/services/api.ts`) envia `Authorization: Bearer` a partir de `localStorage.access_token`. A origem da API ignora um `/api/v1` extra no `.env`, para o login (`/login/access-token` e `/users/me`) e o axios (`/api/v1/...`) apontarem para o mesmo backend.
 - Correção: `/users/me` deixou de usar uma SECRET_KEY dummy (que caía no primeiro usuário do banco).
 - **`GET /users/me`** devolve `perfil` (`ADMIN` ou `OPERADOR`) e `is_superuser` (`true` só para ADMIN).
-- **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos, licitações e almoxarifados.
-- **OPERADOR:** consulta cadastros, importa/parseia NF, vincula itens e dá baixa. POST de cadastro (incluindo usuários) → **403**.
+- **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos e órgãos; edita contratos, fornecedores e órgãos.
+- **OPERADOR:** consulta cadastros, importa/parseia NF, vincula itens, baixa PDF da NF e dá baixa. POST/PATCH de cadastro (incluindo usuários, contratos, fornecedores e órgãos) → **403**.
 - **Usuários (ADMIN):** `GET/POST /users/`, `PATCH/DELETE /users/{id}`. Perfil `ADMIN` ou `OPERADOR`; não permite excluir a própria conta nem remover o último administrador. `PATCH /users/me` e `PATCH /users/me/password` atualizam dados da conta logada.
 
 ## 7. E2E autenticado (Playwright)
@@ -76,6 +82,7 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-1. **Conferência visual NF × contrato** — tela para revisar e ajustar os vínculos de itens em notas já importadas (antes da baixa). Preferir XML da NF-e ao OCR de PDF quando o XML existir.
-2. **Telas de conta ainda em inglês** — Configurações (textos) e cadastro público ainda usam trechos do template.
-3. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
+Concluído neste ciclo: download do PDF/XML da NF, saldo monetário do contrato (item e contrato), edição ADMIN de fornecedor e órgão, dashboard com valores em R$ (sem “empenhados”) e nomenclatura **Órgão** no lugar de Almoxarifado.
+
+1. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
+2. Preferir XML da NF-e ao OCR de PDF quando o XML existir.

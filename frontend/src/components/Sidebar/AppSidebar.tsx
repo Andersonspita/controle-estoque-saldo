@@ -17,7 +17,7 @@ const baseItems: Item[] = [
   { icon: Truck, title: "Fornecedores", path: "/fornecedores" },
   { icon: FileSignature, title: "Contratos", path: "/contratos" },
   { icon: FileText, title: "Notas Fiscais", path: "/notas-fiscais" },
-  { icon: Briefcase, title: "Almoxarifados", path: "/almoxarifados" },
+  { icon: Briefcase, title: "Órgãos", path: "/almoxarifados" },
 ]
 
 export function AppSidebar() {

@@ -29,12 +29,12 @@ async def efetuar_baixa_nf(
         raise HTTPException(status_code=400, detail="Esta Nota Fiscal já foi baixada")
 
     if not baixa_req.almoxarifado_id:
-        raise HTTPException(status_code=400, detail="Almoxarifado de destino é obrigatório")
+        raise HTTPException(status_code=400, detail="Órgão de destino é obrigatório")
 
     stmt_alm = select(Almoxarifado).where(Almoxarifado.id == baixa_req.almoxarifado_id)
     result_alm = await db.execute(stmt_alm)
     if not result_alm.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Almoxarifado não encontrado")
+        raise HTTPException(status_code=404, detail="Órgão não encontrado")
 
     if not nf.itens:
         raise HTTPException(status_code=400, detail="Nota Fiscal não possui itens vinculados")

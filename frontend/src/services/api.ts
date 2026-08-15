@@ -70,7 +70,31 @@ export const notasFiscaisService = {
   listar: async () => {
     const response = await api.get("/notas-fiscais/");
     return response.data;
-  }
+  },
+
+  downloadArquivo: async (nf: { id: number; numero?: string }) => {
+    const response = await api.get(`/notas-fiscais/${nf.id}/arquivo`, {
+      responseType: "blob",
+    });
+    const disposition = String(response.headers["content-disposition"] || "");
+    const match = disposition.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
+    const nomeHeader = match?.[1] ? decodeURIComponent(match[1].replace(/"/g, "")) : "";
+    const nome = nomeHeader || `NF-${nf.numero || nf.id}.pdf`;
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nome;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+
+  atualizarVinculos: async (
+    nfId: number,
+    itens: { id: number; item_contrato_id: number }[],
+  ) => {
+    const response = await api.patch(`/notas-fiscais/${nfId}/vinculos`, { itens });
+    return response.data;
+  },
 };
 
 export const contratosService = {
@@ -85,7 +109,11 @@ export const contratosService = {
   criar: async (dados: any) => {
     const response = await api.post("/contratos/", dados);
     return response.data;
-  }
+  },
+  atualizar: async (id: number, dados: any) => {
+    const response = await api.patch(`/contratos/${id}`, dados);
+    return response.data;
+  },
 };
 
 export const fornecedoresService = {
@@ -96,7 +124,11 @@ export const fornecedoresService = {
   criar: async (dados: any) => {
     const response = await api.post("/fornecedores/", dados);
     return response.data;
-  }
+  },
+  atualizar: async (id: number, dados: any) => {
+    const response = await api.patch(`/fornecedores/${id}`, dados);
+    return response.data;
+  },
 };
 
 export const licitacoesService = {
@@ -125,5 +157,9 @@ export const almoxarifadosService = {
   criar: async (dados: any) => {
     const response = await api.post("/almoxarifados/", dados);
     return response.data;
-  }
+  },
+  atualizar: async (id: number, dados: any) => {
+    const response = await api.patch(`/almoxarifados/${id}`, dados);
+    return response.data;
+  },
 };

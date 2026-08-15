@@ -1,6 +1,8 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, computed_field, field_validator
 from typing import Optional, List
 from datetime import date, datetime
+
+from .services.documento import formatar_cpf_cnpj
 
 class AlmoxarifadoBase(BaseModel):
     nome: str
@@ -9,6 +11,11 @@ class AlmoxarifadoBase(BaseModel):
 
 class AlmoxarifadoCreate(AlmoxarifadoBase):
     pass
+
+class AlmoxarifadoUpdate(BaseModel):
+    nome: Optional[str] = None
+    localizacao: Optional[str] = None
+    ativo: Optional[bool] = None
 
 class AlmoxarifadoOut(AlmoxarifadoBase):
     id: int
@@ -42,11 +49,49 @@ class FornecedorBase(BaseModel):
     ativo: bool = True
 
 class FornecedorCreate(FornecedorBase):
-    pass
+    @field_validator("cnpj")
+    @classmethod
+    def validar_cpf_cnpj(cls, valor: str) -> str:
+        try:
+            return formatar_cpf_cnpj(valor)
+        except ValueError as exc:
+            raise ValueError("CPF ou CNPJ inválido") from exc
 
-class FornecedorUpdate(FornecedorBase):
+    @field_validator("estado")
+    @classmethod
+    def normalizar_uf(cls, valor: Optional[str]) -> Optional[str]:
+        if valor is None or valor.strip() == "":
+            return None
+        return valor.strip().upper()[:2]
+
+class FornecedorUpdate(BaseModel):
     razao_social: Optional[str] = None
+    nome_fantasia: Optional[str] = None
     cnpj: Optional[str] = None
+    inscricao_estadual: Optional[str] = None
+    endereco: Optional[str] = None
+    cidade: Optional[str] = None
+    estado: Optional[str] = None
+    telefone: Optional[str] = None
+    email: Optional[EmailStr] = None
+    ativo: Optional[bool] = None
+
+    @field_validator("cnpj")
+    @classmethod
+    def validar_cpf_cnpj_opcional(cls, valor: Optional[str]) -> Optional[str]:
+        if valor is None or valor.strip() == "":
+            return valor
+        try:
+            return formatar_cpf_cnpj(valor)
+        except ValueError as exc:
+            raise ValueError("CPF ou CNPJ inválido") from exc
+
+    @field_validator("estado")
+    @classmethod
+    def normalizar_uf(cls, valor: Optional[str]) -> Optional[str]:
+        if valor is None or valor.strip() == "":
+            return None
+        return valor.strip().upper()[:2]
 
 class FornecedorOut(FornecedorBase):
     id: int
@@ -74,7 +119,7 @@ class LicitacaoOut(LicitacaoBase):
     model_config = ConfigDict(from_attributes=True)
 
 class ContratoBase(BaseModel):
-    licitacao_id: int
+    licitacao_id: Optional[int] = None
     fornecedor_id: int
     numero: str
     ano: int
@@ -94,6 +139,23 @@ class ItemContratoCreate(BaseModel):
 class ContratoCreate(ContratoBase):
     itens: List[ItemContratoCreate] = []
 
+class ItemContratoUpdate(BaseModel):
+    id: Optional[int] = None
+    codigo: Optional[str] = None
+    descricao: str
+    unidade: str = "UN"
+    quantidade_contratada: float
+    valor_unitario: float
+
+class ContratoUpdate(BaseModel):
+    fornecedor_id: Optional[int] = None
+    numero: Optional[str] = None
+    ano: Optional[int] = None
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
+    situacao: Optional[str] = None
+    itens: Optional[List[ItemContratoUpdate]] = None
+
 class ContratoOut(ContratoBase):
     id: int
 
@@ -112,9 +174,24 @@ class ItemContratoOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @computed_field
+    @property
+    def valor_contratado(self) -> float:
+        return round((self.quantidade_contratada or 0) * (self.valor_unitario or 0), 2)
+
+    @computed_field
+    @property
+    def saldo_monetario(self) -> float:
+        return round((self.saldo_atual or 0) * (self.valor_unitario or 0), 2)
+
 class ContratoDetalhadoOut(ContratoOut):
     fornecedor: Optional[FornecedorOut] = None
     itens: List[ItemContratoOut] = []
+
+    @computed_field
+    @property
+    def saldo_atual(self) -> float:
+        return round(sum(item.saldo_monetario for item in self.itens), 2)
 
 class ItemNFEntrada(BaseModel):
     codigo: Optional[str] = None
@@ -181,6 +258,18 @@ class NotaFiscalOut(NotaFiscalCreate):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @computed_field
+    @property
+    def tem_arquivo(self) -> bool:
+        return bool(self.arquivo_pdf_path)
+
+class ItemVinculoUpdate(BaseModel):
+    id: int
+    item_contrato_id: int
+
+class AtualizarVinculosRequest(BaseModel):
+    itens: List[ItemVinculoUpdate]
+
 class BaixaRequest(BaseModel):
     justificativa: Optional[str] = None
     almoxarifado_id: Optional[int] = None
@@ -208,6 +297,8 @@ class PrevisaoConsumoOut(BaseModel):
     item_id: int
     item_descricao: str
     saldo_atual: float
+    valor_unitario: float = 0
+    saldo_monetario: float = 0
     total_baixado: float
     taxa_diaria: float
     dias_restantes: Optional[int] = None

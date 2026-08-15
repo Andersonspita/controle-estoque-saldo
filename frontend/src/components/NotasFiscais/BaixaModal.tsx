@@ -49,7 +49,7 @@ export function BaixaModal({ nf, isOpen, onOpenChange }: { nf: any, isOpen: bool
     e.preventDefault()
     
     if (!almoxarifadoId) {
-      toast.error("Selecione um almoxarifado para destinar o material.")
+      toast.error("Selecione um órgão para destinar o material.")
       return
     }
 
@@ -63,12 +63,12 @@ export function BaixaModal({ nf, isOpen, onOpenChange }: { nf: any, isOpen: bool
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 z-50" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white p-6 shadow-xl sm:rounded-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]">
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white p-6 shadow-xl sm:rounded-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]">
           <Dialog.Title className="text-xl font-semibold text-slate-800 flex items-center gap-2">
             Confirmar Baixa de Saldo
           </Dialog.Title>
           <Dialog.Description className="text-sm text-slate-500">
-            Você está prestes a abater as quantidades da NF <strong>#{nf?.numero}</strong> do saldo atual do contrato e dar entrada no almoxarifado.
+            Você está prestes a abater as quantidades da NF <strong>#{nf?.numero}</strong> do saldo atual do contrato e dar entrada no órgão de destino.
           </Dialog.Description>
 
           <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-start gap-3 mt-4">
@@ -82,7 +82,7 @@ export function BaixaModal({ nf, isOpen, onOpenChange }: { nf: any, isOpen: bool
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
               <label htmlFor="almoxarifado" className="text-sm font-medium text-slate-700">
-                Almoxarifado de Destino <span className="text-red-500">*</span>
+                Órgão de destino <span className="text-red-500">*</span>
               </label>
               <select
                 id="almoxarifado"
@@ -93,7 +93,7 @@ export function BaixaModal({ nf, isOpen, onOpenChange }: { nf: any, isOpen: bool
                 disabled={isLoadingAlmoxarifados}
               >
                 <option value="" disabled>
-                  {isLoadingAlmoxarifados ? "Carregando..." : "Selecione o almoxarifado"}
+                  {isLoadingAlmoxarifados ? "Carregando..." : "Selecione o órgão"}
                 </option>
                 {almoxarifados.map((al: any) => (
                   <option key={al.id} value={al.id}>

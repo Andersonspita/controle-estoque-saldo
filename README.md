@@ -2,19 +2,19 @@
 
 Sistema web de **gestão de saldos e itens de contratos de licitação**. Acompanhe o saldo contratual e registre baixas a partir de Notas Fiscais Eletrônicas (NF-e).
 
-O estoque controlado **não é o almoxarifado**. Cada item do contrato entra com um saldo (a quantidade contratada). Cada baixa de NF abate esse saldo. O almoxarifado é só o **destino físico** do material depois da baixa.
+O estoque controlado **não é o órgão de destino**. Cada item do contrato entra com um saldo (a quantidade contratada e o valor correspondente). Cada baixa de NF abate esse saldo. O órgão é só o **destino físico** do material depois da baixa.
 
-Exemplo: contrato de 12 meses com 1 item de 100 unidades → o item começa com 100 de saldo. Depois de baixar 10 na NF, restam 90 no contrato, mesmo que o material tenha ido para o almoxarifado central.
+Exemplo: contrato de 12 meses com 1 item de 100 unidades → o item começa com 100 de saldo. Depois de baixar 10 na NF, restam 90 no contrato, mesmo que o material tenha ido para o órgão.
 
 ## O que o sistema faz
 
-- Cadastro de fornecedores, licitações, contratos e itens (com saldo inicial igual à quantidade contratada)
+- Cadastro de fornecedores, contratos e itens (com saldo inicial igual à quantidade contratada)
 - Importação de NF-e em **XML** ou **PDF (DANFE)** com OCR
 - Vínculo de cada item da NF a um item do contrato (código, GTIN ou similaridade de descrição)
-- Baixa transacional: desconta o saldo do contrato, registra a movimentação e destina o material ao almoxarifado
+- Baixa transacional: desconta o saldo do contrato, registra a movimentação e destina o material ao órgão
 - Previsão de consumo e alertas de esgotamento no dashboard (45 dias)
 - Autenticação JWT com dois perfis:
-  - **ADMIN** — consulta, importa NF, dá baixa e cadastra fornecedor, contrato, licitação e almoxarifado
+  - **ADMIN** — consulta, importa NF, dá baixa e cadastra/edita usuário, fornecedor, contrato e órgão
   - **OPERADOR** — consulta, importa NF, vincula itens e dá baixa (não cadastra)
 
 ## Tecnologias

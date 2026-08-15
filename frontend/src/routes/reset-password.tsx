@@ -50,13 +50,8 @@ type FormData = z.infer<typeof formSchema>
 export const Route = createFileRoute("/reset-password")({
   component: ResetPassword,
   validateSearch: searchSchema,
-  beforeLoad: async ({ search }) => {
-    if (isLoggedIn()) {
-      throw redirect({ to: "/" })
-    }
-    if (!search.token) {
-      throw redirect({ to: "/login" })
-    }
+  beforeLoad: async () => {
+    throw redirect({ to: "/login" })
   },
   head: () => ({
     meta: [

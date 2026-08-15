@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
   createFileRoute,
-  Link as RouterLink,
   redirect,
 } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
@@ -24,11 +23,11 @@ import useAuth, { isLoggedIn } from "@/hooks/useAuth"
 import { pageTitle } from "@/lib/brand"
 
 const formSchema = z.object({
-  username: z.email({ message: "Invalid email address" }),
+  username: z.email({ message: "Informe um e-mail válido" }),
   password: z
     .string()
-    .min(1, { message: "Password is required" })
-    .min(8, { message: "Password must be at least 8 characters" }),
+    .min(1, { message: "Informe a senha" })
+    .min(8, { message: "A senha deve ter pelo menos 8 caracteres" }),
 }) satisfies z.ZodType<AccessToken>
 
 type FormData = z.infer<typeof formSchema>
@@ -106,12 +105,6 @@ function Login() {
                 <FormItem>
                   <div className="flex items-center">
                     <FormLabel>Senha</FormLabel>
-                    <RouterLink
-                      to="/recover-password"
-                      className="ml-auto text-sm underline-offset-4 hover:underline"
-                    >
-                      Esqueceu a senha?
-                    </RouterLink>
                   </div>
                   <FormControl>
                     <PasswordInput
@@ -128,13 +121,6 @@ function Login() {
             <LoadingButton type="submit" loading={loginMutation.isPending}>
               Entrar
             </LoadingButton>
-          </div>
-
-          <div className="text-center text-sm">
-            Ainda não tem conta?{" "}
-            <RouterLink to="/signup" className="underline underline-offset-4">
-              Criar conta
-            </RouterLink>
           </div>
         </form>
       </Form>
