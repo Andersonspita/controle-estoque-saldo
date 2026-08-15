@@ -78,6 +78,8 @@ class Contrato(Base):
     data_inicio = Column(Date)
     data_fim = Column(Date)
     valor_total = Column(Float, nullable=False)
+    valor_total_inicial = Column(Float, nullable=False, default=0)
+    percentual_aditivo = Column(Float, nullable=False, default=0)
     situacao = Column(String, nullable=False)
     
     licitacao = relationship("Licitacao", back_populates="contratos")
@@ -99,7 +101,9 @@ class ItemContrato(Base):
     unidade = Column(String, nullable=False)
     marca = Column(String)
     quantidade_contratada = Column(Float, nullable=False)
+    quantidade_inicial = Column(Float, nullable=False)
     valor_unitario = Column(Float, nullable=False)
+    valor_unitario_inicial = Column(Float, nullable=False)
     saldo_atual = Column(Float, nullable=False)
     
     contrato = relationship("Contrato", back_populates="itens")

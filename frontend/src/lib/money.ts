@@ -66,3 +66,12 @@ export function totaisContrato(contrato: {
   }
 }
 
+export function fatorAditivo(percentual?: number | null) {
+  const p = Number(percentual || 0)
+  return 1 + Math.max(0, p) / 100
+}
+
+export function quantidadeComAditivo(quantidadeInicial: number, percentual?: number | null) {
+  return quantidadeInicial * fatorAditivo(percentual)
+}
+

@@ -6,7 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 
 import { contratosService, fornecedoresService } from "../../services/api"
 import { formatarCpfCnpj } from "@/lib/documento"
-import { formatarMoeda } from "@/lib/money"
+import { formatarMoeda, fatorAditivo, quantidadeComAditivo } from "@/lib/money"
 import {
   baixarModeloPlanilhaItens,
   lerItensDeArquivo,
@@ -21,6 +21,7 @@ type ItemForm = {
   quantidade_contratada: number
   valor_unitario: number
   saldo_atual?: number
+  consumido?: number
 }
 
 const itemVazio = (): ItemForm => ({
@@ -57,6 +58,7 @@ export function AddContratoModal({
     numero: "",
     ano: new Date().getFullYear(),
     situacao: "Ativo",
+    percentual_aditivo: 0,
   })
   const [itens, setItens] = useState<ItemForm[]>([itemVazio()])
   const [importando, setImportando] = useState(false)
@@ -70,15 +72,17 @@ export function AddContratoModal({
         numero: contrato.numero || "",
         ano: contrato.ano || new Date().getFullYear(),
         situacao: contrato.situacao || "Ativo",
+        percentual_aditivo: contrato.percentual_aditivo || 0,
       })
       const carregados = (contrato.itens || []).map((item: any) => ({
         id: item.id,
         codigo: item.codigo || "",
         descricao: item.descricao || "",
         unidade: item.unidade || "UN",
-        quantidade_contratada: item.quantidade_contratada || 0,
-        valor_unitario: item.valor_unitario || 0,
+        quantidade_contratada: item.quantidade_inicial ?? item.quantidade_contratada ?? 0,
+        valor_unitario: item.valor_unitario_inicial ?? item.valor_unitario ?? 0,
         saldo_atual: item.saldo_atual,
+        consumido: (item.quantidade_contratada || 0) - (item.saldo_atual || 0),
       }))
       setItens(carregados.length ? carregados : [itemVazio()])
     } else {
@@ -87,15 +91,19 @@ export function AddContratoModal({
         numero: "",
         ano: new Date().getFullYear(),
         situacao: "Ativo",
+        percentual_aditivo: 0,
       })
       setItens([itemVazio()])
     }
   }, [isOpen, contrato])
 
-  const total = itens.reduce(
+  const percentualAditivo = Number(formData.percentual_aditivo) || 0
+  const fator = fatorAditivo(percentualAditivo)
+  const totalInicial = itens.reduce(
     (acc, item) => acc + item.quantidade_contratada * item.valor_unitario,
     0,
   )
+  const total = totalInicial * fator
 
   const mutation = useMutation({
     mutationFn: (data: any) =>
@@ -146,10 +154,7 @@ export function AddContratoModal({
 
   const removeItem = (index: number) => {
     const item = itens[index]
-    const consumido =
-      item.id != null && item.saldo_atual != null
-        ? item.quantidade_contratada - item.saldo_atual
-        : 0
+    const consumido = item.consumido || 0
     if (consumido > 0) {
       toast.error("Este item já teve baixa e não pode ser removido")
       return
@@ -165,6 +170,7 @@ export function AddContratoModal({
       numero: formData.numero,
       ano: formData.ano,
       situacao: formData.situacao,
+      percentual_aditivo: percentualAditivo,
       valor_total: total,
       itens: itens.map((item) => ({
         id: item.id,
@@ -187,7 +193,8 @@ export function AddContratoModal({
           </Dialog.Title>
           <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
             Cadastre os dados do contrato e os itens previstos. Você pode digitar os itens
-            ou importar uma planilha (.xlsx ou .csv). Valores unitários em reais.
+            ou importar uma planilha (.xlsx ou .csv). O aditivo percentual incide sobre o
+            contrato inicial.
           </Dialog.Description>
 
           <form onSubmit={handleSubmit} className="space-y-6 mt-2 text-sm">
@@ -244,7 +251,34 @@ export function AddContratoModal({
                   </select>
                 </div>
               )}
+              {editando && (
+                <div className="space-y-1">
+                  <label className="font-medium text-slate-700 dark:text-slate-300">Aditivo (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.percentual_aditivo}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        percentual_aditivo: Number(e.target.value) || 0,
+                      })
+                    }
+                    className={campo}
+                  />
+                </div>
+              )}
             </div>
+            {editando && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                O percentual é aplicado sobre o contrato inicial: todas as quantidades e os
+                valores totais dos itens sobem na mesma proporção. O valor unitário permanece.
+                {percentualAditivo > 0
+                  ? ` Ex.: 100 unidades a R$ 10,00 com ${percentualAditivo}% passam a ${quantidadeComAditivo(100, percentualAditivo)} unidades e ${formatarMoeda(100 * 10 * fator)}.`
+                  : ""}
+              </p>
+            )}
 
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
               <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
@@ -316,7 +350,9 @@ export function AddContratoModal({
                       />
                     </div>
                     <div className="col-span-6 sm:col-span-2 space-y-1">
-                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Qtd</label>
+                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                        {editando && percentualAditivo > 0 ? "Qtd inicial" : "Qtd"}
+                      </label>
                       <input
                         required
                         type="number"
@@ -330,6 +366,11 @@ export function AddContratoModal({
                         }}
                         className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-1.5 text-xs text-slate-800 dark:text-slate-200"
                       />
+                      {editando && percentualAditivo > 0 && (
+                        <p className="text-[11px] text-slate-500">
+                          Com aditivo: {quantidadeComAditivo(item.quantidade_contratada || 0, percentualAditivo)} {item.unidade}
+                        </p>
+                      )}
                     </div>
                     <div className="col-span-10 sm:col-span-3 space-y-1">
                       <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Valor unitário</label>
@@ -342,6 +383,14 @@ export function AddContratoModal({
                           setItens(n)
                         }}
                       />
+                      {editando && percentualAditivo > 0 && (
+                        <p className="text-[11px] text-slate-500">
+                          Total do item: {formatarMoeda(
+                            quantidadeComAditivo(item.quantidade_contratada || 0, percentualAditivo) *
+                              (item.valor_unitario || 0),
+                          )}
+                        </p>
+                      )}
                     </div>
                     <div className="col-span-2 sm:col-span-1 pb-1">
                       <button
@@ -356,9 +405,16 @@ export function AddContratoModal({
                   </div>
                 ))}
               </div>
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mt-4 text-right">
-                Total do contrato: {formatarMoeda(total)}
-              </p>
+              <div className="mt-4 text-right space-y-1">
+                {editando && percentualAditivo > 0 && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Contrato inicial: {formatarMoeda(totalInicial)} · Aditivo {percentualAditivo}%
+                  </p>
+                )}
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                  Total do contrato: {formatarMoeda(total)}
+                </p>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 mt-6">
