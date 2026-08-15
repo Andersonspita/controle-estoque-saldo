@@ -10,12 +10,13 @@ import { StrictMode } from "react"
 import ReactDOM from "react-dom/client"
 import { client } from "./client/client.gen"
 import { ThemeProvider } from "./components/theme-provider"
+import { apiOrigin } from "./lib/apiUrl"
 import { Toaster } from "./components/ui/sonner"
 import "./index.css"
 import { routeTree } from "./routeTree.gen"
 
 client.setConfig({
-  baseURL: import.meta.env.VITE_API_URL ?? "",
+  baseURL: apiOrigin(),
   auth: () => localStorage.getItem("access_token") || "",
 })
 

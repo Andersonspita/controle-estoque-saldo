@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { fornecedoresService } from "../../services/api"
 import { Truck, Plus } from "lucide-react"
 import { AddFornecedorModal } from "../../components/Fornecedores/AddFornecedorModal"
+import useAuth from "../../hooks/useAuth"
 
 export const Route = createFileRoute("/_layout/fornecedores")({
   component: FornecedoresPage,
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/_layout/fornecedores")({
 
 function FornecedoresPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const { isAdmin } = useAuth()
 
   const { data: fornecedores = [], isLoading } = useQuery({
     queryKey: ["fornecedores"],
@@ -26,13 +28,15 @@ function FornecedoresPage() {
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gerencie os fornecedores cadastrados para licitações e contratos.</p>
         </div>
-        <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all flex gap-2 items-center px-4 py-2 rounded-md font-medium text-sm"
-        >
-          <Plus size={18} />
-          Novo Fornecedor
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all flex gap-2 items-center px-4 py-2 rounded-md font-medium text-sm"
+          >
+            <Plus size={18} />
+            Novo Fornecedor
+          </button>
+        )}
       </div>
 
       <div className="border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm bg-white dark:bg-slate-900 overflow-hidden transition-colors">
@@ -71,7 +75,7 @@ function FornecedoresPage() {
         </table>
       </div>
 
-      <AddFornecedorModal isOpen={isAddModalOpen} onOpenChange={setIsAddModalOpen} />
+      {isAdmin && <AddFornecedorModal isOpen={isAddModalOpen} onOpenChange={setIsAddModalOpen} />}
     </div>
   )
 }

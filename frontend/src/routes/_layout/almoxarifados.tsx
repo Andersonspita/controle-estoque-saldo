@@ -5,6 +5,7 @@ import { Box, ChevronDown, ChevronRight, Plus, Loader2 } from "lucide-react"
 import { Fragment, useState } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import { toast } from "sonner"
+import useAuth from "../../hooks/useAuth"
 
 export const Route = createFileRoute("/_layout/almoxarifados")({
   component: Almoxarifados,
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/_layout/almoxarifados")({
 
 function Almoxarifados() {
   const queryClient = useQueryClient()
+  const { isAdmin } = useAuth()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [nome, setNome] = useState("")
   const [localizacao, setLocalizacao] = useState("")
@@ -61,12 +63,14 @@ function Almoxarifados() {
             Destino físico dos materiais após a baixa. O saldo controlado permanece no contrato.
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-        >
-          <Plus size={18} /> Novo Almoxarifado
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+          >
+            <Plus size={18} /> Novo Almoxarifado
+          </button>
+        )}
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
@@ -164,7 +168,7 @@ function Almoxarifados() {
         </table>
       </div>
 
-      <Dialog.Root open={isModalOpen} onOpenChange={setIsModalOpen}>
+      {isAdmin && <Dialog.Root open={isModalOpen} onOpenChange={setIsModalOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
           <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white p-6 shadow-xl sm:rounded-2xl">
@@ -211,7 +215,7 @@ function Almoxarifados() {
             </form>
           </Dialog.Content>
         </Dialog.Portal>
-      </Dialog.Root>
+      </Dialog.Root>}
     </div>
   )
 }

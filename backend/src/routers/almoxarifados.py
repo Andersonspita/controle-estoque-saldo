@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from ..database.session import get_db
-from ..deps import get_current_active_user
+from ..deps import get_current_active_user, require_admin
 from ..database.models import Almoxarifado, EstoqueAlmoxarifado, ItemContrato
 from ..schemas import AlmoxarifadoCreate, AlmoxarifadoOut, AlmoxarifadoDetalhadoOut, DestinacaoItemOut
 
@@ -69,7 +69,7 @@ async def get_almoxarifado(almoxarifado_id: int, db: AsyncSession = Depends(get_
         destinos=destinos,
     )
 
-@router.post("/", response_model=AlmoxarifadoOut)
+@router.post("/", response_model=AlmoxarifadoOut, dependencies=[Depends(require_admin)])
 async def create_almoxarifado(almoxarifado: AlmoxarifadoCreate, db: AsyncSession = Depends(get_db)):
     db_almoxarifado = Almoxarifado(**almoxarifado.model_dump())
     db.add(db_almoxarifado)

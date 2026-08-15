@@ -58,11 +58,15 @@ const useAuth = () => {
     navigate({ to: "/login" })
   }
 
+  const isAdmin =
+    user?.is_superuser === true || (user?.perfil || "").toUpperCase() === "ADMIN"
+
   return {
     signUpMutation,
     loginMutation,
     logout,
     user,
+    isAdmin,
   }
 }
 

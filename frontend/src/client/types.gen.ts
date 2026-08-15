@@ -695,6 +695,10 @@ export type UserPublic = {
      * Full Name
      */
     full_name?: string | null;
+    /**
+     * Perfil (ADMIN ou OPERADOR)
+     */
+    perfil?: string;
 };
 
 /**

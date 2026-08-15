@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { contratosService } from "../../services/api"
 import { ChevronDown, ChevronRight, FileSignature, Plus } from "lucide-react"
 import { AddContratoModal } from "../../components/Contratos/AddContratoModal"
+import useAuth from "../../hooks/useAuth"
 
 export const Route = createFileRoute("/_layout/contratos")({
   component: ContratosPage,
@@ -23,6 +24,7 @@ function corBarra(percentual: number) {
 function ContratosPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [expandidoId, setExpandidoId] = useState<number | null>(null)
+  const { isAdmin } = useAuth()
 
   const { data: contratos = [], isLoading } = useQuery({
     queryKey: ["contratos"],
@@ -40,13 +42,15 @@ function ContratosPage() {
             O estoque controlado pelo sistema é o saldo de cada item do contrato.
           </p>
         </div>
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all flex gap-2 items-center px-4 py-2 rounded-md font-medium text-sm"
-        >
-          <Plus size={18} />
-          Novo Contrato
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all flex gap-2 items-center px-4 py-2 rounded-md font-medium text-sm"
+          >
+            <Plus size={18} />
+            Novo Contrato
+          </button>
+        )}
       </div>
 
       <div className="border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm bg-white dark:bg-slate-900 overflow-hidden transition-colors">
@@ -158,7 +162,7 @@ function ContratosPage() {
         </table>
       </div>
 
-      <AddContratoModal isOpen={isAddModalOpen} onOpenChange={setIsAddModalOpen} />
+      {isAdmin && <AddContratoModal isOpen={isAddModalOpen} onOpenChange={setIsAddModalOpen} />}
     </div>
   )
 }

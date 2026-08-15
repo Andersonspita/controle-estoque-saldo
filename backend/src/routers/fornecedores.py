@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 from typing import List
 
 from ..database.session import get_db
-from ..deps import get_current_active_user
+from ..deps import get_current_active_user, require_admin
 from ..database.models import Fornecedor
 from ..schemas import FornecedorCreate, FornecedorUpdate, FornecedorOut
 
@@ -14,7 +14,7 @@ router = APIRouter(
     dependencies=[Depends(get_current_active_user)],
 )
 
-@router.post("/", response_model=FornecedorOut)
+@router.post("/", response_model=FornecedorOut, dependencies=[Depends(require_admin)])
 async def create_fornecedor(fornecedor: FornecedorCreate, db: AsyncSession = Depends(get_db)):
     db_forn = Fornecedor(**fornecedor.model_dump())
     db.add(db_forn)

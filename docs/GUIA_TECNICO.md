@@ -38,7 +38,7 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | Método | Rota | Uso |
 |--------|------|-----|
 | GET | `/contratos/` | Lista contratos com itens e saldos |
-| POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada) |
+| POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN** |
 | GET | `/contratos/previsao-consumo` | Dias restantes por item (taxa diária) |
 | GET | `/notas-fiscais/` | Lista NFs |
 | POST | `/notas-fiscais/parse-xml` | Extrai dados de XML NF-e |
@@ -48,12 +48,16 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | POST | `/notas-fiscais/{id}/baixar` | Baixa saldo do contrato (usuário vem do JWT) e destina ao almoxarifado |
 | GET | `/almoxarifados/` | Lista almoxarifados |
 | GET | `/almoxarifados/{id}` | Destinação física + saldo do contrato |
-| POST | `/almoxarifados/` | Cria almoxarifado |
+| POST | `/almoxarifados/` | Cria almoxarifado (**ADMIN**) |
+| POST | `/fornecedores/` | Cria fornecedor (**ADMIN**) |
+| POST | `/licitacoes/` | Cria licitação (**ADMIN**) |
 | POST | `/login/access-token` | Login (público). Form `username` + `password` |
-| GET | `/users/me` | Usuário logado |
+| GET | `/users/me` | Usuário logado (`perfil`, `is_superuser`) |
 | GET | `/health` | Health check (público) |
 
 Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token>`, exceto login e health.
+
+**Perfis:** `OPERADOR` lista, importa NF, vincula e dá baixa. `ADMIN` faz o mesmo e ainda cria fornecedor, contrato, licitação e almoxarifado (`require_admin` → 403 para os demais).
 
 ## 5. Como Executar os Testes
 
@@ -68,7 +72,7 @@ Testes relevantes do domínio:
 - `tests/test_nfe_parser.py` / `test_parse_xml_endpoint.py`
 - `tests/test_item_matcher.py`
 - `tests/test_danfe_parser.py` (rápido; usa fixture OCR)
-- `tests/test_auth.py` (401 sem token; `/health` público)
+- `tests/test_auth.py` (401 sem token; `/health` público; OPERADOR recebe 403 em POST de cadastro)
 - `tests/test_parse_pdf_endpoint.py` (PDF real; OCR ~20s)
 
 Fixture DANFE: `backend/tests/fixtures/sample_danfe.pdf` (mesmo arquivo que `docs/NF 29260832183420000147550010000000691333202248.pdf`).
@@ -81,9 +85,22 @@ uv run pytest --ignore=tests/test_parse_pdf_endpoint.py
 ### Frontend (E2E)
 ```bash
 cd frontend
+npx playwright install chromium
 npx playwright test
 ```
-O Playwright sobe só o frontend. Specs atuais cobrem o redirecionamento para login (visitante sem token). Relatório HTML: `npx playwright show-report`.
+
+O Playwright sobe o backend FastAPI (`http://127.0.0.1:8000/health`) e o Vite (`http://localhost:5173`). Se já estiverem no ar, reutiliza. No Docker Compose (`PLAYWRIGHT_BASE_URL` definido) ele **não** sobe esses processos.
+
+O fluxo autenticado precisa do **Postgres** (banco `controle_estoque`) e do usuário de testes. Credenciais: `E2E_EMAIL` / `E2E_PASSWORD`, com padrão igual ao usuário de testes acima.
+
+Specs:
+
+- `tests/dashboard.spec.ts` — visitante redirecionado ao login
+- `tests/login.spec.ts` — senha inválida permanece no login
+- `tests/auth.setup.ts` — autentica o ADMIN e grava `playwright/.auth/admin.json`
+- `tests/authenticated.spec.ts` — dashboard logado, menu Admin e “Novo Contrato”
+
+Relatório HTML: `npx playwright show-report`.
 
 ## 6. Documentação a manter
-Qualquer mudança de comportamento deve refletir em `docs/ESTADO_DO_PROJETO.md` (estado + próximos passos) e neste guia (como rodar / rotas / testes).
+Qualquer mudança de comportamento deve refletir em `docs/ESTADO_DO_PROJETO.md` (estado + próximos passos) e neste guia (como rodar / rotas / testes). O `README.md` da raiz (em português do Brasil) é a porta de entrada do repositório.
