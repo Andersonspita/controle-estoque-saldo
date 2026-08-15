@@ -249,6 +249,14 @@ export class LoginService {
             }
         });
     }
+
+    public static recoverPassword(_options?: unknown) {
+        return Promise.reject(new Error("Recuperação de senha não está disponível nesta API"));
+    }
+
+    public static resetPassword(_options?: unknown) {
+        return Promise.reject(new Error("Redefinição de senha não está disponível nesta API"));
+    }
 }
 
 export class UsersService {
@@ -264,6 +272,38 @@ export class UsersService {
             url: '/users/me',
             ...options
         });
+    }
+
+    public static registerUser(_options?: unknown) {
+        return Promise.reject(new Error("Cadastro público não está disponível nesta API"));
+    }
+
+    public static readUsers(_options?: unknown) {
+        return Promise.reject(new Error("Listagem de usuários não está disponível nesta API"));
+    }
+
+    public static createUser(_options?: unknown) {
+        return Promise.reject(new Error("Criação de usuário não está disponível nesta API"));
+    }
+
+    public static updateUser(_options?: unknown) {
+        return Promise.reject(new Error("Atualização de usuário não está disponível nesta API"));
+    }
+
+    public static deleteUser(_options?: unknown) {
+        return Promise.reject(new Error("Exclusão de usuário não está disponível nesta API"));
+    }
+
+    public static updateUserMe(_options?: unknown) {
+        return Promise.reject(new Error("Atualização de perfil não está disponível nesta API"));
+    }
+
+    public static deleteUserMe(_options?: unknown) {
+        return Promise.reject(new Error("Exclusão de conta não está disponível nesta API"));
+    }
+
+    public static updatePasswordMe(_options?: unknown) {
+        return Promise.reject(new Error("Troca de senha não está disponível nesta API"));
     }
 }
 
