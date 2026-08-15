@@ -102,6 +102,14 @@ function ContratosPage() {
                     </td>
                     <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
                       {formatarMoeda(totais.valorContratado)}
+                      {contrato.percentual_aditivo > 0 && (
+                        <p className="text-xs font-normal text-slate-400">
+                          Aditivo {contrato.percentual_aditivo}%
+                          {contrato.valor_total_inicial != null
+                            ? ` · inicial ${formatarMoeda(contrato.valor_total_inicial)}`
+                            : ""}
+                        </p>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right text-slate-700 dark:text-slate-200 whitespace-nowrap">
                       <p className="font-semibold">{formatarMoeda(totais.saldoAtual)}</p>
@@ -159,6 +167,11 @@ function ContratosPage() {
                                       </td>
                                       <td className="py-2 text-right text-slate-600 dark:text-slate-400 whitespace-nowrap">
                                         {item.quantidade_contratada} {item.unidade}
+                                        {contrato.percentual_aditivo > 0 && item.quantidade_inicial != null && (
+                                          <p className="text-[11px] text-slate-400">
+                                            Inicial: {item.quantidade_inicial}
+                                          </p>
+                                        )}
                                       </td>
                                       <td className="py-2 text-right text-slate-700 dark:text-slate-200 whitespace-nowrap">
                                         {formatarMoeda(valorContratadoItem(item))}

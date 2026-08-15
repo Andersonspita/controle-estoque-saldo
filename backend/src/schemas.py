@@ -126,6 +126,7 @@ class ContratoBase(BaseModel):
     data_inicio: Optional[date] = None
     data_fim: Optional[date] = None
     valor_total: float
+    percentual_aditivo: float = 0
     situacao: str
 
 class ItemContratoCreate(BaseModel):
@@ -154,10 +155,12 @@ class ContratoUpdate(BaseModel):
     data_inicio: Optional[date] = None
     data_fim: Optional[date] = None
     situacao: Optional[str] = None
+    percentual_aditivo: Optional[float] = None
     itens: Optional[List[ItemContratoUpdate]] = None
 
 class ContratoOut(ContratoBase):
     id: int
+    valor_total_inicial: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -169,7 +172,9 @@ class ItemContratoOut(BaseModel):
     descricao: str
     unidade: str
     quantidade_contratada: float
+    quantidade_inicial: Optional[float] = None
     valor_unitario: float
+    valor_unitario_inicial: Optional[float] = None
     saldo_atual: float
 
     model_config = ConfigDict(from_attributes=True)
