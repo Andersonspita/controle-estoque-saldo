@@ -278,32 +278,82 @@ export class UsersService {
         return Promise.reject(new Error("Cadastro público não está disponível nesta API"));
     }
 
-    public static readUsers(_options?: unknown) {
-        return Promise.reject(new Error("Listagem de usuários não está disponível nesta API"));
+    public static readUsers<ThrowOnError extends boolean = true>(options?: Options<TDataShape, ThrowOnError>) {
+        return (options?.client ?? client).get({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/users/',
+            ...options
+        });
     }
 
-    public static createUser(_options?: unknown) {
-        return Promise.reject(new Error("Criação de usuário não está disponível nesta API"));
+    public static createUser<ThrowOnError extends boolean = true>(options: Options<TDataShape, ThrowOnError>) {
+        return (options.client ?? client).post({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/users/',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
     }
 
-    public static updateUser(_options?: unknown) {
-        return Promise.reject(new Error("Atualização de usuário não está disponível nesta API"));
+    public static updateUser<ThrowOnError extends boolean = true>(
+        options: Options<TDataShape, ThrowOnError> & { path: { user_id: number } },
+    ) {
+        return (options.client ?? client).patch({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: `/users/${options.path.user_id}`,
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
     }
 
-    public static deleteUser(_options?: unknown) {
-        return Promise.reject(new Error("Exclusão de usuário não está disponível nesta API"));
+    public static deleteUser<ThrowOnError extends boolean = true>(
+        options: Options<TDataShape, ThrowOnError> & { path: { user_id: number } },
+    ) {
+        return (options.client ?? client).delete({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: `/users/${options.path.user_id}`,
+            ...options
+        });
     }
 
-    public static updateUserMe(_options?: unknown) {
-        return Promise.reject(new Error("Atualização de perfil não está disponível nesta API"));
+    public static updateUserMe<ThrowOnError extends boolean = true>(options: Options<TDataShape, ThrowOnError>) {
+        return (options.client ?? client).patch({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/users/me',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
     }
 
     public static deleteUserMe(_options?: unknown) {
-        return Promise.reject(new Error("Exclusão de conta não está disponível nesta API"));
+        return Promise.reject(new Error("Exclusão da própria conta não está disponível nesta API"));
     }
 
-    public static updatePasswordMe(_options?: unknown) {
-        return Promise.reject(new Error("Troca de senha não está disponível nesta API"));
+    public static updatePasswordMe<ThrowOnError extends boolean = true>(options: Options<TDataShape, ThrowOnError>) {
+        return (options.client ?? client).patch({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/users/me/password',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
     }
 }
 

@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
 import { isLoggedIn } from "@/hooks/useAuth"
 import useCustomToast from "@/hooks/useCustomToast"
+import { pageTitle } from "@/lib/brand"
 import { handleError } from "@/utils"
 
 const formSchema = z.object({
@@ -42,7 +43,7 @@ export const Route = createFileRoute("/recover-password")({
   head: () => ({
     meta: [
       {
-        title: "Recover Password - FastAPI Template",
+        title: pageTitle("Recuperar senha"),
       },
     ],
   }),

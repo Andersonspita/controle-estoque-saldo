@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
 import { PasswordInput } from "@/components/ui/password-input"
 import useAuth, { isLoggedIn } from "@/hooks/useAuth"
+import { pageTitle } from "@/lib/brand"
 
 const formSchema = z.object({
   username: z.email({ message: "Invalid email address" }),
@@ -44,7 +45,7 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       {
-        title: "Log In - FastAPI Template",
+        title: pageTitle("Entrar"),
       },
     ],
   }),
@@ -75,7 +76,7 @@ function Login() {
           className="flex flex-col gap-6"
         >
           <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-2xl font-bold">Login to your account</h1>
+            <h1 className="text-2xl font-bold">Entrar na sua conta</h1>
           </div>
 
           <div className="grid gap-4">
@@ -104,18 +105,18 @@ function Login() {
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center">
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>Senha</FormLabel>
                     <RouterLink
                       to="/recover-password"
                       className="ml-auto text-sm underline-offset-4 hover:underline"
                     >
-                      Forgot your password?
+                      Esqueceu a senha?
                     </RouterLink>
                   </div>
                   <FormControl>
                     <PasswordInput
                       data-testid="password-input"
-                      placeholder="Password"
+                      placeholder="Senha"
                       {...field}
                     />
                   </FormControl>
@@ -125,14 +126,14 @@ function Login() {
             />
 
             <LoadingButton type="submit" loading={loginMutation.isPending}>
-              Log In
+              Entrar
             </LoadingButton>
           </div>
 
           <div className="text-center text-sm">
-            Don't have an account yet?{" "}
+            Ainda não tem conta?{" "}
             <RouterLink to="/signup" className="underline underline-offset-4">
-              Sign up
+              Criar conta
             </RouterLink>
           </div>
         </form>

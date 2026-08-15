@@ -4,13 +4,14 @@ import { contratosService, movimentacoesService } from "../../services/api"
 import { DollarSign, FileText, Activity, AlertCircle, ArrowDownRight, CheckCircle2 } from "lucide-react"
 
 import useAuth from "../../hooks/useAuth"
+import { pageTitle } from "@/lib/brand"
 
 export const Route = createFileRoute("/_layout/")({
   component: Dashboard,
   head: () => ({
     meta: [
       {
-        title: "Dashboard - Controle de Estoque",
+        title: pageTitle("Dashboard"),
       },
     ],
   }),

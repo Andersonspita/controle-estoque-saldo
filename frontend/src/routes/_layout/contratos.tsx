@@ -5,9 +5,13 @@ import { contratosService } from "../../services/api"
 import { ChevronDown, ChevronRight, FileSignature, Plus } from "lucide-react"
 import { AddContratoModal } from "../../components/Contratos/AddContratoModal"
 import useAuth from "../../hooks/useAuth"
+import { pageTitle } from "@/lib/brand"
 
 export const Route = createFileRoute("/_layout/contratos")({
   component: ContratosPage,
+  head: () => ({
+    meta: [{ title: pageTitle("Contratos") }],
+  }),
 })
 
 function percentualRestante(saldo: number, contratada: number) {

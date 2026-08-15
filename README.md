@@ -1,6 +1,6 @@
-# Controle de Estoque e Saldos
+# SaldoContratual
 
-Sistema web para acompanhar o **saldo dos itens de contratos de licitação** e registrar baixas a partir de Notas Fiscais Eletrônicas (NF-e).
+Sistema web de **gestão de saldos e itens de contratos de licitação**. Acompanhe o saldo contratual e registre baixas a partir de Notas Fiscais Eletrônicas (NF-e).
 
 O estoque controlado **não é o almoxarifado**. Cada item do contrato entra com um saldo (a quantidade contratada). Cada baixa de NF abate esse saldo. O almoxarifado é só o **destino físico** do material depois da baixa.
 

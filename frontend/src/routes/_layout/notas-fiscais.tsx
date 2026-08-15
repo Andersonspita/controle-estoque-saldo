@@ -5,9 +5,13 @@ import { BaixaModal } from "../../components/NotasFiscais/BaixaModal"
 import { useQuery } from "@tanstack/react-query"
 import { notasFiscaisService } from "../../services/api"
 import { FileText, Play } from "lucide-react"
+import { pageTitle } from "@/lib/brand"
 
 export const Route = createFileRoute("/_layout/notas-fiscais")({
   component: NotasFiscaisPage,
+  head: () => ({
+    meta: [{ title: pageTitle("Notas Fiscais") }],
+  }),
 })
 
 function NotasFiscaisPage() {

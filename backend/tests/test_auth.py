@@ -90,6 +90,28 @@ async def test_operador_nao_cria_cadastros(async_client: AsyncClient, as_operado
 
 
 @pytest.mark.asyncio
+async def test_operador_nao_lista_usuarios(async_client: AsyncClient, as_operador):
+    response = await async_client.get("/users/")
+    assert response.status_code == 403
+    assert "administradores" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_operador_nao_cria_usuario(async_client: AsyncClient, as_operador):
+    response = await async_client.post(
+        "/users/",
+        json={
+            "email": "novo@example.com",
+            "password": "senha1234",
+            "full_name": "Novo Operador",
+            "perfil": "OPERADOR",
+        },
+    )
+    assert response.status_code == 403
+    assert "administradores" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_operador_pode_parsear_xml(async_client: AsyncClient, as_operador):
     xml_bytes = (FIXTURES_DIR / "sample_nfe.xml").read_bytes()
     response = await async_client.post(
