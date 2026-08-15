@@ -100,6 +100,19 @@ npx playwright test
 
 Relatório HTML: `npx playwright show-report`.
 
+## Deploy na VPS
+
+Banco, API e frontend sobem em containers separados (`compose.prod.yml`). Só a porta **80** fica pública. Passo a passo (firewall, Docker, `.env.production`, primeiro ADMIN): [docs/GUIA_TECNICO.md](docs/GUIA_TECNICO.md#6-deploy-na-vps-banco-api-e-frontend-separados).
+
+Resumo, no servidor (usuário não-root):
+
+```bash
+cp .env.production.example .env.production
+# gere POSTGRES_PASSWORD e SECRET_KEY; defina FRONTEND_HOST=http://SEU_IP e ADMIN_*
+docker compose -f compose.prod.yml --env-file .env.production up -d --build
+docker compose -f compose.prod.yml --env-file .env.production exec backend python create_user.py
+```
+
 ## Documentação
 
 | Arquivo | Conteúdo |

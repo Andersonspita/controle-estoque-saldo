@@ -1,6 +1,6 @@
 # Estado do Projeto - Controle de Estoque e Saldos
 
-> **Última Atualização:** 15/08/2026 — README do repositório em português do Brasil
+> **Última Atualização:** 15/08/2026 — Compose de produção (Postgres, API e Nginx separados) para VPS
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -70,6 +70,11 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 
 O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://localhost:5173`), reutilizando processos já em execução. Specs: visitante → login; ADMIN autentica, vê o dashboard e o botão “Novo Contrato”. Requer Postgres e o usuário de testes.
 
-## 8. De Onde Retomar (Próximos Passos)
+## 8. Deploy de produção
+
+`compose.prod.yml` sobe Postgres (rede interna), FastAPI (`src.main:app`, rede interna) e Nginx na porta 80 (SPA + proxy de `/api/v1`, `/login`, `/users` e `/health`). Segredos em `.env.production` (modelo: `.env.production.example`). Roteiro da VPS: `docs/GUIA_TECNICO.md` §6.
+
+## 9. De Onde Retomar (Próximos Passos)
 
 1. **Melhorias de NF:** OCR de PDF é mais lento que XML; quando existir o XML da NF-e, preferi-lo. Conferência visual dos vínculos NF × contrato em notas já importadas.
+2. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.

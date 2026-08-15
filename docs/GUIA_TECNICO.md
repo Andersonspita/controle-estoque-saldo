@@ -102,5 +102,85 @@ Specs:
 
 Relatório HTML: `npx playwright show-report`.
 
-## 6. Documentação a manter
-Qualquer mudança de comportamento deve refletir em `docs/ESTADO_DO_PROJETO.md` (estado + próximos passos) e neste guia (como rodar / rotas / testes). O `README.md` da raiz (em português do Brasil) é a porta de entrada do repositório.
+## 6. Deploy na VPS (banco, API e frontend separados)
+
+O Compose de produção é `compose.prod.yml`. Só o Nginx publica a **porta 80**. Postgres e FastAPI ficam na rede interna do Docker.
+
+Acesse por `http://SEU_IP` enquanto não houver domínio (sem HTTPS). **Não** use `compose.yml` do template FastAPI neste deploy.
+
+### 6.1. Primeira configuração da VPS (Ubuntu)
+
+Como root, crie um usuário de deploy (não rode o app como root):
+
+```bash
+adduser deploy
+usermod -aG sudo deploy
+mkdir -p /home/deploy/.ssh
+# cole a chave pública em /home/deploy/.ssh/authorized_keys
+chmod 700 /home/deploy/.ssh
+chmod 600 /home/deploy/.ssh/authorized_keys
+chown -R deploy:deploy /home/deploy/.ssh
+```
+
+Firewall: só SSH e HTTP.
+
+```bash
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 22/tcp
+ufw allow 80/tcp
+ufw enable
+```
+
+Instale Docker Engine e o plugin Compose (não use Docker Desktop). Em seguida:
+
+```bash
+usermod -aG docker deploy
+apt-get update && apt-get install -y fail2ban
+```
+
+Faça logout/login do usuário `deploy` para o grupo `docker` valer. Recomendado: login SSH só por chave; desligar `PasswordAuthentication` e `PermitRootLogin` em `/etc/ssh/sshd_config` depois de testar a chave.
+
+### 6.2. Código e segredos
+
+```bash
+sudo apt-get install -y git
+git clone https://github.com/Andersonspita/controle-estoque-saldo.git /home/deploy/controle-estoque-saldo
+cd /home/deploy/controle-estoque-saldo
+cp .env.production.example .env.production
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Edite `.env.production`:
+
+- `POSTGRES_PASSWORD` e `SECRET_KEY`: use as strings geradas (SECRET_KEY com pelo menos 32 bytes)
+- `FRONTEND_HOST=http://SEU_IP_PUBLICO` (sem barra no final)
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `ADMIN_NOME`: o primeiro administrador (não reutilize a senha de teste local)
+
+Não commite `.env.production`.
+
+### 6.3. Subir os serviços
+
+```bash
+cd /home/deploy/controle-estoque-saldo
+docker compose -f compose.prod.yml --env-file .env.production up -d --build
+docker compose -f compose.prod.yml --env-file .env.production exec backend python create_user.py
+```
+
+O backend já executa `alembic upgrade head` na subida. Conferir:
+
+- `http://SEU_IP/health`
+- interface em `http://SEU_IP`
+- logs: `docker compose -f compose.prod.yml --env-file .env.production logs -f`
+
+### 6.4. Quando houver domínio
+
+1. DNS tipo A apontando para o IP da VPS
+2. `ufw allow 443/tcp`
+3. Trocar `FRONTEND_HOST` para `https://seu-dominio` e colocar HTTPS no proxy (Let's Encrypt)
+4. Recriar o frontend: `docker compose -f compose.prod.yml --env-file .env.production up -d --build`
+
+Não publique as portas `5432` nem `8000`. Não suba Adminer. Não use `fastapi dev` em produção.
+
+## 7. Documentação a manter
+Qualquer mudança de comportamento deve refletir em `docs/ESTADO_DO_PROJETO.md` (estado + próximos passos) e neste guia (como rodar / rotas / testes / deploy). O `README.md` da raiz (em português do Brasil) é a porta de entrada do repositório.
