@@ -1,6 +1,5 @@
 import os
 import json
-from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +8,8 @@ from typing import List
 from ..database.session import get_db
 from ..deps import get_current_active_user
 from ..database.models import NotaFiscal, ItemNotaFiscal, Contrato, Fornecedor, ItemContrato
+from ..http_errors import http_erro_interno
+from ..services.arquivos import caminho_upload_seguro
 from ..schemas import (
     NotaFiscalCreate, ItemNotaFiscalCreate, NotaFiscalOut,
     VincularItensRequest, VincularItensResponse, ItemVinculoSugerido,
@@ -134,8 +135,8 @@ async def importar_nota_fiscal(
         dados_json = json.loads(nota_fiscal_data)
         nf_create = NotaFiscalCreate(**dados_json)
         itens_create = [ItemNotaFiscalCreate(**item) for item in dados_json.get("itens", [])]
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro ao analisar o JSON: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Dados da nota fiscal inválidos.")
 
     from sqlalchemy.future import select
     from sqlalchemy.orm import selectinload
@@ -163,10 +164,8 @@ async def importar_nota_fiscal(
                 detail=f"Item de contrato ID {item.item_contrato_id} não pertence ao contrato selecionado.",
             )
     
-    # Salvar PDF localmente
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    file_name = f"{timestamp}_{arquivo_pdf.filename}"
-    file_path = os.path.join(UPLOAD_DIR, file_name)
+    # Salvar PDF/XML localmente, sem aceitar caminhos no nome enviado
+    file_path = caminho_upload_seguro(UPLOAD_DIR, arquivo_pdf.filename)
     
     with open(file_path, "wb") as buffer:
         buffer.write(await arquivo_pdf.read())
@@ -207,7 +206,7 @@ async def importar_nota_fiscal(
         # Se falhou, remove o arquivo salvo
         if os.path.exists(file_path):
             os.remove(file_path)
-        raise HTTPException(status_code=400, detail=str(e))
+        raise http_erro_interno(e)
 
 from ..services.baixa_service import efetuar_baixa_nf
 from ..schemas import BaixaRequest, MovimentacaoOut
@@ -274,8 +273,8 @@ async def parse_xml_endpoint(arquivo_xml: UploadFile = File(...)):
         texto_xml = conteudo.decode("utf-8", errors="ignore")
         dados_extraidos = parse_nfe_xml(texto_xml)
         return dados_extraidos
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro ao analisar XML: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Não foi possível ler o XML da NF-e.")
 
 @router.post("/parse-pdf")
 async def parse_pdf_endpoint(arquivo_pdf: UploadFile = File(...)):
@@ -288,6 +287,6 @@ async def parse_pdf_endpoint(arquivo_pdf: UploadFile = File(...)):
         if not conteudo:
             raise ValueError("Arquivo PDF vazio")
         return parse_nfe_pdf(conteudo)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro ao analisar PDF: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Não foi possível ler o PDF da DANFE.")
 

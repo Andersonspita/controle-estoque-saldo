@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, computed_field, field_validator
 from typing import Optional, List
 from datetime import date, datetime
 
@@ -263,7 +263,7 @@ class NotaFiscalCreate(BaseModel):
 
 class NotaFiscalOut(NotaFiscalCreate):
     id: int
-    arquivo_pdf_path: Optional[str] = None
+    arquivo_pdf_path: Optional[str] = Field(default=None, exclude=True)
     status: str
     criado_em: datetime
     itens: List[ItemNotaFiscalOut] = []

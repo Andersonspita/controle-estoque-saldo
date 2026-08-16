@@ -30,7 +30,7 @@ cd frontend
 npm run dev
 ```
 
-**Usuário de testes:** `andersonspita87@gmail.com` / `0134679Ab@` (ADMIN).
+**Usuário de testes:** credenciais fora do Git (arquivo de acessos local). Perfil `ADMIN`. Playwright: `frontend/.env.e2e`.
 
 A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos.
 
@@ -57,7 +57,7 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | PATCH | `/almoxarifados/{id}` | Edita órgão (**ADMIN**) |
 | POST | `/fornecedores/` | Cria fornecedor (**ADMIN**). Campo `cnpj` aceita CPF (11 dígitos) ou CNPJ (14); grava formatado |
 | PATCH | `/fornecedores/{id}` | Edita fornecedor (**ADMIN**) |
-| POST | `/login/access-token` | Login (público). Form `username` + `password` |
+| POST | `/login/access-token` | Login (público). Form `username` + `password`. 5 falhas / 15 min → **429** |
 | GET | `/users/me` | Usuário logado (`perfil`, `is_superuser`) |
 | PATCH | `/users/me` | Atualiza nome/e-mail da conta logada |
 | PATCH | `/users/me/password` | Troca a senha da conta logada |
@@ -95,6 +95,8 @@ Testes relevantes do domínio:
 - `tests/test_item_matcher.py`
 - `tests/test_danfe_parser.py` (rápido; usa fixture OCR)
 - `tests/test_auth.py` (401 sem token; `/health` público; OPERADOR recebe 403 em POST de cadastro, PATCH de contrato e nas rotas de usuários)
+- `tests/test_login_throttle.py` (bloqueio após falhas de login)
+- `tests/test_arquivos.py` (nome de upload sanitizado)
 - `tests/test_documento.py` (validação e formatação de CPF/CNPJ; schema `FornecedorCreate`)
 - `tests/test_parse_pdf_endpoint.py` (PDF real; OCR ~20s)
 
@@ -114,7 +116,7 @@ npx playwright test
 
 O Playwright sobe o backend FastAPI (`http://127.0.0.1:8000/health`) e o Vite (`http://localhost:5173`). Se já estiverem no ar, reutiliza. No Docker Compose (`PLAYWRIGHT_BASE_URL` definido) ele **não** sobe esses processos.
 
-O fluxo autenticado precisa do **Postgres** (banco `controle_estoque`) e do usuário de testes. Credenciais: `E2E_EMAIL` / `E2E_PASSWORD`, com padrão igual ao usuário de testes acima.
+O fluxo autenticado precisa do **Postgres** (banco `controle_estoque`) e do usuário de testes. Copie `frontend/.env.e2e.example` para `frontend/.env.e2e` e defina `E2E_EMAIL` / `E2E_PASSWORD`. Não commite esse arquivo.
 
 Specs:
 
@@ -181,7 +183,9 @@ Edite `.env.production`:
 - `HTTP_PORT=8080` (porta pública do site; a 80 costuma estar ocupada pelo painel)
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `ADMIN_NOME`: o primeiro administrador (não reutilize a senha de teste local)
 
-Não commite `.env.production`.
+Não commite `.env.production`. Guarde e-mail/senha do ADMIN, SSH e a URL pública **fora do repositório**.
+
+O login limita tentativas (5 falhas / 15 min → 429). Erros de persistência não devolvem stack ao cliente. Upload de NF não aceita caminho no nome do arquivo. CORS de `localhost:5173` só em desenvolvimento.
 
 ### 6.3. Subir os serviços
 
@@ -207,4 +211,4 @@ O backend já executa `alembic upgrade head` na subida. Conferir:
 Não publique as portas `5432` nem `8000`. Não suba Adminer. Não use `fastapi dev` em produção.
 
 ## 7. Documentação a manter
-Qualquer mudança de comportamento deve refletir em `docs/ESTADO_DO_PROJETO.md` (estado + próximos passos) e neste guia (como rodar / rotas / testes / deploy). O `README.md` da raiz (em português do Brasil) é a porta de entrada do repositório.
+Qualquer mudança de comportamento deve refletir em `docs/ESTADO_DO_PROJETO.md` (estado + próximos passos) e neste guia (como rodar / rotas / testes / deploy). O `README.md` da raiz (em português do Brasil) é a porta de entrada do repositório. Senhas, chaves e dados de SSH não devem voltar para estes arquivos.

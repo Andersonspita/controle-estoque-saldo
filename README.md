@@ -73,7 +73,7 @@ Interface: <http://localhost:5173>
 
 A origem da API vem de `VITE_API_URL` (por padrão `http://localhost:8000`). O frontend aceita a URL com ou sem o sufixo `/api/v1`.
 
-**Usuário de testes:** `andersonspita87@gmail.com` / `0134679Ab@` (perfil **ADMIN**).
+O login de testes **não fica no repositório**. Use as credenciais no seu arquivo de acessos (fora do Git) e, para o Playwright, `frontend/.env.e2e` a partir de `frontend/.env.e2e.example`.
 
 A primeira leitura de um PDF DANFE baixa os modelos do RapidOCR e pode levar cerca de 20 segundos.
 
@@ -90,7 +90,7 @@ O teste `test_parse_pdf_endpoint.py` usa OCR no PDF real (~20 s) e pode ser exec
 
 ### Frontend (E2E)
 
-O Postgres e o usuário de testes precisam estar disponíveis. O Playwright sobe o backend e o Vite, ou reutiliza os processos se já estiverem no ar.
+O Postgres e o usuário de testes precisam estar disponíveis. Copie `frontend/.env.e2e.example` para `frontend/.env.e2e` e preencha `E2E_EMAIL` / `E2E_PASSWORD`. O Playwright sobe o backend e o Vite, ou reutiliza os processos se já estiverem no ar.
 
 ```bash
 cd frontend

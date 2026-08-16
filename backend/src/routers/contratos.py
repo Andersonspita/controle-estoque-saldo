@@ -17,6 +17,7 @@ from ..schemas import (
     PrevisaoConsumoOut,
     ContratoAditivoIn,
 )
+from ..http_errors import http_erro_interno
 from ..services.aditivo import aplicar_aditivo_item, valor_total_inicial_itens, valor_total_itens
 
 router = APIRouter(
@@ -68,7 +69,7 @@ async def create_contrato(contrato: ContratoCreate, db: AsyncSession = Depends(g
         return db_contrato
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise http_erro_interno(e)
 
 @router.get("/", response_model=List[ContratoDetalhadoOut])
 async def list_contratos(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
@@ -241,7 +242,7 @@ async def update_contrato(
         return result.scalar_one()
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise http_erro_interno(e)
 
 
 @router.post("/{contrato_id}/aditivo", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_admin)])
@@ -294,5 +295,5 @@ async def aditivar_contrato(
         return result.scalar_one()
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise http_erro_interno(e)
 
