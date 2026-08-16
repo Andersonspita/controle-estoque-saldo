@@ -3,7 +3,7 @@
 ## 1. Tecnologias Utilizadas
 - **Produto:** SaldoContratual (gestão de saldos e itens de contratos de licitação).
 - **Backend:** `FastAPI` (Python 3.14+). ORM assíncrono com SQLAlchemy e SQLModel. Banco **PostgreSQL**. Gerenciado via `uv`.
-- **Frontend:** `React` com `Vite`, `TanStack Router/Query` e `TailwindCSS`. Gerenciado via `npm`.
+- **Frontend:** `React` com `Vite`, `TanStack Router/Query` e `TailwindCSS`. Gerenciado via `npm`. Marca: selo em `frontend/public/` (`favicon.svg`/`favicon.ico`, `icon-180/192/512.png`) e componente `components/Common/Logo.tsx`.
 - **Testes:** `Pytest` (backend) e `Playwright` (frontend).
 - **NF-e:** `xmltodict` (XML), `pymupdf` + `rapidocr` + `onnxruntime` (DANFE em PDF).
 
@@ -30,7 +30,7 @@ cd frontend
 npm run dev
 ```
 
-**Usuário de testes:** `andersonspita87@gmail.com` / `0134679Ab@` (ADMIN).
+**Usuário de testes:** credenciais fora do Git (arquivo de acessos local). Perfil `ADMIN`. Playwright: `frontend/.env.e2e`.
 
 A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos.
 
@@ -40,7 +40,8 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 |--------|------|-----|
 | GET | `/contratos/` | Lista contratos com itens, `valor_contratado`/`saldo_monetario` por item e `saldo_atual` monetário do contrato |
 | POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN**. Sem licitação |
-| PATCH | `/contratos/{id}` | Edita cabeçalho, itens e **aditivo %** (**ADMIN**). Percentual incide sobre o contrato inicial; quantidade ≥ já baixado |
+| PATCH | `/contratos/{id}` | Edita cabeçalho e itens (**ADMIN**). Quantidade ≥ já baixado; item com baixa não pode ser removido |
+| POST | `/contratos/{id}/aditivo` | Aditivo seletivo (**ADMIN**): itens escolhidos recebem quantidade extra e, opcionalmente, novo valor unitário |
 | GET | `/contratos/previsao-consumo` | Dias restantes por item (taxa diária) + saldo monetário |
 | GET | `/notas-fiscais/` | Lista NFs (`tem_arquivo` indica se o PDF/XML está disponível) |
 | POST | `/notas-fiscais/parse-xml` | Extrai dados de XML NF-e |
@@ -56,7 +57,7 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | PATCH | `/almoxarifados/{id}` | Edita órgão (**ADMIN**) |
 | POST | `/fornecedores/` | Cria fornecedor (**ADMIN**). Campo `cnpj` aceita CPF (11 dígitos) ou CNPJ (14); grava formatado |
 | PATCH | `/fornecedores/{id}` | Edita fornecedor (**ADMIN**) |
-| POST | `/login/access-token` | Login (público). Form `username` + `password` |
+| POST | `/login/access-token` | Login (público). Form `username` + `password`. 5 falhas / 15 min → **429** |
 | GET | `/users/me` | Usuário logado (`perfil`, `is_superuser`) |
 | PATCH | `/users/me` | Atualiza nome/e-mail da conta logada |
 | PATCH | `/users/me/password` | Troca a senha da conta logada |
@@ -68,13 +69,15 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 
 Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token>`, exceto login e health.
 
-**Perfis:** `OPERADOR` lista, importa NF, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato e órgão (`require_admin` → 403 para os demais).
+**Perfis:** `OPERADOR` lista, importa NF, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato, órgão e aplica aditivo (`require_admin` → 403 para os demais).
 
 Cadastro de fornecedor: UF em select e municípios pela API do IBGE (`https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome`). ADMIN edita pelo botão na linha. Valores monetários na interface usam BRL (`R$ 1.234,56`). Tabelas no mobile rolam na horizontal.
 
 Cadastro/edição de contrato: itens podem ser digitados ou importados de planilha (`.xlsx`, `.xls`, `.csv` ou `.ods`) no modal. Colunas reconhecidas: descrição/item/produto (obrigatória), código, unidade, quantidade e valor unitário. Números no formato BR (`1.234,56`) são aceitos. Há **Baixar modelo** (CSV). Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON.
 
-Na edição (**ADMIN**) há o campo **Aditivo (%)**. O percentual incide sobre o **contrato inicial**: quantidade e valor total de cada item sobem na mesma proporção; o valor unitário permanece; o saldo ganha as unidades extras. Trocar 10% por 25% recalcula a partir do inicial, não acumula 1,10 × 1,25.
+A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`). Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante, órgão de destino e justificativa opcional.
+
+Na edição (**ADMIN**) o modal altera dados cadastrais e a quantidade/valor atuais. Para acrescentar quantidade em itens já existentes, o botão **Aditivo** abre outro modal: o usuário marca os itens, informa a quantidade extra (inteira em UN) e o valor unitário. A quantidade inicial do contrato não muda. OPERADOR recebe **403**.
 
 A tela **Órgãos** (menu; URL `/almoxarifados`) permite criar e editar (**ADMIN**). Na baixa da NF o destino é o órgão.
 
@@ -92,6 +95,8 @@ Testes relevantes do domínio:
 - `tests/test_item_matcher.py`
 - `tests/test_danfe_parser.py` (rápido; usa fixture OCR)
 - `tests/test_auth.py` (401 sem token; `/health` público; OPERADOR recebe 403 em POST de cadastro, PATCH de contrato e nas rotas de usuários)
+- `tests/test_login_throttle.py` (bloqueio após falhas de login)
+- `tests/test_arquivos.py` (nome de upload sanitizado)
 - `tests/test_documento.py` (validação e formatação de CPF/CNPJ; schema `FornecedorCreate`)
 - `tests/test_parse_pdf_endpoint.py` (PDF real; OCR ~20s)
 
@@ -111,7 +116,7 @@ npx playwright test
 
 O Playwright sobe o backend FastAPI (`http://127.0.0.1:8000/health`) e o Vite (`http://localhost:5173`). Se já estiverem no ar, reutiliza. No Docker Compose (`PLAYWRIGHT_BASE_URL` definido) ele **não** sobe esses processos.
 
-O fluxo autenticado precisa do **Postgres** (banco `controle_estoque`) e do usuário de testes. Credenciais: `E2E_EMAIL` / `E2E_PASSWORD`, com padrão igual ao usuário de testes acima.
+O fluxo autenticado precisa do **Postgres** (banco `controle_estoque`) e do usuário de testes. Copie `frontend/.env.e2e.example` para `frontend/.env.e2e` e defina `E2E_EMAIL` / `E2E_PASSWORD`. Não commite esse arquivo.
 
 Specs:
 
@@ -178,7 +183,9 @@ Edite `.env.production`:
 - `HTTP_PORT=8080` (porta pública do site; a 80 costuma estar ocupada pelo painel)
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `ADMIN_NOME`: o primeiro administrador (não reutilize a senha de teste local)
 
-Não commite `.env.production`.
+Não commite `.env.production`. Guarde e-mail/senha do ADMIN, SSH e a URL pública **fora do repositório**.
+
+O login limita tentativas (5 falhas / 15 min → 429). Erros de persistência não devolvem stack ao cliente. Upload de NF não aceita caminho no nome do arquivo. CORS de `localhost:5173` só em desenvolvimento.
 
 ### 6.3. Subir os serviços
 
@@ -204,4 +211,4 @@ O backend já executa `alembic upgrade head` na subida. Conferir:
 Não publique as portas `5432` nem `8000`. Não suba Adminer. Não use `fastapi dev` em produção.
 
 ## 7. Documentação a manter
-Qualquer mudança de comportamento deve refletir em `docs/ESTADO_DO_PROJETO.md` (estado + próximos passos) e neste guia (como rodar / rotas / testes / deploy). O `README.md` da raiz (em português do Brasil) é a porta de entrada do repositório.
+Qualquer mudança de comportamento deve refletir em `docs/ESTADO_DO_PROJETO.md` (estado + próximos passos) e neste guia (como rodar / rotas / testes / deploy). O `README.md` da raiz (em português do Brasil) é a porta de entrada do repositório. Senhas, chaves e dados de SSH não devem voltar para estes arquivos.

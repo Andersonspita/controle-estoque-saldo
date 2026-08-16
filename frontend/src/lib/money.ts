@@ -66,12 +66,27 @@ export function totaisContrato(contrato: {
   }
 }
 
-export function fatorAditivo(percentual?: number | null) {
-  const p = Number(percentual || 0)
-  return 1 + Math.max(0, p) / 100
-}
+const UNIDADES_INTEIRAS = new Set([
+  "un",
+  "und",
+  "unid",
+  "unidade",
+  "pc",
+  "pç",
+  "pec",
+  "peca",
+  "peça",
+  "cx",
+  "dz",
+  "kit",
+  "par",
+  "jg",
+  "rl",
+  "rolo",
+])
 
-export function quantidadeComAditivo(quantidadeInicial: number, percentual?: number | null) {
-  return quantidadeInicial * fatorAditivo(percentual)
+export function quantidadeInteira(unidade?: string | null) {
+  const texto = (unidade || "UN").trim().toLowerCase()
+  return UNIDADES_INTEIRAS.has(texto) || texto.startsWith("un")
 }
 

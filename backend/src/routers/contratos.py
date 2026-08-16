@@ -1,13 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 from typing import List
+from datetime import date
 
 from ..database.session import get_db
 from ..deps import get_current_active_user, require_admin
 from ..database.models import Contrato, ItemContrato, Movimentacao
-from ..schemas import ContratoCreate, ContratoUpdate, ContratoOut, ContratoDetalhadoOut, PrevisaoConsumoOut
-from ..services.aditivo import aplicar_aditivo_item, valor_total_inicial_itens
+from ..schemas import (
+    ContratoCreate,
+    ContratoUpdate,
+    ContratoOut,
+    ContratoDetalhadoOut,
+    PrevisaoConsumoOut,
+    ContratoAditivoIn,
+)
+from ..http_errors import http_erro_interno
+from ..services.aditivo import aplicar_aditivo_item, valor_total_inicial_itens, valor_total_itens
 
 router = APIRouter(
     prefix="/api/v1/contratos",
@@ -20,25 +31,22 @@ async def create_contrato(contrato: ContratoCreate, db: AsyncSession = Depends(g
     dados_contrato = contrato.model_dump(exclude={"itens"})
     if not dados_contrato.get("licitacao_id"):
         dados_contrato.pop("licitacao_id", None)
-    percentual = float(dados_contrato.get("percentual_aditivo") or 0)
-    if percentual < 0:
-        raise HTTPException(status_code=400, detail="O percentual de aditivo não pode ser negativo")
     db_contrato = Contrato(
         **{
-          k: v
-          for k, v in dados_contrato.items()
-          if k not in ("valor_total", "valor_total_inicial", "percentual_aditivo")
+            k: v
+            for k, v in dados_contrato.items()
+            if k not in ("valor_total", "valor_total_inicial", "percentual_aditivo")
         },
         valor_total=0,
         valor_total_inicial=0,
-        percentual_aditivo=percentual,
+        percentual_aditivo=0,
     )
     db.add(db_contrato)
     try:
         await db.flush()
         for indice, item in enumerate(contrato.itens, start=1):
             quantidade = item.quantidade_contratada
-            db_item = ItemContrato(
+            db.add(ItemContrato(
                 contrato_id=db_contrato.id,
                 numero_item=item.numero_item or indice,
                 codigo=item.codigo,
@@ -49,26 +57,19 @@ async def create_contrato(contrato: ContratoCreate, db: AsyncSession = Depends(g
                 quantidade_contratada=quantidade,
                 valor_unitario=item.valor_unitario,
                 saldo_atual=quantidade,
-            )
-            aplicar_aditivo_item(db_item, percentual, consumido=0)
-            db.add(db_item)
+            ))
         await db.flush()
         itens_depois = (
             await db.execute(select(ItemContrato).where(ItemContrato.contrato_id == db_contrato.id))
         ).scalars().all()
         db_contrato.valor_total_inicial = valor_total_inicial_itens(itens_depois)
-        db_contrato.valor_total = sum(
-            (it.quantidade_contratada or 0) * (it.valor_unitario or 0) for it in itens_depois
-        )
+        db_contrato.valor_total = valor_total_itens(itens_depois)
         await db.commit()
         await db.refresh(db_contrato)
         return db_contrato
-    except ValueError as e:
-        await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise http_erro_interno(e)
 
 @router.get("/", response_model=List[ContratoDetalhadoOut])
 async def list_contratos(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
@@ -152,8 +153,6 @@ async def update_contrato(
     contrato_in: ContratoUpdate,
     db: AsyncSession = Depends(get_db),
 ):
-    from sqlalchemy.orm import selectinload
-
     stmt = (
         select(Contrato)
         .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
@@ -165,12 +164,8 @@ async def update_contrato(
         raise HTTPException(status_code=404, detail="Contrato não encontrado")
 
     dados = contrato_in.model_dump(exclude_unset=True, exclude={"itens"})
-    if "percentual_aditivo" in dados and dados["percentual_aditivo"] is not None and dados["percentual_aditivo"] < 0:
-        raise HTTPException(status_code=400, detail="O percentual de aditivo não pode ser negativo")
     for campo, valor in dados.items():
         setattr(contrato, campo, valor)
-
-    percentual = float(contrato.percentual_aditivo or 0)
 
     if contrato_in.itens is not None:
         itens_atuais = {item.id: item for item in contrato.itens}
@@ -186,19 +181,24 @@ async def update_contrato(
                         detail=f"Item {item_in.id} não pertence a este contrato",
                     )
                 consumido = (item.quantidade_contratada or 0) - (item.saldo_atual or 0)
+                if item_in.quantidade_contratada < consumido:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"A quantidade do item '{item.descricao}' não pode ser menor "
+                            f"do que o já baixado ({consumido})"
+                        ),
+                    )
                 item.codigo = item_in.codigo
                 item.descricao = item_in.descricao
                 item.unidade = item_in.unidade
-                item.quantidade_inicial = item_in.quantidade_contratada
-                item.valor_unitario_inicial = item_in.valor_unitario
-                try:
-                    aplicar_aditivo_item(item, percentual, consumido=consumido)
-                except ValueError as e:
-                    raise HTTPException(status_code=400, detail=str(e)) from e
+                item.quantidade_contratada = item_in.quantidade_contratada
+                item.valor_unitario = item_in.valor_unitario
+                item.saldo_atual = item_in.quantidade_contratada - consumido
                 ids_enviados.add(item.id)
             else:
                 proximo_numero += 1
-                novo = ItemContrato(
+                db.add(ItemContrato(
                     contrato_id=contrato.id,
                     numero_item=proximo_numero,
                     codigo=item_in.codigo,
@@ -209,12 +209,7 @@ async def update_contrato(
                     quantidade_contratada=item_in.quantidade_contratada,
                     valor_unitario=item_in.valor_unitario,
                     saldo_atual=item_in.quantidade_contratada,
-                )
-                try:
-                    aplicar_aditivo_item(novo, percentual, consumido=0)
-                except ValueError as e:
-                    raise HTTPException(status_code=400, detail=str(e)) from e
-                db.add(novo)
+                ))
 
         for item_id, item in itens_atuais.items():
             if item_id in ids_enviados:
@@ -230,22 +225,12 @@ async def update_contrato(
             db.delete(item)
 
         await db.flush()
-    else:
-        for item in contrato.itens:
-            consumido = (item.quantidade_contratada or 0) - (item.saldo_atual or 0)
-            try:
-                aplicar_aditivo_item(item, percentual, consumido=consumido)
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e)) from e
-        await db.flush()
 
     itens_depois = (
         await db.execute(select(ItemContrato).where(ItemContrato.contrato_id == contrato.id))
     ).scalars().all()
     contrato.valor_total_inicial = valor_total_inicial_itens(itens_depois)
-    contrato.valor_total = sum(
-        (it.quantidade_contratada or 0) * (it.valor_unitario or 0) for it in itens_depois
-    )
+    contrato.valor_total = valor_total_itens(itens_depois)
 
     try:
         await db.commit()
@@ -257,5 +242,58 @@ async def update_contrato(
         return result.scalar_one()
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise http_erro_interno(e)
+
+
+@router.post("/{contrato_id}/aditivo", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_admin)])
+async def aditivar_contrato(
+    contrato_id: int,
+    body: ContratoAditivoIn,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(Contrato)
+        .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+        .where(Contrato.id == contrato_id)
+    )
+    result = await db.execute(stmt)
+    contrato = result.scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+    if not body.itens:
+        raise HTTPException(status_code=400, detail="Selecione ao menos um item para aditivar")
+
+    itens_por_id = {item.id: item for item in contrato.itens}
+    ids_vistos: set[int] = set()
+    for item_in in body.itens:
+        if item_in.item_id in ids_vistos:
+            raise HTTPException(status_code=400, detail="Há item repetido no aditivo")
+        ids_vistos.add(item_in.item_id)
+        item = itens_por_id.get(item_in.item_id)
+        if not item:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Item {item_in.item_id} não pertence a este contrato",
+            )
+        try:
+            aplicar_aditivo_item(item, item_in.quantidade_aditivada, item_in.valor_unitario)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{item.descricao}: {e}",
+            ) from e
+
+    contrato.valor_total = valor_total_itens(contrato.itens)
+
+    try:
+        await db.commit()
+        result = await db.execute(
+            select(Contrato)
+            .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+            .where(Contrato.id == contrato.id)
+        )
+        return result.scalar_one()
+    except Exception as e:
+        await db.rollback()
+        raise http_erro_interno(e)
 

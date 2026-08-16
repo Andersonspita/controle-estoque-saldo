@@ -1,13 +1,10 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 15/08/2026 — aditivo percentual sobre o contrato inicial
+> **Última Atualização:** 16/08/2026 — endurecimento de segurança (exceto HTTPS) e credenciais fora do Git
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
-**Usuário de Testes Padrão:**
-- E-mail: `andersonspita87@gmail.com`
-- Senha: `0134679Ab@`
-- Perfil: `ADMIN`
+**Usuário de testes / VPS:** senha e SSH **não** ficam neste repositório. Guarde-os fora do Git (arquivo de acessos local ou gerenciador de senhas). Playwright: `E2E_EMAIL` e `E2E_PASSWORD` em `frontend/.env.e2e` (modelo: `frontend/.env.e2e.example`). Perfil do usuário de testes: `ADMIN`.
 
 ## Regra de negócio do saldo
 
@@ -50,40 +47,45 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 
 - **Previsão de consumo:** `GET /api/v1/contratos/previsao-consumo`. Alertas de esgotamento (45 dias) no Dashboard.
 - **Cadastro de contrato:** `POST /api/v1/contratos/` persiste os itens. `saldo_atual` inicia igual à quantidade contratada. `licitacao_id` é opcional (a interface não envia). No modal, os itens podem ser **digitados** ou **importados de planilha** (`.xlsx` / `.csv`); há um modelo CSV para baixar. Colunas esperadas: descrição (obrigatória), código, unidade, quantidade e valor unitário. Na edição, a importação **acrescenta** itens novos (não substitui os que já existem).
-- **Edição de contrato (ADMIN):** `PATCH /api/v1/contratos/{id}` atualiza cabeçalho e itens. A quantidade contratada não pode ficar abaixo do já baixado. Item com movimentação não pode ser excluído. O `valor_total` é recalculado pelos itens. OPERADOR recebe **403**.
-- **Aditivo percentual:** na edição, o ADMIN informa `percentual_aditivo`. O percentual **sempre incide sobre o contrato inicial** (não acumula em cima de aditivo anterior). Quantidade contratada e totais em R$ de cada item sobem na mesma proporção; o valor unitário permanece. O saldo atual ganha as unidades extras. Colunas: `contratos.percentual_aditivo`, `contratos.valor_total_inicial`, `itens_contrato.quantidade_inicial`, `itens_contrato.valor_unitario_inicial`. Migração `b7d4e2c8a013`.
-- **Tela Contratos:** a linha mostra valor total (já com aditivo) e **saldo atual do contrato** em R$. Se houver aditivo, aparece o percentual e o valor inicial. Expandir a linha mostra, por item, quantidade contratada (e a inicial, se houver aditivo), **saldo total** (R$ contratado), **saldo atual** (R$ e unidades), valor unitário e percentual restante. ADMIN edita pelo botão na linha.
+- **Edição de contrato (ADMIN):** `PATCH /api/v1/contratos/{id}` atualiza cabeçalho e itens. A quantidade contratada não pode ficar abaixo do já baixado. Item com movimentação não pode ser excluído. O `valor_total` é recalculado pelos itens. OPERADOR recebe **403**. A quantidade inicial do contrato (`quantidade_inicial`) não é alterada na edição.
+- **Aditivo (ADMIN):** botão **Aditivo** na linha do contrato abre um modal. O usuário marca quais itens entram no aditivo e informa a **quantidade extra** e o **valor unitário** (pré-preenchido com o atual). Endpoint: `POST /api/v1/contratos/{id}/aditivo`. Só os itens marcados mudam: `quantidade_contratada` e `saldo_atual` somam a extra; o valor unitário pode ser atualizado. A quantidade inicial permanece como snapshot da contratação original. Extra deve ser maior que zero; em unidade (`UN` e similares) a quantidade é inteira (não existe 21,5 UN). OPERADOR recebe **403**.
+- **Tela Contratos:** a linha mostra valor total e **saldo atual do contrato** em R$. Se algum item já foi aditivado, aparece “Com aditivo” e o valor inicial. Expandir a linha (botão com `aria-expanded`, Tab + Enter) mostra os itens sem tabela aninhada. ADMIN edita pelo botão na linha ou aplica aditivo pelo botão **Aditivo**.
+- **Interface (redesign):** tokens `success` / `warning` / `critical` em `index.css`. Status usa `<Badge>`. Ações usam `<Button>`. Notas fiscais, fornecedores e Admin usam `DataTable` com busca, filtro e paginação. Dashboard centra no consumo do valor contratado, gráfico mensal e alertas acionáveis. Em telas `< md` as listas viram cards. Login usa marca, tagline e painel de produto. A marca é o **selo em relevo** (`Logo.tsx` + favicon SVG/ICO); o ícone de GitHub saiu do rodapé.
 - **Valores monetários:** campos de valor (unitário, totais, saldos) são exibidos e digitados em BRL (`R$ 1.234,56`). Quantidade permanece numérica. A API devolve `valor_contratado` e `saldo_monetario` em cada item e `saldo_atual` monetário no contrato detalhado.
 - **Órgãos:** interface usa o nome **Órgão** (API/tabelas continuam `almoxarifados`). CRUD em `/api/v1/almoxarifados/` com `POST` e `PATCH` (**ADMIN**). `GET /api/v1/almoxarifados/{id}` lista destinação física após baixas, lado a lado com o saldo do contrato.
-- **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` exige órgão de destino, deduz o saldo do item do contrato, grava movimentação e atualiza `estoque_almoxarifados`. O `usuario_id` vem do token JWT, não do corpo da requisição.
+- **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` exige órgão de destino, bloqueia a linha da NF (`FOR UPDATE`) para evitar baixa duplicada, deduz o saldo do item do contrato, grava movimentação e atualiza `estoque_almoxarifados`. O `usuario_id` vem do token JWT, não do corpo da requisição.
 - **Fornecedor:** o campo `cnpj` aceita **CPF (11) ou CNPJ (14)** com dígitos verificadores; a UI rotula **CPF/CNPJ**. UF em select; municípios vêm da API do IBGE (`/estados/{UF}/municipios`). Unicidade compara só os dígitos. Documentos já gravados não são revalidados na listagem. **ADMIN** cria e edita (`PATCH /api/v1/fornecedores/{id}`).
-- **Arquivo da NF:** a importação grava o PDF/XML em disco; a listagem oferece **Baixar PDF** (`GET /api/v1/notas-fiscais/{id}/arquivo`), inclusive após a baixa.
+- **Arquivo da NF:** a importação grava o PDF/XML em disco com nome sanitizado (sem path traversal); a listagem oferece **Baixar PDF** (`GET /api/v1/notas-fiscais/{id}/arquivo`), inclusive após a baixa. A API devolve `tem_arquivo`, não o caminho interno do disco.
 - **Grids no mobile:** tabelas rolam na horizontal (`overflow-x-auto`, `min-w-0` no layout). Cabeçalhos e ações (editar, conferir, baixa) não ficam cortados.
 
 ## 6. Autenticação JWT e perfis
 
-- Login: `POST /login/access-token` (público). Token HS256 com `settings.SECRET_KEY`.
+- Login: `POST /login/access-token` (público). Token HS256 com `settings.SECRET_KEY`. Após 5 falhas no mesmo IP+e-mail em 15 minutos, responde **429**.
+- Persistência (contratos, fornecedores, licitações, importação de NF): falhas internas devolvem mensagem genérica; o detalhe vai só ao log.
+- CORS: em produção usa só `FRONTEND_HOST`. `http://localhost:5173` entra automaticamente apenas com `FASTAPI_ENV=development`.
+- Nginx: cabeçalhos `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e `X-Robots-Tag` (sem HSTS enquanto o site for HTTP).
 - Dependência: `src/deps.py` (`get_current_user` / `get_current_active_user` / `require_admin`). Token inválido ou ausente → **401**. Usuário inativo → **403**.
 - Rotas de contratos, NFs, fornecedores, licitações, movimentações, almoxarifados e `GET /users/me` exigem Bearer token.
 - Públicos: `GET /health` e `POST /login/access-token`. Não há cadastro público nem recuperação de senha (rotas `/signup` e `/recover-password` redirecionam ao login).
 - Frontend (`frontend/src/services/api.ts`) envia `Authorization: Bearer` a partir de `localStorage.access_token`. A origem da API ignora um `/api/v1` extra no `.env`, para o login (`/login/access-token` e `/users/me`) e o axios (`/api/v1/...`) apontarem para o mesmo backend.
 - Correção: `/users/me` deixou de usar uma SECRET_KEY dummy (que caía no primeiro usuário do banco).
 - **`GET /users/me`** devolve `perfil` (`ADMIN` ou `OPERADOR`) e `is_superuser` (`true` só para ADMIN).
-- **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos e órgãos; edita contratos, fornecedores e órgãos.
-- **OPERADOR:** consulta cadastros, importa/parseia NF, vincula itens, baixa PDF da NF e dá baixa. POST/PATCH de cadastro (incluindo usuários, contratos, fornecedores e órgãos) → **403**.
+- **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos e órgãos; edita contratos, fornecedores e órgãos; aplica aditivo nos itens do contrato.
+- **OPERADOR:** consulta cadastros, importa/parseia NF, vincula itens, baixa PDF da NF e dá baixa. POST/PATCH de cadastro (incluindo usuários, contratos, fornecedores, órgãos e aditivo) → **403**.
 - **Usuários (ADMIN):** `GET/POST /users/`, `PATCH/DELETE /users/{id}`. Perfil `ADMIN` ou `OPERADOR`; não permite excluir a própria conta nem remover o último administrador. `PATCH /users/me` e `PATCH /users/me/password` atualizam dados da conta logada.
 
 ## 7. E2E autenticado (Playwright)
 
-O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://localhost:5173`), reutilizando processos já em execução. Specs: visitante → login; ADMIN autentica, vê o dashboard, a tela Admin de usuários e o botão “Novo Contrato”. Requer Postgres e o usuário de testes.
+O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://localhost:5173`), reutilizando processos já em execução. Specs: visitante → login; ADMIN autentica, vê o dashboard, a tela Admin de usuários e o botão “Novo Contrato”. Requer Postgres, o usuário de testes e `frontend/.env.e2e`.
 
 ## 8. Deploy de produção
 
-`compose.prod.yml` sobe Postgres (rede interna), FastAPI (`src.main:app`, rede interna) e Nginx na porta **8080** (SPA + proxy de `/api/v1`, `/login`, `/users` e `/health`). Segredos em `.env.production` (modelo: `.env.production.example`). Roteiro da VPS: `docs/GUIA_TECNICO.md` §6.
+`compose.prod.yml` sobe Postgres (rede interna), FastAPI (`src.main:app`, rede interna) e Nginx na porta **`${HTTP_PORT}`** (padrão do exemplo: **8080**; SPA + proxy de `/api/v1`, `/login`, `/users` e `/health`). Segredos em `.env.production` na VPS (modelo: `.env.production.example`). Roteiro: `docs/GUIA_TECNICO.md` §6.
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo: aditivo percentual sobre o contrato inicial (quantidades e totais em R$), com saldo extra nas unidades.
+Concluído neste ciclo: senhas e dados de acesso saíram do Git; endurecimento (rate limit no login, upload sanitizado, erros genéricos, lock na baixa, cabeçalhos no Nginx, CORS restrito). HTTPS permanece desligado de propósito.
 
 1. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
 2. Preferir XML da NF-e ao OCR de PDF quando o XML existir.
+3. Trocar a senha do ADMIN em produção depois que o histórico do Git já tiver sido publicado com ela (o commit atual só remove a senha dos arquivos).

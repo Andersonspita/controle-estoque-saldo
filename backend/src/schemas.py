@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, computed_field, field_validator
 from typing import Optional, List
 from datetime import date, datetime
 
@@ -126,7 +126,6 @@ class ContratoBase(BaseModel):
     data_inicio: Optional[date] = None
     data_fim: Optional[date] = None
     valor_total: float
-    percentual_aditivo: float = 0
     situacao: str
 
 class ItemContratoCreate(BaseModel):
@@ -155,12 +154,20 @@ class ContratoUpdate(BaseModel):
     data_inicio: Optional[date] = None
     data_fim: Optional[date] = None
     situacao: Optional[str] = None
-    percentual_aditivo: Optional[float] = None
     itens: Optional[List[ItemContratoUpdate]] = None
+
+class ItemAditivoIn(BaseModel):
+    item_id: int
+    quantidade_aditivada: float
+    valor_unitario: Optional[float] = None
+
+class ContratoAditivoIn(BaseModel):
+    itens: List[ItemAditivoIn]
 
 class ContratoOut(ContratoBase):
     id: int
     valor_total_inicial: Optional[float] = None
+    percentual_aditivo: float = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -256,7 +263,7 @@ class NotaFiscalCreate(BaseModel):
 
 class NotaFiscalOut(NotaFiscalCreate):
     id: int
-    arquivo_pdf_path: Optional[str] = None
+    arquivo_pdf_path: Optional[str] = Field(default=None, exclude=True)
     status: str
     criado_em: datetime
     itens: List[ItemNotaFiscalOut] = []

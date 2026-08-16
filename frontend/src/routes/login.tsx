@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
   createFileRoute,
+  Link,
   redirect,
 } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
@@ -20,7 +21,7 @@ import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
 import { PasswordInput } from "@/components/ui/password-input"
 import useAuth, { isLoggedIn } from "@/hooks/useAuth"
-import { pageTitle } from "@/lib/brand"
+import { pageTitle, APP_TAGLINE } from "@/lib/brand"
 
 const formSchema = z.object({
   username: z.email({ message: "Informe um e-mail válido" }),
@@ -74,8 +75,9 @@ function Login() {
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex flex-col gap-6"
         >
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-2xl font-bold">Entrar na sua conta</h1>
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold tracking-tight">Entrar na sua conta</h1>
+            <p className="text-sm text-muted-foreground">{APP_TAGLINE}</p>
           </div>
 
           <div className="grid gap-4">
@@ -103,8 +105,14 @@ function Login() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <div className="flex items-center">
+                  <div className="flex items-center justify-between">
                     <FormLabel>Senha</FormLabel>
+                    <Link
+                      to="/recover-password"
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Esqueci minha senha
+                    </Link>
                   </div>
                   <FormControl>
                     <PasswordInput
@@ -118,7 +126,7 @@ function Login() {
               )}
             />
 
-            <LoadingButton type="submit" loading={loginMutation.isPending}>
+            <LoadingButton type="submit" loading={loginMutation.isPending} className="h-[42px] w-full">
               Entrar
             </LoadingButton>
           </div>

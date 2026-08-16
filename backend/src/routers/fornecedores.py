@@ -7,6 +7,7 @@ from ..database.session import get_db
 from ..deps import get_current_active_user, require_admin
 from ..database.models import Fornecedor
 from ..schemas import FornecedorCreate, FornecedorUpdate, FornecedorOut
+from ..http_errors import http_erro_interno
 from ..services.documento import apenas_digitos
 
 router = APIRouter(
@@ -41,7 +42,7 @@ async def create_fornecedor(fornecedor: FornecedorCreate, db: AsyncSession = Dep
         return db_forn
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise http_erro_interno(e)
 
 @router.get("/", response_model=List[FornecedorOut])
 async def list_fornecedores(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
@@ -82,4 +83,4 @@ async def update_fornecedor(
         return forn
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise http_erro_interno(e)

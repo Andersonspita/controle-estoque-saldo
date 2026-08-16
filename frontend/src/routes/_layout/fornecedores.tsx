@@ -1,13 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { fornecedoresService } from "../../services/api"
-import { Pencil, Plus, Truck } from "lucide-react"
+import { Plus, Truck } from "lucide-react"
+
 import { AddFornecedorModal } from "../../components/Fornecedores/AddFornecedorModal"
+import { colunasFornecedores } from "../../components/Fornecedores/columns"
+import { DataTable } from "../../components/Common/DataTable"
+import { EmptyState } from "../../components/Common/EmptyState"
+import { ListToolbar } from "../../components/Common/ListToolbar"
+import { PageHeader } from "../../components/Common/PageHeader"
+import { useListSearch } from "../../components/Common/ListSearch"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import useAuth from "../../hooks/useAuth"
+import { useIsMobile } from "@/hooks/useMobile"
 import { pageTitle } from "@/lib/brand"
 import { formatarCpfCnpj } from "@/lib/documento"
-import { TableScroll } from "@/components/ui/table-scroll"
+import { fornecedoresService } from "../../services/api"
 
 export const Route = createFileRoute("/_layout/fornecedores")({
   component: FornecedoresPage,
@@ -19,91 +30,115 @@ export const Route = createFileRoute("/_layout/fornecedores")({
 function FornecedoresPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [fornecedorEdicao, setFornecedorEdicao] = useState<any | null>(null)
+  const [status, setStatus] = useState("todos")
   const { isAdmin } = useAuth()
+  const { query, setQuery } = useListSearch()
+  const isMobile = useIsMobile()
   const modalAberto = isAddModalOpen || !!fornecedorEdicao
 
-  const { data: fornecedores = [], isLoading } = useQuery({
+  const { data: fornecedores = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["fornecedores"],
     queryFn: () => fornecedoresService.listar(),
   })
 
-  const colunas = isAdmin ? 6 : 5
+  const filtrados = useMemo(() => {
+    const termo = query.trim().toLowerCase()
+    return fornecedores.filter((f: any) => {
+      if (status === "ativos" && !f.ativo) return false
+      if (status === "inativos" && f.ativo) return false
+      if (!termo) return true
+      return [f.razao_social, f.cnpj, f.cidade, f.estado].join(" ").toLowerCase().includes(termo)
+    })
+  }, [fornecedores, query, status])
+
+  const novo = isAdmin ? (
+    <Button
+      onClick={() => {
+        setFornecedorEdicao(null)
+        setIsAddModalOpen(true)
+      }}
+    >
+      <Plus /> Novo Fornecedor
+    </Button>
+  ) : null
 
   return (
-    <div className="min-w-0 space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-2">
-            <Truck size={24} className="text-slate-500 shrink-0" /> Fornecedores
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Gerencie os fornecedores cadastrados para os contratos.
-          </p>
-        </div>
-        {isAdmin && (
-          <button
-            onClick={() => {
-              setFornecedorEdicao(null)
-              setIsAddModalOpen(true)
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all flex gap-2 items-center px-4 py-2 rounded-md font-medium text-sm shrink-0 self-start"
-          >
-            <Plus size={18} />
-            Novo Fornecedor
-          </button>
-        )}
-      </div>
+    <div className="min-w-0 space-y-4 animate-in fade-in duration-500">
+      <PageHeader
+        title="Fornecedores"
+        description="Cadastre os fornecedores usados nos contratos."
+        action={novo}
+      />
 
-      <TableScroll>
-        <table className="w-full min-w-[48rem] text-sm text-left">
-          <thead className="bg-slate-50 dark:bg-slate-950 border-b dark:border-slate-800 text-slate-600 dark:text-slate-400 font-medium">
-            <tr>
-              <th className="px-6 py-4 whitespace-nowrap">ID</th>
-              <th className="px-6 py-4 whitespace-nowrap">Razão Social</th>
-              <th className="px-6 py-4 whitespace-nowrap">CPF/CNPJ</th>
-              <th className="px-6 py-4 whitespace-nowrap">Localização</th>
-              <th className="px-6 py-4 whitespace-nowrap">Status</th>
-              {isAdmin && <th className="px-6 py-4 text-right whitespace-nowrap">Ações</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {fornecedores.map((forn: any) => (
-              <tr key={forn.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">#{forn.id}</td>
-                <td className="px-6 py-4 text-slate-800 dark:text-slate-200 font-medium whitespace-nowrap">{forn.razao_social}</td>
-                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatarCpfCnpj(forn.cnpj || "")}</td>
-                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                  {forn.cidade && forn.estado ? `${forn.cidade}/${forn.estado}` : forn.cidade || forn.estado || "-"}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${forn.ativo ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                    {forn.ativo ? 'Ativo' : 'Inativo'}
-                  </span>
-                </td>
+      <ListToolbar
+        placeholder="Razão social, CPF/CNPJ ou município"
+        query={query}
+        onQueryChange={setQuery}
+        tab={status}
+        onTabChange={setStatus}
+        tabs={[
+          { value: "todos", label: "Todos" },
+          { value: "ativos", label: "Ativos" },
+          { value: "inativos", label: "Inativos" },
+        ]}
+        countLabel={`${filtrados.length} ${filtrados.length === 1 ? "fornecedor" : "fornecedores"}`}
+      />
+
+      {isError && (
+        <Alert variant="destructive">
+          <AlertTitle>Erro ao carregar fornecedores</AlertTitle>
+          <AlertDescription>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Tentar novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isLoading ? (
+        <Skeleton className="h-24 w-full" />
+      ) : isMobile ? (
+        <div className="space-y-3">
+          {filtrados.length === 0 ? (
+            <EmptyState icon={Truck} title="Nenhum fornecedor cadastrado" action={novo} />
+          ) : (
+            filtrados.map((f: any) => (
+              <div key={f.id} className="space-y-2 rounded-xl border bg-card p-3.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{f.razao_social}</p>
+                    <p className="text-sm text-muted-foreground">{formatarCpfCnpj(f.cnpj || "")}</p>
+                  </div>
+                  <Badge variant={f.ativo ? "success" : "secondary"}>
+                    {f.ativo ? "Ativo" : "Inativo"}
+                  </Badge>
+                </div>
                 {isAdmin && (
-                  <td className="px-6 py-4 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAddModalOpen(false)
-                        setFornecedorEdicao(forn)
-                      }}
-                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-                    >
-                      <Pencil size={14} /> Editar
-                    </button>
-                  </td>
+                  <Button
+                    variant="outline"
+                    className="h-11 w-full"
+                    onClick={() => setFornecedorEdicao(f)}
+                  >
+                    Editar
+                  </Button>
                 )}
-              </tr>
-            ))}
-            {fornecedores.length === 0 && !isLoading && (
-              <tr>
-                <td colSpan={colunas} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Nenhum fornecedor cadastrado.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </TableScroll>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        <DataTable
+          columns={colunasFornecedores({
+            isAdmin,
+            onEditar: (fornecedor) => {
+              setIsAddModalOpen(false)
+              setFornecedorEdicao(fornecedor)
+            },
+          })}
+          data={filtrados}
+          empty={<EmptyState icon={Truck} title="Nenhum fornecedor cadastrado" action={novo} />}
+        />
+      )}
 
       {isAdmin && (
         <AddFornecedorModal

@@ -19,7 +19,7 @@ def _cors_origins() -> list[str]:
         origin = item.strip().rstrip("/")
         if origin:
             origins.append(origin)
-    if "http://localhost:5173" not in origins:
+    if os.getenv("FASTAPI_ENV", "").lower() == "development" and "http://localhost:5173" not in origins:
         origins.append("http://localhost:5173")
     return origins
 

@@ -21,7 +21,12 @@ backend/venv/
 .env.*
 !.env.example
 !.env.production.example
+!.env.e2e.example
+!**/.env.example
+!**/.env.e2e.example
 **/.env
+.env.e2e
+ACESSO_SALDOCONTRATUAL.md
 docs/Chave GTP.txt
 backend/uploads/
 

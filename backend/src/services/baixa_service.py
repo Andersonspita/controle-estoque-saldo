@@ -7,6 +7,7 @@ from typing import List
 
 from ..database.models import NotaFiscal, ItemNotaFiscal, ItemContrato, Movimentacao, Almoxarifado, EstoqueAlmoxarifado
 from ..schemas import BaixaRequest, MovimentacaoOut
+from ..http_errors import MENSAGEM_GENERICA, logger
 
 async def efetuar_baixa_nf(
     nf_id: int, 
@@ -15,10 +16,13 @@ async def efetuar_baixa_nf(
     usuario_id: int,
 ) -> List[Movimentacao]:
     
-    # 1. Buscar a NF bloqueando a linha para escrita simultânea (FOR UPDATE)
-    # Aqui focamos apenas em garantir que existe e que não foi baixada ainda.
-    # Como Asyncpg + SQLModel as vezes tem quirks com with_for_update, vamos usar a checagem padrao.
-    stmt = select(NotaFiscal).options(selectinload(NotaFiscal.itens)).where(NotaFiscal.id == nf_id)
+    # 1. Busca a NF bloqueando a linha (FOR UPDATE) para evitar baixa duplicada
+    stmt = (
+        select(NotaFiscal)
+        .options(selectinload(NotaFiscal.itens))
+        .where(NotaFiscal.id == nf_id)
+        .with_for_update()
+    )
     result = await db.execute(stmt)
     nf = result.scalar_one_or_none()
     
@@ -112,4 +116,5 @@ async def efetuar_baixa_nf(
                  status_code=422, 
                  detail="A quantidade total de um ou mais itens excede o saldo disponível no contrato. Operação abortada e desfeita integralmente."
              )
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.exception("Falha ao efetuar baixa da NF")
+        raise HTTPException(status_code=400, detail=MENSAGEM_GENERICA)

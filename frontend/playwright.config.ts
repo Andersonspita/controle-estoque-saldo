@@ -1,6 +1,9 @@
 import path from "node:path"
 
+import { config as loadEnv } from "dotenv"
 import { defineConfig, devices } from "@playwright/test"
+
+loadEnv({ path: path.join(import.meta.dirname, ".env.e2e") })
 
 const dockerBase = process.env.PLAYWRIGHT_BASE_URL
 const localRun = !dockerBase

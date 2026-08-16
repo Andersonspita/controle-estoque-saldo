@@ -347,7 +347,7 @@ export function ImportNFModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpe
               <button 
                 type="submit" 
                 disabled={!parsedData || !todosVinculados || importMutation.isPending || loadingVinculos}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
               >
                 {importMutation.isPending && <Loader2 size={16} className="animate-spin" />}
                 Confirmar Importação

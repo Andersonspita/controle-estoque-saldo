@@ -30,4 +30,4 @@ async def test_parse_xml_endpoint_arquivo_invalido(async_client: AsyncClient):
     )
 
     assert response.status_code == 400
-    assert "Erro ao analisar XML" in response.json()["detail"]
+    assert "Não foi possível ler o XML" in response.json()["detail"]

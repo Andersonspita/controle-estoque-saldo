@@ -6,7 +6,8 @@ from typing import List
 from ..database.session import get_db
 from ..deps import get_current_active_user, require_admin
 from ..database.models import Licitacao
-from ..schemas import LicitacaoCreate, LicitacaoUpdate, LicitacaoOut
+from ..http_errors import http_erro_interno
+from ..schemas import LicitacaoCreate, LicitacaoOut
 
 router = APIRouter(
     prefix="/api/v1/licitacoes",
@@ -24,7 +25,7 @@ async def create_licitacao(licitacao: LicitacaoCreate, db: AsyncSession = Depend
         return db_lic
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise http_erro_interno(e)
 
 @router.get("/", response_model=List[LicitacaoOut])
 async def list_licitacoes(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):

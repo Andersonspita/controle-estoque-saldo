@@ -5,7 +5,7 @@ test("administrador entra no dashboard autenticado", async ({ page }) => {
   await expect(page).not.toHaveURL(/\/login/)
   await expect(page.getByTestId("dashboard-greeting")).toBeVisible()
   await expect(
-    page.getByText(/visão geral do controle de saldo/i),
+    page.getByText(/situação dos contratos ativos e das baixas de nf/i),
   ).toBeVisible()
   await expect(page.getByRole("link", { name: "Admin" })).toBeVisible({
     timeout: 15_000,

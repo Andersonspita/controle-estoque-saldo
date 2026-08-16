@@ -114,6 +114,15 @@ export const contratosService = {
     const response = await api.patch(`/contratos/${id}`, dados);
     return response.data;
   },
+  aditivar: async (
+    id: number,
+    dados: {
+      itens: { item_id: number; quantidade_aditivada: number; valor_unitario?: number }[];
+    },
+  ) => {
+    const response = await api.post(`/contratos/${id}/aditivo`, dados);
+    return response.data;
+  },
 };
 
 export const fornecedoresService = {
