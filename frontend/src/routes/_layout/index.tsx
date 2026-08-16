@@ -1,41 +1,87 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { contratosService, movimentacoesService } from "../../services/api"
-import { DollarSign, FileText, Activity, AlertCircle, ArrowDownRight, CheckCircle2, Wallet } from "lucide-react"
+import { AlertCircle, FileText, Wallet } from "lucide-react"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import useAuth from "../../hooks/useAuth"
 import { pageTitle } from "@/lib/brand"
 import { formatarMoeda, totaisContrato } from "@/lib/money"
-import { TableScroll } from "@/components/ui/table-scroll"
+import { contratosService, movimentacoesService, notasFiscaisService } from "../../services/api"
 
 export const Route = createFileRoute("/_layout/")({
   component: Dashboard,
   head: () => ({
-    meta: [
-      {
-        title: pageTitle("Dashboard"),
-      },
-    ],
+    meta: [{ title: pageTitle("Dashboard") }],
   }),
 })
 
+function saudacao() {
+  const hora = new Date().getHours()
+  if (hora < 12) return "Bom dia"
+  if (hora < 18) return "Boa tarde"
+  return "Boa noite"
+}
+
+function consumoMensal(movimentacoes: any[]) {
+  const agora = new Date()
+  const meses: { chave: string; rotulo: string; valor: number }[] = []
+  for (let i = 7; i >= 0; i--) {
+    const data = new Date(agora.getFullYear(), agora.getMonth() - i, 1)
+    const chave = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`
+    const rotulo = data.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")
+    meses.push({ chave, rotulo, valor: 0 })
+  }
+  const mapa = Object.fromEntries(meses.map((m) => [m.chave, m]))
+  for (const mov of movimentacoes) {
+    if ((mov.tipo_movimento || "").toUpperCase() !== "BAIXA") continue
+    const data = new Date(mov.data_hora)
+    if (Number.isNaN(data.getTime())) continue
+    const chave = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`
+    if (mapa[chave]) mapa[chave].valor += Number(mov.quantidade || 0)
+  }
+  return meses
+}
+
 function Dashboard() {
   const { user: currentUser } = useAuth()
+  const navigate = useNavigate()
+  const primeiroNome = (currentUser?.full_name || currentUser?.email || "usuário").split(" ")[0]
 
-  const { data: contratos = [], isLoading: loadingContratos } = useQuery({
+  const contratosQuery = useQuery({
     queryKey: ["contratos"],
     queryFn: () => contratosService.listar(),
   })
-
-  const { data: movimentacoes = [], isLoading: loadingMovimentacoes } = useQuery({
+  const movimentacoesQuery = useQuery({
     queryKey: ["movimentacoes"],
     queryFn: () => movimentacoesService.listar(),
   })
-
-  const { data: previsoes = [], isLoading: loadingPrevisoes } = useQuery({
+  const previsoesQuery = useQuery({
     queryKey: ["previsao-consumo"],
     queryFn: () => contratosService.previsaoConsumo(),
   })
+  const notasQuery = useQuery({
+    queryKey: ["notas-fiscais"],
+    queryFn: () => notasFiscaisService.listar(),
+  })
+
+  const isError =
+    contratosQuery.isError ||
+    movimentacoesQuery.isError ||
+    previsoesQuery.isError
+
+  const loading = contratosQuery.isLoading
+  const contratos = contratosQuery.data || []
+  const movimentacoes = movimentacoesQuery.data || []
+  const previsoes = previsoesQuery.data || []
+  const notas = notasQuery.data || []
 
   const contratosAtivos = contratos.filter((c: any) => c.situacao === "Ativo")
   const totais = contratosAtivos.reduce(
@@ -52,178 +98,202 @@ function Dashboard() {
     { valorContratado: 0, saldoAtual: 0, consumido: 0, qtdSaldo: 0, qtdContratada: 0 },
   )
 
-  const ultimasMovimentacoes = movimentacoes.slice(0, 5)
-  const itensEmAlerta = previsoes.filter((p: any) => p.dias_restantes !== null && p.dias_restantes <= 45).slice(0, 5)
-
+  const pctConsumo = totais.valorContratado
+    ? Math.min(100, (totais.consumido / totais.valorContratado) * 100)
+    : 0
+  const encerram90 = contratosAtivos.filter((c: any) => {
+    if (!c.data_fim) return false
+    const fim = new Date(c.data_fim)
+    const limite = new Date()
+    limite.setDate(limite.getDate() + 90)
+    return fim <= limite
+  }).length
+  const notasPendentes = notas.filter((nf: any) => nf.status !== "Baixada").length
+  const baixasMes = movimentacoes.filter((mov: any) => {
+    const data = new Date(mov.data_hora)
+    const agora = new Date()
+    return (
+      (mov.tipo_movimento || "").toUpperCase() === "BAIXA" &&
+      data.getMonth() === agora.getMonth() &&
+      data.getFullYear() === agora.getFullYear()
+    )
+  }).length
+  const itensEmAlerta = previsoes
+    .filter((p: any) => p.dias_restantes !== null && p.dias_restantes <= 45)
+    .slice(0, 6)
+  const barras = consumoMensal(movimentacoes)
+  const maxBarra = Math.max(1, ...barras.map((b) => b.valor))
 
   return (
-    <div className="min-w-0 space-y-6 animate-in fade-in duration-500">
-      <div className="mb-8">
+    <div className="min-w-0 space-y-4 animate-in fade-in duration-500">
+      <div>
         <h1
           data-testid="dashboard-greeting"
-          className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight"
+          className="text-xl font-semibold tracking-tight text-foreground"
         >
-          Olá, {currentUser?.full_name || currentUser?.email} 👋
+          {saudacao()}, {primeiroNome}
         </h1>
-        <p className="text-muted-foreground mt-1 dark:text-slate-400">
-          Visão geral do controle de saldo e movimentações de Notas Fiscais.
+        <p className="mt-1 text-sm text-muted-foreground">
+          Situação dos contratos ativos e das baixas de NF.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col gap-4 transition-colors">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Contratos ativos</h3>
-            <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
-              <FileText size={20} />
-            </div>
+      {isError && (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertTitle>Não foi possível carregar o dashboard</AlertTitle>
+          <AlertDescription className="flex items-center gap-3">
+            Tente novamente em instantes.
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                contratosQuery.refetch()
+                movimentacoesQuery.refetch()
+                previsoesQuery.refetch()
+              }}
+            >
+              Tentar novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.6fr_1fr_1fr]">
+        <div className="rounded-xl border bg-card p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Consumo do valor contratado</h3>
+            {loading ? (
+              <Skeleton className="h-5 w-12" />
+            ) : (
+              <span className="text-sm font-semibold text-primary tabular-nums">
+                {pctConsumo.toFixed(0)}%
+              </span>
+            )}
           </div>
-          <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">
-            {loadingContratos ? "..." : contratosAtivos.length}
-          </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            Valor contratado {loadingContratos ? "..." : formatarMoeda(totais.valorContratado)}
-          </div>
+          {loading ? (
+            <Skeleton className="h-[62px] w-full" />
+          ) : (
+            <>
+              <p className="text-3xl font-bold tracking-tight whitespace-nowrap tabular-nums">
+                {formatarMoeda(totais.saldoAtual)}
+              </p>
+              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${pctConsumo}%` }} />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Baixado {formatarMoeda(totais.consumido)} · Contratado {formatarMoeda(totais.valorContratado)}
+              </p>
+            </>
+          )}
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col gap-4 transition-colors">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Saldo atual</h3>
-            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
-              <Wallet size={20} />
-            </div>
+        <div className="rounded-xl border bg-card p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Contratos ativos</h3>
+            <FileText className="size-4 text-muted-foreground" />
           </div>
-          <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">
-            {loadingContratos ? "..." : formatarMoeda(totais.saldoAtual)}
-          </div>
-          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-            {totais.qtdSaldo.toLocaleString("pt-BR")} unidades restantes
-          </div>
+          {loading ? (
+            <Skeleton className="h-11 w-20" />
+          ) : (
+            <p className="text-3xl font-bold tracking-tight tabular-nums">{contratosAtivos.length}</p>
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">
+            {encerram90} encerram em até 90 dias
+          </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col gap-4 transition-colors">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Valor baixado</h3>
-            <div className="p-2 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg">
-              <DollarSign size={20} />
-            </div>
+        <div className="rounded-xl border bg-card p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Baixas neste mês</h3>
+            <Wallet className="size-4 text-muted-foreground" />
           </div>
-          <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">
-            {loadingContratos ? "..." : formatarMoeda(totais.consumido)}
-          </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            Consumido do valor contratado
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col gap-4 transition-colors">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Movimentações</h3>
-            <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
-              <Activity size={20} />
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">
-            {loadingMovimentacoes ? "..." : movimentacoes.length}
-          </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-            Registros totais no sistema
-          </div>
+          {movimentacoesQuery.isLoading ? (
+            <Skeleton className="h-11 w-20" />
+          ) : (
+            <p className="text-3xl font-bold tracking-tight tabular-nums">{baixasMes}</p>
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">
+            {notasPendentes} NFs aguardando conferência
+          </p>
         </div>
       </div>
 
-      <div className="grid min-w-0 grid-cols-1 lg:grid-cols-2 gap-6">
-        <TableScroll className="rounded-2xl border-slate-100 dark:border-slate-800">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Últimas 5 Baixas de NF</h2>
-          </div>
-          <table className="w-full min-w-[36rem] text-sm text-left">
-              <thead className="bg-slate-50 dark:bg-slate-950 border-b dark:border-slate-800 text-slate-600 dark:text-slate-400 font-medium">
-                <tr>
-                  <th className="px-6 py-4 whitespace-nowrap">ID Nota Fiscal</th>
-                  <th className="px-6 py-4 whitespace-nowrap">Data/Hora</th>
-                  <th className="px-6 py-4 whitespace-nowrap">Movimento</th>
-                  <th className="px-6 py-4 text-right whitespace-nowrap">Qtd</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {ultimasMovimentacoes.map((mov: any) => (
-                  <tr key={mov.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                      #{mov.nota_fiscal_id}
-                    </td>
-                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                      {new Date(mov.data_hora).toLocaleString('pt-BR')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 inline-flex items-center gap-1">
-                        <ArrowDownRight size={12} /> {mov.tipo_movimento}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-300">
-                      -{mov.quantidade}
-                    </td>
-                  </tr>
-                ))}
-                {ultimasMovimentacoes.length === 0 && !loadingMovimentacoes && (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Nenhuma movimentação encontrada.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-        </TableScroll>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_1fr]">
+        <div className="rounded-xl border bg-card p-5">
+          <h3 className="mb-4 text-sm font-semibold">Consumo mensal</h3>
+          {movimentacoesQuery.isLoading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
+            <div className="flex h-44 items-end gap-2">
+              {barras.map((barra, indice) => {
+                const atual = indice === barras.length - 1
+                const altura = Math.max(8, (barra.valor / maxBarra) * 100)
+                return (
+                  <div key={barra.chave} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                    <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                      {barra.valor.toLocaleString("pt-BR")}
+                    </span>
+                    <div
+                      className={`w-full ${atual ? "bg-primary" : "bg-primary/25"} rounded-t-md`}
+                      style={{ height: `${altura}%` }}
+                    />
+                    <span className="text-[11px] capitalize text-muted-foreground">{barra.rotulo}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
-        <TableScroll className="rounded-2xl border-slate-100 dark:border-slate-800">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Alertas de Esgotamento (45 dias)</h2>
-            <AlertCircle size={20} className="text-amber-500 shrink-0" />
+        <div className="rounded-xl border bg-card p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Risco de esgotamento</h3>
+            <Badge variant="warning">{itensEmAlerta.length}</Badge>
           </div>
-            <table className="w-full min-w-[36rem] text-sm text-left">
-              <thead className="bg-slate-50 dark:bg-slate-950 border-b dark:border-slate-800 text-slate-600 dark:text-slate-400 font-medium">
-                <tr>
-                  <th className="px-6 py-4 whitespace-nowrap">Item</th>
-                  <th className="px-6 py-4 whitespace-nowrap">Contrato</th>
-                  <th className="px-6 py-4 whitespace-nowrap">Saldo</th>
-                  <th className="px-6 py-4 text-right whitespace-nowrap">Previsão</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {itensEmAlerta.map((prev: any) => (
-                  <tr key={prev.item_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200 truncate max-w-[200px]" title={prev.item_descricao}>
-                      {prev.item_descricao}
-                    </td>
-                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
-                      {prev.contrato_numero}
-                    </td>
-                    <td className="px-6 py-4 font-medium whitespace-nowrap">
-                      {formatarMoeda(prev.saldo_monetario ?? 0)}
-                      <span className="block text-xs font-normal text-slate-400">
-                        {prev.saldo_atual} unid.
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${
-                        prev.dias_restantes <= 15 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
-                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                      }`}>
-                        {prev.dias_restantes} dias
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {itensEmAlerta.length === 0 && !loadingPrevisoes && (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-emerald-600 dark:text-emerald-400 font-medium">
-                      <CheckCircle2 size={32} className="mx-auto mb-2 opacity-50" />
-                      Nenhum item em risco de esgotamento próximo!
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-        </TableScroll>
+          {previsoesQuery.isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : itensEmAlerta.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum item em risco nos próximos 45 dias.</p>
+          ) : (
+            <ul className="space-y-2">
+              {itensEmAlerta.map((prev: any) => (
+                <li
+                  key={prev.item_id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1 py-1.5"
+                >
+                  <div className="min-w-0">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="truncate text-sm font-medium">{prev.item_descricao}</p>
+                      </TooltipTrigger>
+                      <TooltipContent>{prev.item_descricao}</TooltipContent>
+                    </Tooltip>
+                    <p className="text-xs text-muted-foreground">
+                      Contrato {prev.contrato_numero} · {prev.saldo_atual} un
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant={prev.dias_restantes <= 15 ? "critical" : "warning"}>
+                      {prev.dias_restantes} dias
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate({ to: "/contratos" })}
+                    >
+                      Ver contrato
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   )

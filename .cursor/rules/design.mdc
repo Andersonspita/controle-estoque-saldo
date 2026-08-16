@@ -1,0 +1,15 @@
+---
+description: Tokens de design — sem cores literais do Tailwind
+globs: frontend/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+Nunca use cores literais do Tailwind (`slate-*`, `blue-*`, `emerald-*`, `amber-*`, `rose-*`, `green-*`) neste projeto.
+
+Use apenas as classes de token definidas em `frontend/src/index.css`: `bg-primary`, `text-foreground`, `text-muted-foreground`, `border-border`, `bg-card`, `bg-muted`, `text-destructive`, `text-success`/`bg-success-bg`, `text-warning`/`bg-warning-bg`, `text-critical`/`bg-critical-bg`.
+
+Toda ação usa `components/ui/button.tsx`; todo status usa `components/ui/badge.tsx` com as variantes `success`, `warning` e `critical`.
+
+Listas usam `components/Common/DataTable.tsx` quando não precisarem de linha expansível acessível.
+
+Preserve todos os atributos `data-testid`.
