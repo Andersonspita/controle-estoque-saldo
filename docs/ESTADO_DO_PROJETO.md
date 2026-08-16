@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 16/08/2026 — redesign de UI (tokens semânticos, DataTable, dashboard de consumo)
+> **Última Atualização:** 16/08/2026 — selo SaldoContratual (favicon/logo) e remoção do ícone GitHub
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -53,7 +53,7 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - **Edição de contrato (ADMIN):** `PATCH /api/v1/contratos/{id}` atualiza cabeçalho e itens. A quantidade contratada não pode ficar abaixo do já baixado. Item com movimentação não pode ser excluído. O `valor_total` é recalculado pelos itens. OPERADOR recebe **403**. A quantidade inicial do contrato (`quantidade_inicial`) não é alterada na edição.
 - **Aditivo (ADMIN):** botão **Aditivo** na linha do contrato abre um modal. O usuário marca quais itens entram no aditivo e informa a **quantidade extra** e o **valor unitário** (pré-preenchido com o atual). Endpoint: `POST /api/v1/contratos/{id}/aditivo`. Só os itens marcados mudam: `quantidade_contratada` e `saldo_atual` somam a extra; o valor unitário pode ser atualizado. A quantidade inicial permanece como snapshot da contratação original. Extra deve ser maior que zero; em unidade (`UN` e similares) a quantidade é inteira (não existe 21,5 UN). OPERADOR recebe **403**.
 - **Tela Contratos:** a linha mostra valor total e **saldo atual do contrato** em R$. Se algum item já foi aditivado, aparece “Com aditivo” e o valor inicial. Expandir a linha (botão com `aria-expanded`, Tab + Enter) mostra os itens sem tabela aninhada. ADMIN edita pelo botão na linha ou aplica aditivo pelo botão **Aditivo**.
-- **Interface (redesign):** tokens `success` / `warning` / `critical` em `index.css`. Status usa `<Badge>`. Ações usam `<Button>`. Notas fiscais, fornecedores e Admin usam `DataTable` com busca, filtro e paginação. Dashboard centra no consumo do valor contratado, gráfico mensal e alertas acionáveis. Em telas `< md` as listas viram cards. Login usa marca, tagline e painel de produto.
+- **Interface (redesign):** tokens `success` / `warning` / `critical` em `index.css`. Status usa `<Badge>`. Ações usam `<Button>`. Notas fiscais, fornecedores e Admin usam `DataTable` com busca, filtro e paginação. Dashboard centra no consumo do valor contratado, gráfico mensal e alertas acionáveis. Em telas `< md` as listas viram cards. Login usa marca, tagline e painel de produto. A marca é o **selo em relevo** (`Logo.tsx` + favicon SVG/ICO); o ícone de GitHub saiu do rodapé.
 - **Valores monetários:** campos de valor (unitário, totais, saldos) são exibidos e digitados em BRL (`R$ 1.234,56`). Quantidade permanece numérica. A API devolve `valor_contratado` e `saldo_monetario` em cada item e `saldo_atual` monetário no contrato detalhado.
 - **Órgãos:** interface usa o nome **Órgão** (API/tabelas continuam `almoxarifados`). CRUD em `/api/v1/almoxarifados/` com `POST` e `PATCH` (**ADMIN**). `GET /api/v1/almoxarifados/{id}` lista destinação física após baixas, lado a lado com o saldo do contrato.
 - **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` exige órgão de destino, deduz o saldo do item do contrato, grava movimentação e atualiza `estoque_almoxarifados`. O `usuario_id` vem do token JWT, não do corpo da requisição.
@@ -84,7 +84,7 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo: redesign de UI (tokens semânticos, listas com busca/filtro, dashboard de consumo). O aditivo seletivo por item permanece.
+Concluído neste ciclo: selo SaldoContratual (favicon e logo) no lugar do ícone Scale/FastAPI; GitHub removido do rodapé.
 
 1. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
 2. Preferir XML da NF-e ao OCR de PDF quando o XML existir.

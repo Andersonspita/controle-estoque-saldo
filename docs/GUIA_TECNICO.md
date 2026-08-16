@@ -3,7 +3,7 @@
 ## 1. Tecnologias Utilizadas
 - **Produto:** SaldoContratual (gestão de saldos e itens de contratos de licitação).
 - **Backend:** `FastAPI` (Python 3.14+). ORM assíncrono com SQLAlchemy e SQLModel. Banco **PostgreSQL**. Gerenciado via `uv`.
-- **Frontend:** `React` com `Vite`, `TanStack Router/Query` e `TailwindCSS`. Gerenciado via `npm`.
+- **Frontend:** `React` com `Vite`, `TanStack Router/Query` e `TailwindCSS`. Gerenciado via `npm`. Marca: selo em `frontend/public/` (`favicon.svg`/`favicon.ico`, `icon-180/192/512.png`) e componente `components/Common/Logo.tsx`.
 - **Testes:** `Pytest` (backend) e `Playwright` (frontend).
 - **NF-e:** `xmltodict` (XML), `pymupdf` + `rapidocr` + `onnxruntime` (DANFE em PDF).
 
