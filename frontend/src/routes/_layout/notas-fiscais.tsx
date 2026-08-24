@@ -1,12 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Download, FileText, Link2, Play } from "lucide-react"
+import { ChevronDown, Download, FileText, Link2, PenLine, Play, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import { ImportNFModal } from "../../components/NotasFiscais/ImportNFModal"
+import { ManualNFModal } from "../../components/NotasFiscais/ManualNFModal"
 import { BaixaModal } from "../../components/NotasFiscais/BaixaModal"
 import { ConferenciaModal } from "../../components/NotasFiscais/ConferenciaModal"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { colunasNotasFiscais, type NotaFiscalRow } from "../../components/NotasFiscais/columns"
 import { DataTable } from "../../components/Common/DataTable"
 import { EmptyState } from "../../components/Common/EmptyState"
@@ -31,6 +38,7 @@ export const Route = createFileRoute("/_layout/notas-fiscais")({
 
 function NotasFiscaisPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false)
   const [baixaModalNF, setBaixaModalNF] = useState<any | null>(null)
   const [conferenciaNF, setConferenciaNF] = useState<any | null>(null)
   const [baixandoId, setBaixandoId] = useState<number | null>(null)
@@ -105,10 +113,22 @@ function NotasFiscaisPage() {
     baixandoId,
   }
 
-  const importar = (
-    <Button onClick={() => setIsImportModalOpen(true)}>
-      <FileText /> Importar Nota Fiscal
-    </Button>
+  const novaNota = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button>
+          <FileText /> Nova nota fiscal <ChevronDown />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => setIsImportModalOpen(true)}>
+          <Upload /> Importar XML ou PDF
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => setIsManualModalOpen(true)}>
+          <PenLine /> Incluir manualmente
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 
   return (
@@ -116,7 +136,7 @@ function NotasFiscaisPage() {
       <PageHeader
         title="Notas Fiscais"
         description="Encontre a nota e execute a baixa com segurança."
-        action={importar}
+        action={novaNota}
       />
 
       <ListToolbar
@@ -156,8 +176,8 @@ function NotasFiscaisPage() {
             <EmptyState
               icon={FileText}
               title="Nenhuma nota encontrada"
-              description="Importe um XML ou PDF para começar a controlar as baixas."
-              action={importar}
+              description="Importe um XML/PDF ou inclua a nota manualmente para começar a controlar as baixas."
+              action={novaNota}
             />
           ) : (
             filtradas.map((nf) => (
@@ -213,14 +233,15 @@ function NotasFiscaisPage() {
             <EmptyState
               icon={FileText}
               title="Nenhuma nota encontrada"
-              description="Importe um XML ou PDF para começar a controlar as baixas."
-              action={importar}
+              description="Importe um XML/PDF ou inclua a nota manualmente para começar a controlar as baixas."
+              action={novaNota}
             />
           }
         />
       )}
 
       <ImportNFModal isOpen={isImportModalOpen} onOpenChange={setIsImportModalOpen} />
+      <ManualNFModal isOpen={isManualModalOpen} onOpenChange={setIsManualModalOpen} />
       {conferenciaNF && (
         <ConferenciaModal
           nf={conferenciaNF}
