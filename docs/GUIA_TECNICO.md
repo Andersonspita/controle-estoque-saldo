@@ -48,6 +48,7 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | POST | `/notas-fiscais/parse-pdf` | Extrai dados de DANFE (OCR) |
 | POST | `/notas-fiscais/vincular-itens/{contrato_id}` | Sugere vínculo item NF → item do contrato |
 | POST | `/notas-fiscais/importar` | Grava NF + itens (vínculo obrigatório) e o arquivo em disco |
+| POST | `/notas-fiscais/` | Cadastra NF **manualmente** (JSON, sem arquivo). Mesmas regras de vínculo; XML/PDF continua em `/importar` |
 | PATCH | `/notas-fiscais/{id}/vinculos` | Ajusta vínculos NF × contrato em nota ainda não baixada |
 | GET | `/notas-fiscais/{id}/arquivo` | Download autenticado do PDF/XML importado |
 | POST | `/notas-fiscais/{id}/baixar` | Baixa saldo do contrato (usuário vem do JWT) e destina ao órgão |
@@ -69,11 +70,13 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 
 Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token>`, exceto login e health.
 
-**Perfis:** `OPERADOR` lista, importa NF, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato, órgão e aplica aditivo (`require_admin` → 403 para os demais).
+**Perfis:** `OPERADOR` lista, importa NF, inclui NF manualmente, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato, órgão e aplica aditivo (`require_admin` → 403 para os demais).
 
 Cadastro de fornecedor: UF em select e municípios pela API do IBGE (`https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome`). ADMIN edita pelo botão na linha. Valores monetários na interface usam BRL (`R$ 1.234,56`). Tabelas no mobile rolam na horizontal.
 
 Cadastro/edição de contrato: itens podem ser digitados ou importados de planilha (`.xlsx`, `.xls`, `.csv` ou `.ods`) no modal. Colunas reconhecidas: descrição/item/produto (obrigatória), código, unidade, quantidade e valor unitário. Números no formato BR (`1.234,56`) são aceitos. Há **Baixar modelo** (CSV). Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON.
+
+Notas fiscais: a tela **Nova nota fiscal** oferece **Importar XML ou PDF** (`POST /notas-fiscais/importar`) e **Incluir manualmente** (`POST /notas-fiscais/`). A importação por arquivo permanece; a inclusão digitada exige contrato, número, data e ao menos um item vinculado ao contrato. XML/PDF anexo no cadastro manual é opcional.
 
 A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`). Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante, órgão de destino e justificativa opcional.
 
@@ -98,6 +101,7 @@ Testes relevantes do domínio:
 - `tests/test_login_throttle.py` (bloqueio após falhas de login)
 - `tests/test_arquivos.py` (nome de upload sanitizado)
 - `tests/test_documento.py` (validação e formatação de CPF/CNPJ; schema `FornecedorCreate`)
+- `tests/test_nota_fiscal_manual.py` (cadastro digitado; importação XML/PDF permanece)
 - `tests/test_parse_pdf_endpoint.py` (PDF real; OCR ~20s)
 
 Fixture DANFE: `backend/tests/fixtures/sample_danfe.pdf` (mesmo arquivo que `docs/NF 29260832183420000147550010000000691333202248.pdf`).

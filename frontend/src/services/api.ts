@@ -27,7 +27,30 @@ export const notasFiscaisService = {
     });
     return response.data;
   },
-  
+
+  criar: async (dados: {
+    contrato_id: number
+    fornecedor_id: number
+    numero: string
+    serie?: string | null
+    chave_acesso?: string | null
+    data_emissao?: string | null
+    valor_total?: number | null
+    itens: Array<{
+      codigo?: string
+      descricao: string
+      quantidade: number
+      unidade: string
+      valor_unitario: number
+      item_contrato_id: number
+      percentual_confianca?: number
+      status_identificacao?: string
+    }>
+  }) => {
+    const response = await api.post("/notas-fiscais/", dados)
+    return response.data
+  },
+
   baixar: async (nfId: number, baixaReq: { justificativa?: string; almoxarifado_id?: number }) => {
     const response = await api.post(`/notas-fiscais/${nfId}/baixar`, baixaReq);
     return response.data;

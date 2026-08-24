@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 16/08/2026 — endurecimento de segurança (exceto HTTPS) e credenciais fora do Git
+> **Última Atualização:** 24/08/2026 — inclusão manual de nota fiscal (além da importação XML/PDF)
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -30,7 +30,7 @@ Mocks iniciais da interface foram removidos. O frontend consome a API real:
 - **XML:** `nfe_parser.py` + `POST /api/v1/notas-fiscais/parse-xml`. Extrai número, série, chave, data, fornecedor, itens e total. Testes: `test_nfe_parser.py`, `test_parse_xml_endpoint.py`, fixture `sample_nfe.xml`.
 - **PDF (DANFE):** vários DANFEs (ex. gerados em Ghostscript) não têm texto extraível. `nfe_pdf.py` rasteriza a página e `danfe_parser.py` interpreta o OCR (RapidOCR). Endpoint: `POST /api/v1/notas-fiscais/parse-pdf`.
 - **Nota de validação:** `docs/NF 29260832183420000147550010000000691333202248.pdf` (cópia em `backend/tests/fixtures/sample_danfe.pdf`). NF **69**, série **1**, emissão **04/08/2026**, emitente Maria Eunice Jesus de Oliveira de Cipo, **13 itens**, total **R$ 26.001,00**. Testes: `test_danfe_parser.py` (OCR fixture) e `test_parse_pdf_endpoint.py` (PDF real, ~20s).
-- **Frontend:** `ImportNFModal.tsx` envia `.xml` para parse-xml e `.pdf` para parse-pdf. Não há mais simulação de PDF.
+- **Frontend:** `ImportNFModal.tsx` envia `.xml` para parse-xml e `.pdf` para parse-pdf. Não há mais simulação de PDF. A tela também permite **incluir a nota manualmente** (`POST /api/v1/notas-fiscais/`), sem arquivo; o XML/PDF continua no fluxo de importação.
 
 ## 4. Vinculação NF → itens do contrato
 
@@ -71,7 +71,7 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - Correção: `/users/me` deixou de usar uma SECRET_KEY dummy (que caía no primeiro usuário do banco).
 - **`GET /users/me`** devolve `perfil` (`ADMIN` ou `OPERADOR`) e `is_superuser` (`true` só para ADMIN).
 - **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos e órgãos; edita contratos, fornecedores e órgãos; aplica aditivo nos itens do contrato.
-- **OPERADOR:** consulta cadastros, importa/parseia NF, vincula itens, baixa PDF da NF e dá baixa. POST/PATCH de cadastro (incluindo usuários, contratos, fornecedores, órgãos e aditivo) → **403**.
+- **OPERADOR:** consulta cadastros, importa/parseia NF, inclui NF digitada, vincula itens, baixa PDF da NF e dá baixa. POST/PATCH de cadastro (incluindo usuários, contratos, fornecedores, órgãos e aditivo) → **403**.
 - **Usuários (ADMIN):** `GET/POST /users/`, `PATCH/DELETE /users/{id}`. Perfil `ADMIN` ou `OPERADOR`; não permite excluir a própria conta nem remover o último administrador. `PATCH /users/me` e `PATCH /users/me/password` atualizam dados da conta logada.
 
 ## 7. E2E autenticado (Playwright)
@@ -84,7 +84,7 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo: senhas e dados de acesso saíram do Git; endurecimento (rate limit no login, upload sanitizado, erros genéricos, lock na baixa, cabeçalhos no Nginx, CORS restrito). HTTPS permanece desligado de propósito.
+Concluído neste ciclo: inclusão **manual** de nota fiscal ao lado da importação por XML/PDF. A importação **não foi removida**. O botão da listagem passou a ser **Nova nota fiscal**, com as duas opções.
 
 1. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
 2. Preferir XML da NF-e ao OCR de PDF quando o XML existir.

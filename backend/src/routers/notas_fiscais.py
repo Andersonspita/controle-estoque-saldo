@@ -10,8 +10,10 @@ from ..deps import get_current_active_user
 from ..database.models import NotaFiscal, ItemNotaFiscal, Contrato, Fornecedor, ItemContrato
 from ..http_errors import http_erro_interno
 from ..services.arquivos import caminho_upload_seguro
+from ..services.nota_fiscal import persistir_nota_fiscal
 from ..schemas import (
     NotaFiscalCreate, ItemNotaFiscalCreate, NotaFiscalOut,
+    NotaFiscalManualCreate,
     VincularItensRequest, VincularItensResponse, ItemVinculoSugerido,
     AtualizarVinculosRequest,
 )
@@ -32,6 +34,15 @@ async def list_notas_fiscais(skip: int = 0, limit: int = 100, db: AsyncSession =
     stmt = select(NotaFiscal).options(selectinload(NotaFiscal.itens)).order_by(NotaFiscal.criado_em.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
+
+@router.post("/", response_model=NotaFiscalOut)
+async def criar_nota_fiscal_manual(
+    body: NotaFiscalManualCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Cadastra nota fiscal digitada. A importação por XML/PDF permanece em POST /importar."""
+    nf_create = NotaFiscalCreate(**body.model_dump(exclude={"itens"}))
+    return await persistir_nota_fiscal(db, nf_create, list(body.itens))
 
 @router.get("/{nf_id}/arquivo")
 async def baixar_arquivo_nf(nf_id: int, db: AsyncSession = Depends(get_db)):
@@ -138,75 +149,18 @@ async def importar_nota_fiscal(
     except Exception:
         raise HTTPException(status_code=400, detail="Dados da nota fiscal inválidos.")
 
-    from sqlalchemy.future import select
-    from sqlalchemy.orm import selectinload
-
-    stmt_contrato = (
-        select(Contrato)
-        .options(selectinload(Contrato.itens))
-        .where(Contrato.id == nf_create.contrato_id)
-    )
-    result_contrato = await db.execute(stmt_contrato)
-    contrato = result_contrato.scalar_one_or_none()
-    if not contrato:
-        raise HTTPException(status_code=404, detail="Contrato não encontrado")
-
-    ids_itens_contrato = {item.id for item in contrato.itens}
-    for item in itens_create:
-        if not item.item_contrato_id:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Item '{item.descricao}' não possui vínculo com item do contrato.",
-            )
-        if item.item_contrato_id not in ids_itens_contrato:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Item de contrato ID {item.item_contrato_id} não pertence ao contrato selecionado.",
-            )
-    
-    # Salvar PDF/XML localmente, sem aceitar caminhos no nome enviado
     file_path = caminho_upload_seguro(UPLOAD_DIR, arquivo_pdf.filename)
-    
     with open(file_path, "wb") as buffer:
         buffer.write(await arquivo_pdf.read())
 
-    # Inserir no Banco
-    db_nf = NotaFiscal(
-        **nf_create.model_dump(),
-        arquivo_pdf_path=file_path,
-        status="Aguardando conferência"
-    )
-    
-    db.add(db_nf)
     try:
-        await db.commit()
-        await db.refresh(db_nf)
-        
-        # Inserir Itens
-        for item in itens_create:
-            db_item = ItemNotaFiscal(
-                **item.model_dump(),
-                nota_fiscal_id=db_nf.id
-            )
-            db.add(db_item)
-            
-        await db.commit()
-        
-        # Faz um select explícito com selectinload para evitar o MissingGreenlet do SQLAlchemy Async
-        from sqlalchemy.future import select
-        from sqlalchemy.orm import selectinload
-        
-        stmt = select(NotaFiscal).options(selectinload(NotaFiscal.itens)).where(NotaFiscal.id == db_nf.id)
-        result = await db.execute(stmt)
-        nf_loaded = result.scalar_one()
-        
-        return nf_loaded
-    except Exception as e:
-        await db.rollback()
-        # Se falhou, remove o arquivo salvo
+        return await persistir_nota_fiscal(
+            db, nf_create, itens_create, arquivo_path=file_path
+        )
+    except Exception:
         if os.path.exists(file_path):
             os.remove(file_path)
-        raise http_erro_interno(e)
+        raise
 
 from ..services.baixa_service import efetuar_baixa_nf
 from ..schemas import BaixaRequest, MovimentacaoOut

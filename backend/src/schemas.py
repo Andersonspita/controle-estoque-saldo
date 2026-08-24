@@ -261,6 +261,41 @@ class NotaFiscalCreate(BaseModel):
     data_emissao: Optional[date] = None
     valor_total: Optional[float] = None
 
+    @field_validator("chave_acesso", mode="before")
+    @classmethod
+    def chave_acesso_vazia_vira_none(cls, valor):
+        if valor is None:
+            return None
+        texto = str(valor).strip()
+        return texto or None
+
+    @field_validator("numero")
+    @classmethod
+    def numero_obrigatorio(cls, valor: str):
+        texto = (valor or "").strip()
+        if not texto:
+            raise ValueError("Informe o número da nota fiscal")
+        return texto
+
+
+class NotaFiscalManualCreate(NotaFiscalCreate):
+    itens: List[ItemNotaFiscalCreate] = Field(min_length=1)
+
+    @field_validator("chave_acesso", mode="before")
+    @classmethod
+    def chave_manual_44_digitos(cls, valor):
+        if valor is None:
+            return None
+        texto = str(valor).strip()
+        if not texto:
+            return None
+        digitos = "".join(ch for ch in texto if ch.isdigit())
+        if not digitos:
+            return None
+        if len(digitos) != 44:
+            raise ValueError("A chave de acesso deve ter 44 dígitos")
+        return digitos
+
 class NotaFiscalOut(NotaFiscalCreate):
     id: int
     arquivo_pdf_path: Optional[str] = Field(default=None, exclude=True)
