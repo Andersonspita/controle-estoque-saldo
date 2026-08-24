@@ -38,8 +38,10 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 
 | Método | Rota | Uso |
 |--------|------|-----|
+| GET | `/unidades-medida/` | Lookup de unidades de medida (sigla, nome, grupo, se a quantidade é inteira) |
+| GET | `/modalidades-licitacao/` | Lookup de modalidades (Pregão eletrônico, Dispensa, etc.) |
 | GET | `/contratos/` | Lista contratos com itens, `valor_contratado`/`saldo_monetario` por item e `saldo_atual` monetário do contrato |
-| POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN**. Sem licitação |
+| POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN**. Cabeçalho inclui objeto, vigência, dados da licitação e observação |
 | PATCH | `/contratos/{id}` | Edita cabeçalho e itens (**ADMIN**). Quantidade ≥ já baixado; item com baixa não pode ser removido |
 | POST | `/contratos/{id}/aditivo` | Aditivo seletivo (**ADMIN**): itens escolhidos recebem quantidade extra e, opcionalmente, novo valor unitário |
 | GET | `/contratos/previsao-consumo` | Dias restantes por item (taxa diária) + saldo monetário |
@@ -74,7 +76,7 @@ Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token
 
 Cadastro de fornecedor: UF em select e municípios pela API do IBGE (`https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome`). ADMIN edita pelo botão na linha. Valores monetários na interface usam BRL (`R$ 1.234,56`). Tabelas no mobile rolam na horizontal.
 
-Cadastro/edição de contrato: itens podem ser digitados ou importados de planilha (`.xlsx`, `.xls`, `.csv` ou `.ods`) no modal. Colunas reconhecidas: descrição/item/produto (obrigatória), código, unidade, quantidade e valor unitário. Números no formato BR (`1.234,56`) são aceitos. Há **Baixar modelo** (CSV). Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON.
+Cadastro/edição de contrato: o **objeto** é o objeto do contrato. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é derivado da vigência inicial. Também há **número da licitação**, **modalidade** (select; `GET /modalidades-licitacao/`), **objeto da licitação** e **observação**, gravados no contrato. Itens: descrição, unidade de medida (select com sigla) e valores — sem campo de código na tela. Podem ser digitados ou importados de planilha. Colunas reconhecidas: descrição (obrigatória), unidade/sigla, quantidade e valor unitário. Números no formato BR (`1.234,56`) são aceitos. Há **Baixar modelo** (CSV). Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON. `GET /unidades-medida/` devolve o lookup de unidades.
 
 Notas fiscais: a tela **Nova nota fiscal** oferece **Importar XML ou PDF** (`POST /notas-fiscais/importar`) e **Incluir manualmente** (`POST /notas-fiscais/`). A importação por arquivo permanece; a inclusão digitada exige contrato, número, data e ao menos um item vinculado ao contrato. XML/PDF anexo no cadastro manual é opcional.
 
@@ -213,6 +215,54 @@ O backend já executa `alembic upgrade head` na subida. Conferir:
 4. Recriar o frontend: `docker compose -f compose.prod.yml --env-file .env.production up -d --build`
 
 Não publique as portas `5432` nem `8000`. Não suba Adminer. Não use `fastapi dev` em produção.
+
+### 6.5. Backup antes de atualizar (e como voltar)
+
+Faça o backup **antes** do `git pull` / rebuild. O dump do Postgres é o que permite desfazer se a versão nova quebrar dados.
+
+Como `deploy`, no diretório da aplicação:
+
+```bash
+STAMP=$(date +%Y%m%d-%H%M)
+APP=/home/deploy/controle-estoque-saldo
+BK=/home/deploy/backups/$STAMP
+mkdir -p "$BK"
+
+cd "$APP"
+git rev-parse HEAD > "$BK/git-commit.txt"
+cp -a .env.production "$BK/.env.production"
+
+docker compose -f compose.prod.yml --env-file .env.production exec -T db \
+  sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U postgres -d controle_estoque -Fc' > "$BK/postgres.dump"
+
+docker run --rm -v controle-estoque-saldo_uploads:/data -v "$BK":/backup alpine \
+  tar czf /backup/uploads.tgz -C /data .
+```
+
+Ponto de restauração no Git **antes** de número/modalidade/objeto da licitação e observação: tag `backup-pre-licitacao-obs-20260824` (commit `e8fdd8b`). Tags anteriores: `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos.
+
+Atualizar para a versão nova (depois do backup):
+
+```bash
+cd /home/deploy/controle-estoque-saldo
+git fetch origin
+git checkout cursor/perfis-e2e-readme-pt
+git pull --ff-only origin cursor/perfis-e2e-readme-pt
+docker compose -f compose.prod.yml --env-file .env.production up -d --build
+```
+
+Se quebrar, volte o código e o banco:
+
+```bash
+cd /home/deploy/controle-estoque-saldo
+git fetch origin
+git checkout backup-pre-nf-manual-20260824
+docker compose -f compose.prod.yml --env-file .env.production up -d --build
+docker compose -f compose.prod.yml --env-file .env.production exec -T db \
+  pg_restore -U postgres -d controle_estoque --clean --if-exists < /home/deploy/backups/STAMP/postgres.dump
+```
+
+Troque `STAMP` pela pasta criada no backup. Restaurar o dump **apaga** dados gravados depois do dump.
 
 ## 7. Documentação a manter
 Qualquer mudança de comportamento deve refletir em `docs/ESTADO_DO_PROJETO.md` (estado + próximos passos) e neste guia (como rodar / rotas / testes / deploy). O `README.md` da raiz (em português do Brasil) é a porta de entrada do repositório. Senhas, chaves e dados de SSH não devem voltar para estes arquivos.

@@ -3,7 +3,7 @@ from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-from .routers import fornecedores, licitacoes, contratos, notas_fiscais, movimentacoes, almoxarifados, auth, users
+from .routers import fornecedores, licitacoes, contratos, notas_fiscais, movimentacoes, almoxarifados, auth, users, unidades, modalidades
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -42,6 +42,8 @@ app.add_middleware(
 app.include_router(fornecedores.router)
 app.include_router(licitacoes.router)
 app.include_router(contratos.router)
+app.include_router(unidades.router)
+app.include_router(modalidades.router)
 app.include_router(notas_fiscais.router)
 app.include_router(movimentacoes.router)
 app.include_router(almoxarifados.router)

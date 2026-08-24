@@ -1,26 +1,8 @@
-UNIDADES_INTEIRAS = {
-    "un",
-    "und",
-    "unid",
-    "unidade",
-    "pc",
-    "pç",
-    "pec",
-    "peca",
-    "peça",
-    "cx",
-    "dz",
-    "kit",
-    "par",
-    "jg",
-    "rl",
-    "rolo",
-}
+from .unidades_medida import quantidade_inteira as unidade_quantidade_inteira
 
 
 def quantidade_inteira(unidade: str | None) -> bool:
-    texto = (unidade or "UN").strip().lower()
-    return texto in UNIDADES_INTEIRAS or texto.startswith("un")
+    return unidade_quantidade_inteira(unidade)
 
 
 def validar_quantidade_aditivo(quantidade: float, unidade: str | None = "UN") -> float:

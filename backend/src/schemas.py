@@ -1,8 +1,10 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, Field, computed_field, field_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, computed_field, field_validator, model_validator
 from typing import Optional, List
 from datetime import date, datetime
 
 from .services.documento import formatar_cpf_cnpj
+from .services.unidades_medida import normalizar_unidade
+from .services.modalidades_licitacao import normalizar_modalidade
 
 class AlmoxarifadoBase(BaseModel):
     nome: str
@@ -118,15 +120,39 @@ class LicitacaoOut(LicitacaoBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class UnidadeMedidaOut(BaseModel):
+    sigla: str
+    nome: str
+    grupo: str
+    inteira: bool
+
 class ContratoBase(BaseModel):
     licitacao_id: Optional[int] = None
     fornecedor_id: int
     numero: str
     ano: int
+    objeto: str = ""
+    licitacao_numero: Optional[str] = None
+    modalidade: Optional[str] = None
+    objeto_licitacao: Optional[str] = None
+    observacao: Optional[str] = None
     data_inicio: Optional[date] = None
     data_fim: Optional[date] = None
     valor_total: float
     situacao: str
+
+    @field_validator("licitacao_numero", "objeto_licitacao", "observacao", mode="before")
+    @classmethod
+    def _texto_opcional(cls, valor):
+        if valor is None:
+            return None
+        texto = str(valor).strip()
+        return texto or None
+
+    @field_validator("modalidade")
+    @classmethod
+    def _validar_modalidade(cls, valor):
+        return normalizar_modalidade(valor)
 
 class ItemContratoCreate(BaseModel):
     codigo: Optional[str] = None
@@ -136,8 +162,25 @@ class ItemContratoCreate(BaseModel):
     valor_unitario: float
     numero_item: Optional[int] = None
 
+    @field_validator("unidade")
+    @classmethod
+    def _validar_unidade(cls, valor: str) -> str:
+        return normalizar_unidade(valor)
+
 class ContratoCreate(ContratoBase):
+    objeto: str = Field(..., min_length=1)
+    data_inicio: date
+    data_fim: date
+    ano: Optional[int] = None
     itens: List[ItemContratoCreate] = []
+
+    @model_validator(mode="after")
+    def _vigencia_e_ano(self):
+        if self.data_fim < self.data_inicio:
+            raise ValueError("A data de vigência final deve ser igual ou posterior à inicial")
+        if self.ano is None:
+            self.ano = self.data_inicio.year
+        return self
 
 class ItemContratoUpdate(BaseModel):
     id: Optional[int] = None
@@ -147,14 +190,43 @@ class ItemContratoUpdate(BaseModel):
     quantidade_contratada: float
     valor_unitario: float
 
+    @field_validator("unidade")
+    @classmethod
+    def _validar_unidade(cls, valor: str) -> str:
+        return normalizar_unidade(valor)
+
 class ContratoUpdate(BaseModel):
     fornecedor_id: Optional[int] = None
     numero: Optional[str] = None
     ano: Optional[int] = None
+    objeto: Optional[str] = Field(default=None, min_length=1)
+    licitacao_numero: Optional[str] = None
+    modalidade: Optional[str] = None
+    objeto_licitacao: Optional[str] = None
+    observacao: Optional[str] = None
     data_inicio: Optional[date] = None
     data_fim: Optional[date] = None
     situacao: Optional[str] = None
     itens: Optional[List[ItemContratoUpdate]] = None
+
+    @field_validator("licitacao_numero", "objeto_licitacao", "observacao", mode="before")
+    @classmethod
+    def _texto_opcional(cls, valor):
+        if valor is None:
+            return None
+        texto = str(valor).strip()
+        return texto or None
+
+    @field_validator("modalidade")
+    @classmethod
+    def _validar_modalidade(cls, valor):
+        return normalizar_modalidade(valor)
+
+    @model_validator(mode="after")
+    def _vigencia(self):
+        if self.data_inicio and self.data_fim and self.data_fim < self.data_inicio:
+            raise ValueError("A data de vigência final deve ser igual ou posterior à inicial")
+        return self
 
 class ItemAditivoIn(BaseModel):
     item_id: int

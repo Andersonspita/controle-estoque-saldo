@@ -1,0 +1,18 @@
+---
+description: Fazer backup Git (e dump na VPS, se for deploy) antes de qualquer alteração
+alwaysApply: true
+---
+
+# Backup antes de alterar
+
+A partir de 24/08/2026, **toda alteração de código ou regra de negócio exige backup primeiro**. Sem backup, não editar.
+
+Antes de implementar, corrigir ou mudar comportamento:
+
+1. Confirme o HEAD atual (`git rev-parse --short HEAD`).
+2. Crie e envie uma tag anotada no commit **atual** (ainda sem as mudanças): `backup-pre-<resumo>-YYYYMMDD`.
+3. Só então altere arquivos.
+
+Se a mudança for para a VPS, faça também o dump do Postgres (e copie `.env.production`) **antes** do rebuild, conforme `docs/GUIA_TECNICO.md` §6.5. Código no Git não restaura dados do banco.
+
+Para restaurar código: `git checkout <tag-de-backup>`. Não apague tags de backup.

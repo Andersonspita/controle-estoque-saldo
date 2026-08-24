@@ -120,6 +120,20 @@ export const notasFiscaisService = {
   },
 };
 
+export const unidadesMedidaService = {
+  listar: async () => {
+    const response = await api.get("/unidades-medida/");
+    return response.data;
+  },
+};
+
+export const modalidadesLicitacaoService = {
+  listar: async () => {
+    const response = await api.get("/modalidades-licitacao/");
+    return response.data;
+  },
+};
+
 export const contratosService = {
   listar: async () => {
     const response = await api.get("/contratos/");

@@ -1,7 +1,8 @@
 import * as XLSX from "xlsx"
 
+import { resolverUnidade } from "@/lib/unidadesMedida"
+
 export type ItemPlanilhaContrato = {
-  codigo: string
   descricao: string
   unidade: string
   quantidade_contratada: number
@@ -20,8 +21,11 @@ function normalizarCabecalho(valor: string): string {
 function chaveCampo(cabecalho: string): keyof ItemPlanilhaContrato | null {
   const n = normalizarCabecalho(cabecalho)
   if (["descricao", "item", "produto", "nome", "especificacao"].includes(n)) return "descricao"
-  if (n === "codigo" || n === "cod" || n === "codigo item") return "codigo"
-  if (["unidade", "und", "un", "um"].includes(n)) return "unidade"
+  if (
+    ["unidade", "und", "un", "um", "sigla", "unidade de medida", "unid"].includes(n)
+  ) {
+    return "unidade"
+  }
   if (
     n.includes("quantidade") ||
     n === "qtd" ||
@@ -85,10 +89,8 @@ export function mapearLinhasPlanilha(linhas: unknown[][]): ItemPlanilhaContrato[
     const unidadeRaw =
       indices.unidade !== undefined ? String(linha[indices.unidade] ?? "").trim() : ""
     itens.push({
-      codigo:
-        indices.codigo !== undefined ? String(linha[indices.codigo] ?? "").trim() : "",
       descricao,
-      unidade: unidadeRaw || "UN",
+      unidade: resolverUnidade(unidadeRaw),
       quantidade_contratada: quantidade > 0 ? quantidade : 1,
       valor_unitario: valor < 0 ? 0 : valor,
     })
@@ -97,9 +99,10 @@ export function mapearLinhasPlanilha(linhas: unknown[][]): ItemPlanilhaContrato[
 }
 
 export const MODELO_CSV_ITENS = [
-  "codigo;descricao;unidade;quantidade;valor_unitario",
-  "CAN-001;Caneta esferográfica azul;UN;100;1,50",
-  "PAP-010;Resma de papel A4;UN;20;28,90",
+  "descricao;unidade;quantidade;valor_unitario",
+  "Caneta esferográfica azul;UN;100;1,50",
+  "Resma de papel A4;UN;20;28,90",
+  "Álcool etílico 70%;L;50;12,00",
 ].join("\r\n")
 
 export function baixarModeloPlanilhaItens() {
