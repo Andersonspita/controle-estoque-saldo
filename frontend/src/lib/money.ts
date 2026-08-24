@@ -1,3 +1,5 @@
+import { unidadeEhInteira } from "@/lib/unidadesMedida"
+
 export function formatarMoeda(valor: number): string {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -66,27 +68,7 @@ export function totaisContrato(contrato: {
   }
 }
 
-const UNIDADES_INTEIRAS = new Set([
-  "un",
-  "und",
-  "unid",
-  "unidade",
-  "pc",
-  "pç",
-  "pec",
-  "peca",
-  "peça",
-  "cx",
-  "dz",
-  "kit",
-  "par",
-  "jg",
-  "rl",
-  "rolo",
-])
-
 export function quantidadeInteira(unidade?: string | null) {
-  const texto = (unidade || "UN").trim().toLowerCase()
-  return UNIDADES_INTEIRAS.has(texto) || texto.startsWith("un")
+  return unidadeEhInteira(unidade)
 }
 

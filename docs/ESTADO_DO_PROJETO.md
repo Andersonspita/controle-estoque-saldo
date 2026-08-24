@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 24/08/2026 — inclusão manual de nota fiscal (além da importação XML/PDF)
+> **Última Atualização:** 24/08/2026 — objeto e vigência do contrato; dados da licitação e observação; lookup de unidade de medida; backup obrigatório antes de cada alteração
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -46,7 +46,7 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 ## 5. Etapa 2 — Previsão, contratos e destinação
 
 - **Previsão de consumo:** `GET /api/v1/contratos/previsao-consumo`. Alertas de esgotamento (45 dias) no Dashboard.
-- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste os itens. `saldo_atual` inicia igual à quantidade contratada. `licitacao_id` é opcional (a interface não envia). No modal, os itens podem ser **digitados** ou **importados de planilha** (`.xlsx` / `.csv`); há um modelo CSV para baixar. Colunas esperadas: descrição (obrigatória), código, unidade, quantidade e valor unitário. Na edição, a importação **acrescenta** itens novos (não substitui os que já existem).
+- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste cabeçalho e itens. **Objeto** é o objeto do contrato. Também há **número da licitação**, **modalidade** (lookup), **objeto da licitação** e **observação** — ficam no próprio contrato, sem exigir cadastro separado na tabela de licitações. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é o ano da vigência inicial. Itens: descrição, **unidade de medida** (lookup com sigla) e valores; o código do item saiu da tela.
 - **Edição de contrato (ADMIN):** `PATCH /api/v1/contratos/{id}` atualiza cabeçalho e itens. A quantidade contratada não pode ficar abaixo do já baixado. Item com movimentação não pode ser excluído. O `valor_total` é recalculado pelos itens. OPERADOR recebe **403**. A quantidade inicial do contrato (`quantidade_inicial`) não é alterada na edição.
 - **Aditivo (ADMIN):** botão **Aditivo** na linha do contrato abre um modal. O usuário marca quais itens entram no aditivo e informa a **quantidade extra** e o **valor unitário** (pré-preenchido com o atual). Endpoint: `POST /api/v1/contratos/{id}/aditivo`. Só os itens marcados mudam: `quantidade_contratada` e `saldo_atual` somam a extra; o valor unitário pode ser atualizado. A quantidade inicial permanece como snapshot da contratação original. Extra deve ser maior que zero; em unidade (`UN` e similares) a quantidade é inteira (não existe 21,5 UN). OPERADOR recebe **403**.
 - **Tela Contratos:** a linha mostra valor total e **saldo atual do contrato** em R$. Se algum item já foi aditivado, aparece “Com aditivo” e o valor inicial. Expandir a linha (botão com `aria-expanded`, Tab + Enter) mostra os itens sem tabela aninhada. ADMIN edita pelo botão na linha ou aplica aditivo pelo botão **Aditivo**.
@@ -84,7 +84,9 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo: inclusão **manual** de nota fiscal ao lado da importação por XML/PDF. A importação **não foi removida**. O botão da listagem passou a ser **Nova nota fiscal**, com as duas opções.
+Concluído neste ciclo: objeto e vigência do contrato; **número, modalidade e objeto da licitação** e **observação** no cadastro; unidade de medida em lookup. Backup Git **antes** dos dados da licitação: tag `backup-pre-licitacao-obs-20260824` (commit `e8fdd8b`). Tag anterior (objeto/vigência): `backup-pre-objeto-vigencia-20260824`.
+
+Regra permanente: **toda alteração** exige backup Git (tag `backup-pre-<resumo>-YYYYMMDD`) **antes** de editar. No deploy, dump do Postgres conforme `docs/GUIA_TECNICO.md` §6.5.
 
 1. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
 2. Preferir XML da NF-e ao OCR de PDF quando o XML existir.

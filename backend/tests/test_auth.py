@@ -66,7 +66,9 @@ async def test_users_me_retorna_perfil_operador(async_client: AsyncClient, as_op
             {
                 "fornecedor_id": 1,
                 "numero": "1",
-                "ano": 2026,
+                "objeto": "Aquisição de material",
+                "data_inicio": "2026-01-01",
+                "data_fim": "2026-12-31",
                 "valor_total": 1,
                 "situacao": "Ativo",
                 "itens": [],

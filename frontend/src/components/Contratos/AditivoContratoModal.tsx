@@ -6,6 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 
 import { contratosService } from "../../services/api"
 import { formatarMoeda, quantidadeInteira } from "@/lib/money"
+import { rotuloContrato } from "@/lib/contrato"
 import { MoneyInput } from "@/components/ui/money-input"
 
 type ItemLinha = {
@@ -115,7 +116,7 @@ export function AditivoContratoModal({
         <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
         <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
           <Dialog.Title className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-            Aditivo — {contrato.numero}/{contrato.ano}
+            Aditivo — {rotuloContrato(contrato)}
           </Dialog.Title>
           <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
             Marque os itens que entram no aditivo e informe a quantidade extra. O valor unitário

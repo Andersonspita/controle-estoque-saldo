@@ -166,6 +166,14 @@ async def update_contrato(
     dados = contrato_in.model_dump(exclude_unset=True, exclude={"itens"})
     for campo, valor in dados.items():
         setattr(contrato, campo, valor)
+    if contrato.data_inicio and "ano" not in contrato_in.model_fields_set:
+        if "data_inicio" in contrato_in.model_fields_set:
+            contrato.ano = contrato.data_inicio.year
+    if contrato.data_inicio and contrato.data_fim and contrato.data_fim < contrato.data_inicio:
+        raise HTTPException(
+            status_code=400,
+            detail="A data de vigência final deve ser igual ou posterior à inicial",
+        )
 
     if contrato_in.itens is not None:
         itens_atuais = {item.id: item for item in contrato.itens}
@@ -189,7 +197,8 @@ async def update_contrato(
                             f"do que o já baixado ({consumido})"
                         ),
                     )
-                item.codigo = item_in.codigo
+                if "codigo" in item_in.model_fields_set:
+                    item.codigo = item_in.codigo
                 item.descricao = item_in.descricao
                 item.unidade = item_in.unidade
                 item.quantidade_contratada = item_in.quantidade_contratada

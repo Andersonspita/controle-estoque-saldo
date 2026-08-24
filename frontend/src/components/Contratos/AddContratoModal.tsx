@@ -4,9 +4,16 @@ import { toast } from "sonner"
 import { Download, FileSpreadsheet, Loader2, Plus, Trash2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
-import { contratosService, fornecedoresService } from "../../services/api"
+import { contratosService, fornecedoresService, unidadesMedidaService, modalidadesLicitacaoService } from "../../services/api"
 import { formatarCpfCnpj } from "@/lib/documento"
 import { formatarMoeda } from "@/lib/money"
+import { dataISO } from "@/lib/contrato"
+import {
+  UNIDADES_MEDIDA,
+  gruposUnidades,
+  resolverUnidade,
+} from "@/lib/unidadesMedida"
+import { MODALIDADES_LICITACAO } from "@/lib/modalidadesLicitacao"
 import {
   baixarModeloPlanilhaItens,
   lerItensDeArquivo,
@@ -15,7 +22,7 @@ import { MoneyInput } from "@/components/ui/money-input"
 
 type ItemForm = {
   id?: number
-  codigo: string
+  codigo?: string
   descricao: string
   unidade: string
   quantidade_contratada: number
@@ -25,7 +32,6 @@ type ItemForm = {
 }
 
 const itemVazio = (): ItemForm => ({
-  codigo: "",
   descricao: "",
   unidade: "UN",
   quantidade_contratada: 1,
@@ -53,10 +59,33 @@ export function AddContratoModal({
     enabled: isOpen,
   })
 
+  const { data: unidadesApi } = useQuery({
+    queryKey: ["unidades-medida"],
+    queryFn: () => unidadesMedidaService.listar(),
+    enabled: isOpen,
+    staleTime: 60 * 60 * 1000,
+  })
+  const unidades = unidadesApi?.length ? unidadesApi : UNIDADES_MEDIDA
+  const grupos = gruposUnidades(unidades)
+
+  const { data: modalidadesApi } = useQuery({
+    queryKey: ["modalidades-licitacao"],
+    queryFn: () => modalidadesLicitacaoService.listar(),
+    enabled: isOpen,
+    staleTime: 60 * 60 * 1000,
+  })
+  const modalidades = modalidadesApi?.length ? modalidadesApi : [...MODALIDADES_LICITACAO]
+
   const [formData, setFormData] = useState({
     fornecedor_id: "",
     numero: "",
-    ano: new Date().getFullYear(),
+    objeto: "",
+    licitacao_numero: "",
+    modalidade: "",
+    objeto_licitacao: "",
+    observacao: "",
+    data_inicio: "",
+    data_fim: "",
     situacao: "Ativo",
   })
   const [itens, setItens] = useState<ItemForm[]>([itemVazio()])
@@ -69,14 +98,20 @@ export function AddContratoModal({
       setFormData({
         fornecedor_id: String(contrato.fornecedor_id || contrato.fornecedor?.id || ""),
         numero: contrato.numero || "",
-        ano: contrato.ano || new Date().getFullYear(),
+        objeto: contrato.objeto || "",
+        licitacao_numero: contrato.licitacao_numero || "",
+        modalidade: contrato.modalidade || "",
+        objeto_licitacao: contrato.objeto_licitacao || "",
+        observacao: contrato.observacao || "",
+        data_inicio: dataISO(contrato.data_inicio),
+        data_fim: dataISO(contrato.data_fim),
         situacao: contrato.situacao || "Ativo",
       })
       const carregados = (contrato.itens || []).map((item: any) => ({
         id: item.id,
         codigo: item.codigo || "",
         descricao: item.descricao || "",
-        unidade: item.unidade || "UN",
+        unidade: resolverUnidade(item.unidade),
         quantidade_contratada: item.quantidade_contratada ?? 0,
         valor_unitario: item.valor_unitario ?? 0,
         saldo_atual: item.saldo_atual,
@@ -87,7 +122,13 @@ export function AddContratoModal({
       setFormData({
         fornecedor_id: "",
         numero: "",
-        ano: new Date().getFullYear(),
+        objeto: "",
+        licitacao_numero: "",
+        modalidade: "",
+        objeto_licitacao: "",
+        observacao: "",
+        data_inicio: "",
+        data_fim: "",
         situacao: "Ativo",
       })
       setItens([itemVazio()])
@@ -123,14 +164,15 @@ export function AddContratoModal({
       const importados = await lerItensDeArquivo(arquivo)
       if (!importados.length) {
         toast.error("Nenhum item encontrado na planilha", {
-          description: "Confira o modelo: descrição, quantidade e valor unitário.",
+          description: "Confira o modelo: descrição, unidade, quantidade e valor unitário.",
         })
         return
       }
       setItens((atuais) => {
         const soRascunho = atuais.every((item) => !item.id && !item.descricao.trim())
-        if (soRascunho) return importados
-        return [...atuais, ...importados]
+        const linhas = importados.map((item) => ({ ...itemVazio(), ...item }))
+        if (soRascunho) return linhas
+        return [...atuais, ...linhas]
       })
       toast.success(
         `${importados.length} ${importados.length === 1 ? "item importado" : "itens importados"}`,
@@ -159,15 +201,28 @@ export function AddContratoModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.fornecedor_id) return toast.error("Selecione um fornecedor")
+    if (!formData.objeto.trim()) return toast.error("Informe o objeto do contrato")
+    if (!formData.data_inicio || !formData.data_fim) {
+      return toast.error("Informe a vigência inicial e a vigência final")
+    }
+    if (formData.data_fim < formData.data_inicio) {
+      return toast.error("A vigência final deve ser igual ou posterior à inicial")
+    }
     mutation.mutate({
       fornecedor_id: parseInt(formData.fornecedor_id),
       numero: formData.numero,
-      ano: formData.ano,
+      objeto: formData.objeto.trim(),
+      licitacao_numero: formData.licitacao_numero.trim() || null,
+      modalidade: formData.modalidade || null,
+      objeto_licitacao: formData.objeto_licitacao.trim() || null,
+      observacao: formData.observacao.trim() || null,
+      data_inicio: formData.data_inicio,
+      data_fim: formData.data_fim,
       situacao: formData.situacao,
       valor_total: total,
       itens: itens.map((item) => ({
         id: item.id,
-        codigo: item.codigo,
+        ...(item.codigo ? { codigo: item.codigo } : {}),
         descricao: item.descricao,
         unidade: item.unidade,
         quantidade_contratada: item.quantidade_contratada,
@@ -180,14 +235,14 @@ export function AddContratoModal({
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
           <Dialog.Title className="text-xl font-semibold text-slate-800 dark:text-slate-100">
             {editando ? "Editar Contrato" : "Novo Contrato"}
           </Dialog.Title>
           <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-            Cadastre os dados do contrato e os itens previstos. Você pode digitar os itens
-            ou importar uma planilha (.xlsx ou .csv). Para acrescentar quantidade em itens
-            já existentes, use o botão Aditivo na lista.
+            Cadastre o objeto do contrato, os dados da licitação, a vigência e os itens
+            previstos. Você pode digitar os itens ou importar uma planilha (.xlsx ou .csv).
+            Para acrescentar quantidade em itens já existentes, use o botão Aditivo na lista.
           </Dialog.Description>
 
           <form onSubmit={handleSubmit} className="space-y-6 mt-2 text-sm">
@@ -211,22 +266,12 @@ export function AddContratoModal({
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="font-medium text-slate-700 dark:text-slate-300">Número *</label>
+                <label className="font-medium text-slate-700 dark:text-slate-300">Número do contrato *</label>
                 <input
                   required
                   value={formData.numero}
                   onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
                   placeholder="Ex: 015"
-                  className={campo}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-medium text-slate-700 dark:text-slate-300">Ano *</label>
-                <input
-                  required
-                  type="number"
-                  value={formData.ano}
-                  onChange={(e) => setFormData({ ...formData, ano: parseInt(e.target.value) })}
                   className={campo}
                 />
               </div>
@@ -244,6 +289,86 @@ export function AddContratoModal({
                   </select>
                 </div>
               )}
+              <div className="space-y-1 sm:col-span-2 md:col-span-4">
+                <label className="font-medium text-slate-700 dark:text-slate-300">Objeto do contrato *</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={formData.objeto}
+                  onChange={(e) => setFormData({ ...formData, objeto: e.target.value })}
+                  placeholder="Descreva o objeto contratual"
+                  className={campo}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-medium text-slate-700 dark:text-slate-300">
+                  Vigência inicial *
+                </label>
+                <input
+                  required
+                  type="date"
+                  value={formData.data_inicio}
+                  onChange={(e) => setFormData({ ...formData, data_inicio: e.target.value })}
+                  className={campo}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-medium text-slate-700 dark:text-slate-300">
+                  Vigência final *
+                </label>
+                <input
+                  required
+                  type="date"
+                  value={formData.data_fim}
+                  min={formData.data_inicio || undefined}
+                  onChange={(e) => setFormData({ ...formData, data_fim: e.target.value })}
+                  className={campo}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-medium text-slate-700 dark:text-slate-300">Número da licitação</label>
+                <input
+                  value={formData.licitacao_numero}
+                  onChange={(e) => setFormData({ ...formData, licitacao_numero: e.target.value })}
+                  placeholder="Ex: 012/2026"
+                  className={campo}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-medium text-slate-700 dark:text-slate-300">Modalidade</label>
+                <select
+                  value={formData.modalidade}
+                  onChange={(e) => setFormData({ ...formData, modalidade: e.target.value })}
+                  className={campo}
+                >
+                  <option value="">Selecione</option>
+                  {modalidades.map((nome: string) => (
+                    <option key={nome} value={nome}>
+                      {nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1 sm:col-span-2 md:col-span-4">
+                <label className="font-medium text-slate-700 dark:text-slate-300">Objeto da licitação</label>
+                <textarea
+                  rows={2}
+                  value={formData.objeto_licitacao}
+                  onChange={(e) => setFormData({ ...formData, objeto_licitacao: e.target.value })}
+                  placeholder="Objeto do edital ou do processo licitatório"
+                  className={campo}
+                />
+              </div>
+              <div className="space-y-1 sm:col-span-2 md:col-span-4">
+                <label className="font-medium text-slate-700 dark:text-slate-300">Observação</label>
+                <textarea
+                  rows={2}
+                  value={formData.observacao}
+                  onChange={(e) => setFormData({ ...formData, observacao: e.target.value })}
+                  placeholder="Anotações internas sobre o contrato"
+                  className={campo}
+                />
+              </div>
             </div>
 
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -303,17 +428,30 @@ export function AddContratoModal({
                         className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-1.5 text-xs text-slate-800 dark:text-slate-200"
                       />
                     </div>
-                    <div className="col-span-6 sm:col-span-2 space-y-1">
-                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Código</label>
-                      <input
-                        value={item.codigo}
+                    <div className="col-span-6 sm:col-span-3 space-y-1">
+                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                        Unidade de medida
+                      </label>
+                      <select
+                        required
+                        value={item.unidade}
                         onChange={(e) => {
                           const n = [...itens]
-                          n[index].codigo = e.target.value
+                          n[index].unidade = e.target.value
                           setItens(n)
                         }}
-                        className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-1.5 text-xs text-slate-800 dark:text-slate-200"
-                      />
+                        className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-1.5 text-xs text-slate-800 dark:text-slate-200 [&>option]:text-slate-900 [&>option]:dark:bg-slate-900"
+                      >
+                        {grupos.map((grupo) => (
+                          <optgroup key={grupo.grupo} label={grupo.grupo}>
+                            {grupo.itens.map((unidade) => (
+                              <option key={unidade.sigla} value={unidade.sigla}>
+                                {unidade.sigla} — {unidade.nome}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
                     </div>
                     <div className="col-span-6 sm:col-span-2 space-y-1">
                       <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Qtd</label>
@@ -331,7 +469,7 @@ export function AddContratoModal({
                         className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-1.5 text-xs text-slate-800 dark:text-slate-200"
                       />
                     </div>
-                    <div className="col-span-10 sm:col-span-3 space-y-1">
+                    <div className="col-span-10 sm:col-span-2 space-y-1">
                       <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Valor unitário</label>
                       <MoneyInput
                         required

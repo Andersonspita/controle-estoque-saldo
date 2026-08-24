@@ -19,6 +19,7 @@ import { useIsMobile } from "@/hooks/useMobile"
 import { pageTitle } from "@/lib/brand"
 import { formatarMoeda, saldoMonetarioItem, totaisContrato, valorContratadoItem } from "@/lib/money"
 import { percentualRestante } from "@/lib/status"
+import { formatarVigencia, rotuloContrato } from "@/lib/contrato"
 import { contratosService } from "../../services/api"
 import { cn } from "@/lib/utils"
 
@@ -65,7 +66,16 @@ function ContratosPage() {
         const pct = percentualRestante(totais.saldoAtual, totais.valorContratado)
         if (saldoCritico && pct > 15) return false
         if (!termo) return true
-        return [contrato.numero, contrato.ano, contrato.fornecedor?.razao_social]
+        return [
+          contrato.numero,
+          contrato.objeto,
+          contrato.licitacao_numero,
+          contrato.modalidade,
+          contrato.objeto_licitacao,
+          contrato.observacao,
+          contrato.fornecedor?.razao_social,
+          formatarVigencia(contrato.data_inicio, contrato.data_fim),
+        ]
           .join(" ")
           .toLowerCase()
           .includes(termo)
@@ -93,7 +103,7 @@ function ContratosPage() {
       />
 
       <ListToolbar
-        placeholder="Número, ano ou fornecedor"
+        placeholder="Número, objeto, licitação ou fornecedor"
         query={query}
         onQueryChange={setQuery}
         tab={status}
@@ -153,8 +163,16 @@ function ContratosPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-mono text-[15px] font-semibold">
-                      {contrato.numero}/{contrato.ano}
+                      {rotuloContrato(contrato)}
                     </p>
+                    {contrato.objeto ? (
+                      <p className="line-clamp-2 text-sm">{contrato.objeto}</p>
+                    ) : null}
+                    {(contrato.licitacao_numero || contrato.modalidade) ? (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {[contrato.modalidade, contrato.licitacao_numero].filter(Boolean).join(" · ")}
+                      </p>
+                    ) : null}
                     <p className="truncate text-sm text-muted-foreground">
                       {contrato.fornecedor?.razao_social || `Fornecedor ID ${contrato.fornecedor_id}`}
                     </p>
@@ -193,7 +211,7 @@ function ContratosPage() {
             <thead className="bg-muted/50 text-xs font-medium text-muted-foreground">
               <tr>
                 <th className="w-8 px-3 py-3" />
-                <th className="px-4 py-3 text-left">Número/Ano</th>
+                <th className="px-4 py-3 text-left">Contrato</th>
                 <th className="px-4 py-3 text-left">Fornecedor</th>
                 <th className="px-4 py-3 text-right">Valor total</th>
                 <th className="px-4 py-3 text-right">Saldo atual</th>
@@ -233,8 +251,18 @@ function ContratosPage() {
                           </span>
                         </button>
                       </td>
-                      <td className="px-4 py-3 font-medium whitespace-nowrap">
-                        {contrato.numero}/{contrato.ano}
+                      <td className="px-4 py-3 font-medium">
+                        <p>{rotuloContrato(contrato)}</p>
+                        {contrato.objeto ? (
+                          <p className="max-w-xs truncate text-xs font-normal text-muted-foreground">
+                            {contrato.objeto}
+                          </p>
+                        ) : null}
+                        {(contrato.licitacao_numero || contrato.modalidade) ? (
+                          <p className="max-w-xs truncate text-xs font-normal text-muted-foreground">
+                            {[contrato.modalidade, contrato.licitacao_numero].filter(Boolean).join(" · ")}
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {contrato.fornecedor?.razao_social || `Fornecedor ID ${contrato.fornecedor_id}`}
@@ -294,6 +322,22 @@ function ContratosPage() {
                     {expandido && (
                       <tr id={painelId} className="bg-muted/40">
                         <td colSpan={isAdmin ? 8 : 7} className="px-6 py-4 pl-[52px]">
+                          {(contrato.objeto_licitacao || contrato.observacao) && (
+                            <div className="mb-3 space-y-1 text-sm text-muted-foreground">
+                              {contrato.objeto_licitacao ? (
+                                <p>
+                                  <span className="font-medium text-foreground">Objeto da licitação: </span>
+                                  {contrato.objeto_licitacao}
+                                </p>
+                              ) : null}
+                              {contrato.observacao ? (
+                                <p>
+                                  <span className="font-medium text-foreground">Observação: </span>
+                                  {contrato.observacao}
+                                </p>
+                              ) : null}
+                            </div>
+                          )}
                           {itens.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                               Este contrato ainda não possui itens cadastrados.
@@ -318,9 +362,7 @@ function ContratosPage() {
                                   >
                                     <div>
                                       <p className="font-medium">{item.descricao}</p>
-                                      {item.codigo && (
-                                        <p className="text-muted-foreground">Cód: {item.codigo}</p>
-                                      )}
+                                      <p className="text-muted-foreground">{item.unidade}</p>
                                     </div>
                                     <div className="text-right tabular-nums">
                                       {item.quantidade_contratada} {item.unidade}
