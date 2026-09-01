@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 
 WORKDIR /app/frontend
 
@@ -12,7 +12,7 @@ ENV VITE_API_URL=$VITE_API_URL
 
 RUN npx vite build --outDir /dist
 
-FROM nginx:1.27-alpine
+FROM nginx:1.31-alpine
 
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /dist /usr/share/nginx/html
