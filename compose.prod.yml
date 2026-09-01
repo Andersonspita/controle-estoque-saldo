@@ -24,6 +24,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@db:5432/controle_estoque
       SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY}
       PROJECT_NAME: ${PROJECT_NAME:-SaldoContratual}
+      ORGAO_NOME: ${ORGAO_NOME:-}
+      ORGAO_ESTADO: ${ORGAO_ESTADO:-}
+      ORGAO_SETOR: ${ORGAO_SETOR:-}
       FRONTEND_HOST: ${FRONTEND_HOST:?defina FRONTEND_HOST}
       FIRST_SUPERUSER: ${ADMIN_EMAIL:?defina ADMIN_EMAIL}
       FIRST_SUPERUSER_PASSWORD: ${ADMIN_PASSWORD:?defina ADMIN_PASSWORD}
