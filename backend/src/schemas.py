@@ -421,3 +421,83 @@ class PrevisaoConsumoOut(BaseModel):
     total_baixado: float
     taxa_diaria: float
     dias_restantes: Optional[int] = None
+
+
+class RelatorioItemSaldoOut(BaseModel):
+    item_id: int
+    numero_item: int
+    codigo: Optional[str] = None
+    descricao: str
+    unidade: str
+    valor_unitario: float
+    valor_unitario_inicial: float
+    quantidade_contratada: float
+    valor_contratado: float
+    quantidade_aditivada: float
+    valor_aditivado: float
+    quantidade_vigente: float
+    valor_vigente: float
+    quantidade_utilizada: float
+    valor_utilizado: float
+    quantidade_saldo: float
+    valor_saldo: float
+    percentual_utilizado: float
+
+
+class RelatorioTotaisOut(BaseModel):
+    quantidade_contratada: float = 0
+    valor_contratado: float = 0
+    quantidade_aditivada: float = 0
+    valor_aditivado: float = 0
+    quantidade_vigente: float = 0
+    valor_vigente: float = 0
+    quantidade_utilizada: float = 0
+    valor_utilizado: float = 0
+    quantidade_saldo: float = 0
+    valor_saldo: float = 0
+    percentual_utilizado: float = 0
+
+
+class RelatorioOrgaoConsumoOut(BaseModel):
+    almoxarifado_id: Optional[int] = None
+    nome: str
+    quantidade_utilizada: float
+    valor_utilizado: float
+
+
+class RelatorioContratoSaldoOut(BaseModel):
+    contrato_id: int
+    numero: str
+    ano: int
+    objeto: str = ""
+    situacao: str
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
+    licitacao_numero: Optional[str] = None
+    modalidade: Optional[str] = None
+    objeto_licitacao: Optional[str] = None
+    observacao: Optional[str] = None
+    fornecedor_id: int
+    fornecedor_razao_social: str = ""
+    fornecedor_nome_fantasia: Optional[str] = None
+    fornecedor_cnpj: Optional[str] = None
+    fornecedor_cidade: Optional[str] = None
+    fornecedor_estado: Optional[str] = None
+    fornecedor_telefone: Optional[str] = None
+    fornecedor_email: Optional[str] = None
+    itens: List[RelatorioItemSaldoOut] = []
+    orgaos: List[RelatorioOrgaoConsumoOut] = []
+    totais: RelatorioTotaisOut
+
+
+class RelatorioEmitenteOut(BaseModel):
+    nome: str
+    estado: Optional[str] = None
+    setor: Optional[str] = None
+
+
+class RelatorioSaldoOut(BaseModel):
+    emitente: RelatorioEmitenteOut
+    gerado_em: datetime
+    contratos: List[RelatorioContratoSaldoOut] = []
+    totais: RelatorioTotaisOut

@@ -20,6 +20,7 @@ import { Route as LayoutAlmoxarifadosRouteImport } from './routes/_layout/almoxa
 import { Route as LayoutContratosRouteImport } from './routes/_layout/contratos'
 import { Route as LayoutFornecedoresRouteImport } from './routes/_layout/fornecedores'
 import { Route as LayoutNotasFiscaisRouteImport } from './routes/_layout/notas-fiscais'
+import { Route as LayoutRelatoriosRouteImport } from './routes/_layout/relatorios'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 
 const LayoutRoute = LayoutRouteImport.update({
@@ -76,6 +77,11 @@ const LayoutNotasFiscaisRoute = LayoutNotasFiscaisRouteImport.update({
   path: '/notas-fiscais',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutRelatoriosRoute = LayoutRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/contratos': typeof LayoutContratosRoute
   '/fornecedores': typeof LayoutFornecedoresRoute
   '/notas-fiscais': typeof LayoutNotasFiscaisRoute
+  '/relatorios': typeof LayoutRelatoriosRoute
   '/settings': typeof LayoutSettingsRoute
 }
 export interface FileRoutesByTo {
@@ -105,6 +112,7 @@ export interface FileRoutesByTo {
   '/contratos': typeof LayoutContratosRoute
   '/fornecedores': typeof LayoutFornecedoresRoute
   '/notas-fiscais': typeof LayoutNotasFiscaisRoute
+  '/relatorios': typeof LayoutRelatoriosRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
 }
@@ -120,6 +128,7 @@ export interface FileRoutesById {
   '/_layout/contratos': typeof LayoutContratosRoute
   '/_layout/fornecedores': typeof LayoutFornecedoresRoute
   '/_layout/notas-fiscais': typeof LayoutNotasFiscaisRoute
+  '/_layout/relatorios': typeof LayoutRelatoriosRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
 }
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/contratos'
     | '/fornecedores'
     | '/notas-fiscais'
+    | '/relatorios'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/contratos'
     | '/fornecedores'
     | '/notas-fiscais'
+    | '/relatorios'
     | '/settings'
     | '/'
   id:
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/_layout/contratos'
     | '/_layout/fornecedores'
     | '/_layout/notas-fiscais'
+    | '/_layout/relatorios'
     | '/_layout/settings'
     | '/_layout/'
   fileRoutesById: FileRoutesById
@@ -253,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutNotasFiscaisRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/relatorios': {
+      id: '/_layout/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof LayoutRelatoriosRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/settings': {
       id: '/_layout/settings'
       path: '/settings'
@@ -269,6 +288,7 @@ interface LayoutRouteChildren {
   LayoutContratosRoute: typeof LayoutContratosRoute
   LayoutFornecedoresRoute: typeof LayoutFornecedoresRoute
   LayoutNotasFiscaisRoute: typeof LayoutNotasFiscaisRoute
+  LayoutRelatoriosRoute: typeof LayoutRelatoriosRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
 }
@@ -279,6 +299,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutContratosRoute: LayoutContratosRoute,
   LayoutFornecedoresRoute: LayoutFornecedoresRoute,
   LayoutNotasFiscaisRoute: LayoutNotasFiscaisRoute,
+  LayoutRelatoriosRoute: LayoutRelatoriosRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
 }

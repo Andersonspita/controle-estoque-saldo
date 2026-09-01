@@ -162,6 +162,18 @@ export const contratosService = {
   },
 };
 
+export const relatoriosService = {
+  saldoContratos: async (params: {
+    contrato_id?: number
+    fornecedor_id?: number
+    situacao?: string
+    almoxarifado_id?: number
+  } = {}) => {
+    const response = await api.get("/relatorios/saldo-contratos", { params });
+    return response.data;
+  },
+};
+
 export const fornecedoresService = {
   listar: async () => {
     const response = await api.get("/fornecedores/");

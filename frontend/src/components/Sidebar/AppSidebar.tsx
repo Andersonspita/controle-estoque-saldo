@@ -1,4 +1,4 @@
-import { Briefcase, Home, Users, FileText, Truck, FileSignature } from "lucide-react"
+import { Briefcase, FileBarChart, Home, Users, FileText, Truck, FileSignature } from "lucide-react"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
 import { Logo } from "@/components/Common/Logo"
@@ -18,6 +18,7 @@ const baseItems: Item[] = [
   { icon: FileSignature, title: "Contratos", path: "/contratos" },
   { icon: FileText, title: "Notas Fiscais", path: "/notas-fiscais" },
   { icon: Briefcase, title: "Órgãos", path: "/almoxarifados" },
+  { icon: FileBarChart, title: "Relatórios", path: "/relatorios" },
 ]
 
 export function AppSidebar() {

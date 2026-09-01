@@ -13,6 +13,7 @@ Exemplo: contrato de 12 meses com 1 item de 100 unidades → o item começa com 
 - Vínculo de cada item da NF a um item do contrato (código, GTIN ou similaridade de descrição)
 - Baixa transacional: desconta o saldo do contrato, registra a movimentação e destina o material ao órgão
 - Previsão de consumo e alertas de esgotamento no dashboard (45 dias)
+- **Relatório de Saldo de Contrato** pronto para impressão ou PDF, com os dados cadastrados no contrato no cabeçalho, o consumo por órgão de destino e cada item aberto em contratado, aditivado, utilizado e saldo
 - Autenticação JWT com dois perfis:
   - **ADMIN** — consulta, importa NF, dá baixa e cadastra/edita usuário, fornecedor, contrato e órgão
   - **OPERADOR** — consulta, importa NF, vincula itens e dá baixa (não cadastra)
@@ -72,6 +73,8 @@ npm run dev
 Interface: <http://localhost:5173>
 
 A origem da API vem de `VITE_API_URL` (por padrão `http://localhost:8000`). O frontend aceita a URL com ou sem o sufixo `/api/v1`.
+
+O cabeçalho do Relatório de Saldo (nome do órgão, estado e setor) vem de `ORGAO_NOME`, `ORGAO_ESTADO` e `ORGAO_SETOR` no `.env`. Sem `ORGAO_NOME`, o relatório usa `PROJECT_NAME`.
 
 O login de testes **não fica no repositório**. Use as credenciais no seu arquivo de acessos (fora do Git) e, para o Playwright, `frontend/.env.e2e` a partir de `frontend/.env.e2e.example`.
 
