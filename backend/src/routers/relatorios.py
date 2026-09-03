@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -46,6 +47,18 @@ async def relatorio_saldo_contratos(
     almoxarifado_id: Optional[int] = Query(
         default=None, description="Considera apenas o consumo destinado a este órgão"
     ),
+    vigencia_inicio: Optional[date] = Query(
+        default=None,
+        description="Traz contratos cuja vigência começa nesta data ou depois",
+    ),
+    vigencia_fim: Optional[date] = Query(
+        default=None,
+        description="Traz contratos cuja vigência termina nesta data ou antes",
+    ),
+    objeto: Optional[str] = Query(
+        default=None,
+        description="Busca parcial no objeto do contrato e no objeto da licitação",
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """Saldo de cada item do contrato aberto em contratado, aditivado, utilizado e saldo."""
@@ -60,6 +73,19 @@ async def relatorio_saldo_contratos(
         stmt = stmt.where(Contrato.fornecedor_id == fornecedor_id)
     if situacao:
         stmt = stmt.where(Contrato.situacao == situacao)
+    if vigencia_inicio is not None:
+        stmt = stmt.where(Contrato.data_inicio >= vigencia_inicio)
+    if vigencia_fim is not None:
+        stmt = stmt.where(Contrato.data_fim <= vigencia_fim)
+    termo_objeto = (objeto or "").strip()
+    if termo_objeto:
+        curinga = f"%{termo_objeto}%"
+        stmt = stmt.where(
+            or_(
+                Contrato.objeto.ilike(curinga),
+                Contrato.objeto_licitacao.ilike(curinga),
+            )
+        )
 
     contratos = (await db.execute(stmt)).scalars().all()
     if contrato_id is not None and not contratos:

@@ -88,6 +88,11 @@
   border-right: 0;
 }
 
+/* Meia linha: dois campos ocupando as quatro colunas da grade. */
+.rel-campo--duplo {
+  grid-column: span 2;
+}
+
 .rel-campo--ultimo {
   border-bottom: 0;
 }

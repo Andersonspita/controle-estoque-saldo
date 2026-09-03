@@ -334,10 +334,16 @@ function FolhaContrato({
           />
         </div>
         <div className="rel-grade">
-          <Campo rotulo="CNPJ / CPF" valor={documentoFornecedor} />
-          <Campo rotulo="Cidade / UF" valor={cidadeUf} />
-          <Campo rotulo="Telefone" valor={contrato.fornecedor_telefone || ""} />
-          <Campo rotulo="E-mail" valor={contrato.fornecedor_email || ""} />
+          <Campo
+            rotulo="CNPJ / CPF"
+            valor={documentoFornecedor}
+            className="rel-campo--duplo"
+          />
+          <Campo
+            rotulo="Cidade / UF"
+            valor={cidadeUf}
+            className="rel-campo--duplo rel-campo--fim"
+          />
         </div>
         <div className="rel-grade">
           <Campo
@@ -353,6 +359,18 @@ function FolhaContrato({
           <Campo
             rotulo="Data final"
             valor={formatarDataBR(contrato.data_fim)}
+          />
+        </div>
+        <div className="rel-grade">
+          <Campo
+            rotulo="Licitação nº"
+            valor={contrato.licitacao_numero || ""}
+            className="rel-campo--duplo"
+          />
+          <Campo
+            rotulo="Modalidade da licitação"
+            valor={contrato.modalidade || ""}
+            className="rel-campo--duplo rel-campo--fim"
           />
         </div>
         <div className="rel-grade">

@@ -168,6 +168,9 @@ export const relatoriosService = {
     fornecedor_id?: number
     situacao?: string
     almoxarifado_id?: number
+    vigencia_inicio?: string
+    vigencia_fim?: string
+    objeto?: string
   } = {}) => {
     const response = await api.get("/relatorios/saldo-contratos", { params });
     return response.data;
