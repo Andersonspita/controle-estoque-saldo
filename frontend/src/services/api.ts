@@ -118,6 +118,26 @@ export const notasFiscaisService = {
     const response = await api.patch(`/notas-fiscais/${nfId}/vinculos`, { itens });
     return response.data;
   },
+
+  atualizar: async (nfId: number, dados: Record<string, unknown>) => {
+    const response = await api.put(`/notas-fiscais/${nfId}`, dados);
+    return response.data;
+  },
+
+  estornar: async (nfId: number, justificativa: string) => {
+    const response = await api.post(`/notas-fiscais/${nfId}/estornar`, { justificativa });
+    return response.data;
+  },
+
+  excluir: async (nfId: number, motivo: string) => {
+    const response = await api.delete(`/notas-fiscais/${nfId}`, { data: { motivo } });
+    return response.data;
+  },
+
+  listarHistorico: async () => {
+    const response = await api.get("/notas-fiscais/historico");
+    return response.data;
+  },
 };
 
 export const unidadesMedidaService = {

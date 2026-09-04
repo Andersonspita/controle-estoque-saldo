@@ -240,7 +240,7 @@ docker run --rm -v controle-estoque-saldo_uploads:/data -v "$BK":/backup alpine 
   tar czf /backup/uploads.tgz -C /data .
 ```
 
-Ponto de restauração no Git **antes** da correção da leitura do PDF da DANFE: tag `backup-pre-leitura-danfe-pdf-20260904` (commit `980f169`). Tags anteriores: `backup-pre-relatorio-saldo-20260901`, `backup-pre-licitacao-obs-20260824`, `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos.
+Ponto de restauração no Git **antes** do CRUD de notas fiscais (estorno e exclusão): tag `backup-pre-crud-nf-20260904` (commit `942db02`). Tags anteriores: `backup-pre-leitura-danfe-pdf-20260904`, `backup-pre-relatorio-saldo-20260901`, `backup-pre-licitacao-obs-20260824`, `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos.
 
 Atualizar para a versão nova (depois do backup):
 

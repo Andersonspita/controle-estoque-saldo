@@ -12,6 +12,7 @@ from ..http_errors import http_erro_interno
 from ..schemas import ItemNotaFiscalCreate, NotaFiscalCreate
 
 STATUS_AGUARDANDO_CONFERENCIA = "Aguardando conferência"
+STATUS_BAIXADA = "Baixada"
 
 
 def normalizar_chave_acesso(chave: Optional[str], exigir_44: bool = False) -> Optional[str]:
@@ -81,7 +82,10 @@ async def persistir_nota_fiscal(
 
     if dados["chave_acesso"]:
         existente = await db.execute(
-            select(NotaFiscal.id).where(NotaFiscal.chave_acesso == dados["chave_acesso"])
+            select(NotaFiscal.id).where(
+                NotaFiscal.chave_acesso == dados["chave_acesso"],
+                NotaFiscal.excluida_em.is_(None),
+            )
         )
         if existente.scalar_one_or_none() is not None:
             raise HTTPException(
@@ -128,3 +132,99 @@ async def persistir_nota_fiscal(
     )
     result = await db.execute(stmt)
     return result.scalar_one()
+
+
+async def atualizar_nota_fiscal(
+    db: AsyncSession,
+    nf_id: int,
+    nf_update: NotaFiscalCreate,
+    itens: list[ItemNotaFiscalCreate],
+) -> NotaFiscal:
+    """Regrava cabeçalho e itens de uma nota ainda não baixada."""
+    stmt = (
+        select(NotaFiscal)
+        .options(selectinload(NotaFiscal.itens))
+        .where(NotaFiscal.id == nf_id)
+    )
+    nf = (await db.execute(stmt)).scalar_one_or_none()
+    if not nf or nf.excluida_em is not None:
+        raise HTTPException(status_code=404, detail="Nota fiscal não encontrada")
+    if nf.status == STATUS_BAIXADA:
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível editar uma nota já baixada. Estorne a baixa antes.",
+        )
+
+    dados = nf_update.model_dump()
+
+    stmt_contrato = (
+        select(Contrato)
+        .options(selectinload(Contrato.itens))
+        .where(Contrato.id == dados["contrato_id"])
+    )
+    contrato = (await db.execute(stmt_contrato)).scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+
+    ids_itens_contrato = {item.id for item in contrato.itens}
+    try:
+        dados["chave_acesso"] = normalizar_chave_acesso(dados.get("chave_acesso"))
+        validar_itens_nf(itens, ids_itens_contrato)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if dados.get("valor_total") is None:
+        dados["valor_total"] = round(
+            sum(item.quantidade * item.valor_unitario for item in itens),
+            2,
+        )
+
+    if dados["chave_acesso"]:
+        existente = await db.execute(
+            select(NotaFiscal.id).where(
+                NotaFiscal.chave_acesso == dados["chave_acesso"],
+                NotaFiscal.excluida_em.is_(None),
+                NotaFiscal.id != nf.id,
+            )
+        )
+        if existente.scalar_one_or_none() is not None:
+            raise HTTPException(
+                status_code=400,
+                detail="Já existe uma nota fiscal com esta chave de acesso.",
+            )
+
+    for campo, valor in dados.items():
+        setattr(nf, campo, valor)
+
+    # Os itens são substituídos por inteiro: o vínculo com o contrato pode ter
+    # mudado junto com o cabeçalho.
+    nf.itens.clear()
+    for item in itens:
+        dump = item.model_dump()
+        if not dump.get("status_identificacao"):
+            dump["status_identificacao"] = "MANUAL"
+        if dump.get("percentual_confianca") is None:
+            dump["percentual_confianca"] = 100
+        nf.itens.append(ItemNotaFiscal(**dump))
+
+    try:
+        await db.commit()
+    except HTTPException:
+        await db.rollback()
+        raise
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Já existe uma nota fiscal com esta chave de acesso.",
+        ) from exc
+    except Exception as exc:
+        await db.rollback()
+        raise http_erro_interno(exc)
+
+    stmt = (
+        select(NotaFiscal)
+        .options(selectinload(NotaFiscal.itens))
+        .where(NotaFiscal.id == nf.id)
+    )
+    return (await db.execute(stmt)).scalar_one()

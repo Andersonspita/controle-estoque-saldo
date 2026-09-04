@@ -394,6 +394,35 @@ class BaixaRequest(BaseModel):
     almoxarifado_id: Optional[int] = None
 
 
+class EstornoRequest(BaseModel):
+    justificativa: str = Field(min_length=5, max_length=500)
+
+
+class ExclusaoRequest(BaseModel):
+    motivo: str = Field(min_length=5, max_length=500)
+
+
+class NotaFiscalHistoricoOut(BaseModel):
+    """Uma nota estornada ou excluída, com quem fez e por quê."""
+
+    id: int
+    numero: str
+    serie: Optional[str] = None
+    chave_acesso: Optional[str] = None
+    data_emissao: Optional[date] = None
+    valor_total: Optional[float] = None
+    contrato_id: int
+    fornecedor_id: int
+    status: str
+    situacao: str
+    excluida_em: Optional[datetime] = None
+    excluida_por_nome: Optional[str] = None
+    motivo_exclusao: Optional[str] = None
+    estornada_em: Optional[datetime] = None
+    estornada_por_nome: Optional[str] = None
+    justificativa_estorno: Optional[str] = None
+
+
 class MovimentacaoOut(BaseModel):
     id: int
     nota_fiscal_id: Optional[int] = None

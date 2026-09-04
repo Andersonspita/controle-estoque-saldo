@@ -26,7 +26,7 @@ async def efetuar_baixa_nf(
     result = await db.execute(stmt)
     nf = result.scalar_one_or_none()
     
-    if not nf:
+    if not nf or nf.excluida_em is not None:
         raise HTTPException(status_code=404, detail="Nota Fiscal não encontrada")
     
     if nf.status == "Baixada":

@@ -49,6 +49,7 @@ const formSchema = z
     confirm_password: z.string().min(1, { message: "Confirme a senha" }),
     perfil: z.enum(["ADMIN", "OPERADOR"]),
     is_active: z.boolean(),
+    pode_estornar: z.boolean(),
   })
   .refine((data) => data.password === data.confirm_password, {
     message: "As senhas não coincidem",
@@ -73,6 +74,7 @@ const AddUser = () => {
       confirm_password: "",
       perfil: "OPERADOR",
       is_active: true,
+      pode_estornar: false,
     },
   })
 
@@ -97,6 +99,8 @@ const AddUser = () => {
       perfil: data.perfil,
       is_superuser: data.perfil === "ADMIN",
       is_active: data.is_active,
+      // Campo novo no backend; o client gerado ainda não o tipa.
+      ...({ pode_estornar: data.pode_estornar } as Record<string, unknown>),
     })
   }
 
@@ -213,6 +217,32 @@ const AddUser = () => {
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pode_estornar"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={form.watch("perfil") === "ADMIN" || field.value}
+                          disabled={form.watch("perfil") === "ADMIN"}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Pode estornar baixas e excluir notas fiscais
+                      </FormLabel>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {form.watch("perfil") === "ADMIN"
+                        ? "Administradores já têm essa permissão."
+                        : "Sem isso, o usuário lança e edita notas, mas não desfaz baixas nem exclui."}
+                    </p>
                   </FormItem>
                 )}
               />

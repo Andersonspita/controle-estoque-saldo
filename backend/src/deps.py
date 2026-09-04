@@ -58,6 +58,25 @@ def is_admin(user: Usuario) -> bool:
     return _perfil(user) == "ADMIN"
 
 
+def tem_permissao_estorno(user: Usuario) -> bool:
+    """Estornar baixa e excluir nota: do ADMIN, ou de quem ele liberar."""
+    return is_admin(user) or bool(getattr(user, "pode_estornar", False))
+
+
+async def require_estorno(
+    current_user: Annotated[Usuario, Depends(get_current_active_user)],
+) -> Usuario:
+    if not tem_permissao_estorno(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Seu usuário não tem permissão para estornar ou excluir notas fiscais. "
+                "Peça a liberação a um administrador."
+            ),
+        )
+    return current_user
+
+
 async def require_admin(
     current_user: Annotated[Usuario, Depends(get_current_active_user)],
 ) -> Usuario:
@@ -71,4 +90,5 @@ async def require_admin(
 
 CurrentUser = Annotated[Usuario, Depends(get_current_active_user)]
 RequireAdmin = Annotated[Usuario, Depends(require_admin)]
+RequireEstorno = Annotated[Usuario, Depends(require_estorno)]
 

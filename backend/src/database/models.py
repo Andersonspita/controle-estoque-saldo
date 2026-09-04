@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Date, JSON, CheckConstraint, Text
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Date, JSON, CheckConstraint, Index, Text, text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from .session import Base
@@ -15,6 +15,8 @@ class Usuario(Base):
     senha_hash = Column(String, nullable=False)
     perfil = Column(String, nullable=False)
     ativo = Column(Boolean, default=True)
+    # Concedida pelo ADMIN: libera estornar a baixa e excluir nota fiscal.
+    pode_estornar = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     criado_em = Column(DateTime(timezone=True), default=utcnow)
 
 class Almoxarifado(Base):
@@ -115,20 +117,35 @@ class ItemContrato(Base):
 
 class NotaFiscal(Base):
     __tablename__ = "notas_fiscais"
+    __table_args__ = (
+        # A chave só é única entre as notas vivas: uma nota excluída não pode
+        # impedir que a mesma NF seja importada de novo.
+        Index(
+            "uq_notas_fiscais_chave_acesso_ativa",
+            "chave_acesso",
+            unique=True,
+            postgresql_where=text("excluida_em IS NULL"),
+            sqlite_where=text("excluida_em IS NULL"),
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     contrato_id = Column(Integer, ForeignKey("contratos.id"), nullable=False)
     fornecedor_id = Column(Integer, ForeignKey("fornecedores.id"), nullable=False)
     numero = Column(String, nullable=False)
     serie = Column(String)
-    chave_acesso = Column(String, unique=True, index=True)
+    chave_acesso = Column(String, index=True)
     data_emissao = Column(Date)
     valor_total = Column(Float)
     arquivo_pdf_path = Column(String)
     status = Column(String, nullable=False)
     criado_por = Column(Integer, ForeignKey("usuarios.id"))
     criado_em = Column(DateTime(timezone=True), default=utcnow)
-    
+    # Exclusão lógica: a nota some das listas mas continua auditável.
+    excluida_em = Column(DateTime(timezone=True))
+    excluida_por = Column(Integer, ForeignKey("usuarios.id"))
+    motivo_exclusao = Column(Text)
+
     itens = relationship("ItemNotaFiscal", back_populates="nota_fiscal", cascade="all, delete-orphan")
 
 class ItemNotaFiscal(Base):
