@@ -140,3 +140,40 @@
     cursor: pointer;
   }
 }
+
+/* Impressão de relatórios: some com o enquadramento do app e libera a folha. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-trigger"],
+  [data-slot="sidebar-rail"] {
+    display: none !important;
+  }
+
+  [data-slot="sidebar-inset"] header,
+  [data-slot="sidebar-inset"] footer {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  main > div {
+    max-width: none !important;
+  }
+}

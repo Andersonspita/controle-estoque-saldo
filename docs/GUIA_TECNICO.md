@@ -188,6 +188,7 @@ Edite `.env.production`:
 - `FRONTEND_HOST=http://SEU_IP_PUBLICO:8080` (sem barra no final)
 - `HTTP_PORT=8080` (porta pública do site; a 80 costuma estar ocupada pelo painel)
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `ADMIN_NOME`: o primeiro administrador (não reutilize a senha de teste local)
+- `ORGAO_NOME`, `ORGAO_ESTADO` e `ORGAO_SETOR`: cabeçalho impresso no Relatório de Saldo de Contrato. Opcionais — sem `ORGAO_NOME` o relatório usa `PROJECT_NAME`
 
 Não commite `.env.production`. Guarde e-mail/senha do ADMIN, SSH e a URL pública **fora do repositório**.
 
@@ -239,7 +240,7 @@ docker run --rm -v controle-estoque-saldo_uploads:/data -v "$BK":/backup alpine 
   tar czf /backup/uploads.tgz -C /data .
 ```
 
-Ponto de restauração no Git **antes** de número/modalidade/objeto da licitação e observação: tag `backup-pre-licitacao-obs-20260824` (commit `e8fdd8b`). Tags anteriores: `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos.
+Ponto de restauração no Git **antes** do CRUD de notas fiscais (estorno e exclusão): tag `backup-pre-crud-nf-20260904` (commit `942db02`). Tags anteriores: `backup-pre-leitura-danfe-pdf-20260904`, `backup-pre-relatorio-saldo-20260901`, `backup-pre-licitacao-obs-20260824`, `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos.
 
 Atualizar para a versão nova (depois do backup):
 

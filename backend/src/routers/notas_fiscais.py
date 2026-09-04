@@ -1,22 +1,26 @@
 import os
 import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from ..database.session import get_db
-from ..deps import get_current_active_user
-from ..database.models import NotaFiscal, ItemNotaFiscal, Contrato, Fornecedor, ItemContrato
+from ..deps import get_current_active_user, RequireEstorno
+from ..database.models import NotaFiscal, ItemNotaFiscal, Contrato, Fornecedor, ItemContrato, Movimentacao, Usuario
 from ..http_errors import http_erro_interno
 from ..services.arquivos import caminho_upload_seguro
-from ..services.nota_fiscal import persistir_nota_fiscal
+from ..services.nota_fiscal import persistir_nota_fiscal, atualizar_nota_fiscal
 from ..schemas import (
     NotaFiscalCreate, ItemNotaFiscalCreate, NotaFiscalOut,
     NotaFiscalManualCreate,
     VincularItensRequest, VincularItensResponse, ItemVinculoSugerido,
     AtualizarVinculosRequest,
+    EstornoRequest, ExclusaoRequest, NotaFiscalHistoricoOut,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/v1/notas-fiscais",
@@ -31,9 +35,83 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 async def list_notas_fiscais(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
     from sqlalchemy.future import select
     from sqlalchemy.orm import selectinload
-    stmt = select(NotaFiscal).options(selectinload(NotaFiscal.itens)).order_by(NotaFiscal.criado_em.desc()).offset(skip).limit(limit)
+    stmt = (
+        select(NotaFiscal)
+        .options(selectinload(NotaFiscal.itens))
+        .where(NotaFiscal.excluida_em.is_(None))
+        .order_by(NotaFiscal.criado_em.desc())
+        .offset(skip)
+        .limit(limit)
+    )
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+@router.get("/historico", response_model=List[NotaFiscalHistoricoOut])
+async def historico_notas_fiscais(db: AsyncSession = Depends(get_db)):
+    """Notas estornadas ou excluídas, com quem fez a operação e por quê."""
+    from sqlalchemy import or_
+    from sqlalchemy.future import select
+
+    stmt = (
+        select(NotaFiscal)
+        .where(
+            or_(
+                NotaFiscal.excluida_em.is_not(None),
+                NotaFiscal.status == STATUS_ESTORNADA,
+            )
+        )
+        .order_by(NotaFiscal.criado_em.desc())
+    )
+    notas = list((await db.execute(stmt)).scalars().all())
+    if not notas:
+        return []
+
+    ids = [nf.id for nf in notas]
+    stmt_mov = (
+        select(Movimentacao)
+        .where(
+            Movimentacao.nota_fiscal_id.in_(ids),
+            Movimentacao.tipo_movimento == "ESTORNO",
+        )
+        .order_by(Movimentacao.data_hora)
+    )
+    # Ordenado do mais antigo ao mais novo: sobra o último estorno de cada nota.
+    ultimo_estorno = {
+        mov.nota_fiscal_id: mov for mov in (await db.execute(stmt_mov)).scalars().all()
+    }
+
+    ids_usuarios = {nf.excluida_por for nf in notas if nf.excluida_por}
+    ids_usuarios |= {mov.usuario_id for mov in ultimo_estorno.values()}
+    nomes: dict[int, str] = {}
+    if ids_usuarios:
+        stmt_users = select(Usuario.id, Usuario.nome).where(Usuario.id.in_(ids_usuarios))
+        nomes = {uid: nome for uid, nome in (await db.execute(stmt_users)).all()}
+
+    historico = []
+    for nf in notas:
+        mov = ultimo_estorno.get(nf.id)
+        historico.append(
+            NotaFiscalHistoricoOut(
+                id=nf.id,
+                numero=nf.numero,
+                serie=nf.serie,
+                chave_acesso=nf.chave_acesso,
+                data_emissao=nf.data_emissao,
+                valor_total=nf.valor_total,
+                contrato_id=nf.contrato_id,
+                fornecedor_id=nf.fornecedor_id,
+                status=nf.status,
+                situacao="Excluída" if nf.excluida_em else "Estornada",
+                excluida_em=nf.excluida_em,
+                excluida_por_nome=nomes.get(nf.excluida_por),
+                motivo_exclusao=nf.motivo_exclusao,
+                estornada_em=mov.data_hora if mov else None,
+                estornada_por_nome=nomes.get(mov.usuario_id) if mov else None,
+                justificativa_estorno=mov.justificativa if mov else None,
+            )
+        )
+    return historico
 
 @router.post("/", response_model=NotaFiscalOut)
 async def criar_nota_fiscal_manual(
@@ -163,6 +241,9 @@ async def importar_nota_fiscal(
         raise
 
 from ..services.baixa_service import efetuar_baixa_nf
+from ..services.estorno_service import estornar_baixa_nf, STATUS_ESTORNADA
+from ..core.audit import registrar_auditoria
+from ..database.models import utcnow
 from ..schemas import BaixaRequest, MovimentacaoOut
 from ..deps import CurrentUser
 
@@ -179,6 +260,88 @@ async def baixar_nota_fiscal(
     """
     movimentacoes = await efetuar_baixa_nf(nf_id, baixa_req, db, usuario_id=current_user.id)
     return movimentacoes
+
+
+@router.put("/{nf_id}", response_model=NotaFiscalOut)
+async def editar_nota_fiscal(
+    nf_id: int,
+    body: NotaFiscalManualCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Regrava cabeçalho e itens. Nota baixada precisa ser estornada antes."""
+    nf_update = NotaFiscalCreate(**body.model_dump(exclude={"itens"}))
+    return await atualizar_nota_fiscal(db, nf_id, nf_update, list(body.itens))
+
+
+@router.post("/{nf_id}/estornar", response_model=List[MovimentacaoOut])
+async def estornar_nota_fiscal(
+    nf_id: int,
+    body: EstornoRequest,
+    current_user: RequireEstorno,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Desfaz a baixa: devolve o saldo ao contrato, retira a quantidade do órgão
+    de destino e registra a movimentação de ESTORNO. Depois disso a nota volta
+    a poder ser editada, excluída ou baixada de novo.
+    """
+    return await estornar_baixa_nf(
+        nf_id, body.justificativa, db, usuario_id=current_user.id
+    )
+
+
+@router.delete("/{nf_id}", response_model=NotaFiscalOut)
+async def excluir_nota_fiscal(
+    nf_id: int,
+    body: ExclusaoRequest,
+    current_user: RequireEstorno,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Exclusão lógica: a nota sai das listas mas continua no histórico, com
+    quem excluiu e por quê. Nota baixada precisa ser estornada antes, senão o
+    saldo do contrato ficaria consumido por uma nota que não existe mais.
+    """
+    from sqlalchemy.future import select
+    from sqlalchemy.orm import selectinload
+
+    stmt = (
+        select(NotaFiscal)
+        .options(selectinload(NotaFiscal.itens))
+        .where(NotaFiscal.id == nf_id)
+    )
+    nf = (await db.execute(stmt)).scalar_one_or_none()
+    if not nf or nf.excluida_em is not None:
+        raise HTTPException(status_code=404, detail="Nota fiscal não encontrada")
+    if nf.status == "Baixada":
+        raise HTTPException(
+            status_code=400,
+            detail="Estorne a baixa antes de excluir esta nota fiscal.",
+        )
+
+    nf.excluida_em = utcnow()
+    nf.excluida_por = current_user.id
+    nf.motivo_exclusao = body.motivo
+
+    await registrar_auditoria(
+        db,
+        usuario_id=current_user.id,
+        operacao="DELETE",
+        tabela="notas_fiscais",
+        registro_id=str(nf.id),
+        dados_anteriores={
+            "numero": nf.numero,
+            "serie": nf.serie,
+            "chave_acesso": nf.chave_acesso,
+            "valor_total": nf.valor_total,
+            "status": nf.status,
+        },
+        dados_novos={"motivo_exclusao": body.motivo},
+    )
+
+    await db.commit()
+    await db.refresh(nf)
+    return nf
 
 from ..services.nfe_parser import parse_nfe_xml
 from ..services.nfe_pdf import parse_nfe_pdf
@@ -227,8 +390,12 @@ async def parse_xml_endpoint(arquivo_xml: UploadFile = File(...)):
         texto_xml = conteudo.decode("utf-8", errors="ignore")
         dados_extraidos = parse_nfe_xml(texto_xml)
         return dados_extraidos
-    except Exception:
-        raise HTTPException(status_code=400, detail="Não foi possível ler o XML da NF-e.")
+    except Exception as exc:
+        logger.exception("Falha ao interpretar o XML da NF-e enviado")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Não foi possível ler o XML da NF-e: {exc}",
+        )
 
 @router.post("/parse-pdf")
 async def parse_pdf_endpoint(arquivo_pdf: UploadFile = File(...)):
@@ -241,6 +408,12 @@ async def parse_pdf_endpoint(arquivo_pdf: UploadFile = File(...)):
         if not conteudo:
             raise ValueError("Arquivo PDF vazio")
         return parse_nfe_pdf(conteudo)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Não foi possível ler o PDF da DANFE.")
+    except Exception as exc:
+        logger.exception(
+            "Falha ao interpretar o PDF da DANFE enviado (%s)", arquivo_pdf.filename
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Não foi possível ler o PDF da DANFE: {exc}",
+        )
 

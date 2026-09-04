@@ -118,6 +118,26 @@ export const notasFiscaisService = {
     const response = await api.patch(`/notas-fiscais/${nfId}/vinculos`, { itens });
     return response.data;
   },
+
+  atualizar: async (nfId: number, dados: Record<string, unknown>) => {
+    const response = await api.put(`/notas-fiscais/${nfId}`, dados);
+    return response.data;
+  },
+
+  estornar: async (nfId: number, justificativa: string) => {
+    const response = await api.post(`/notas-fiscais/${nfId}/estornar`, { justificativa });
+    return response.data;
+  },
+
+  excluir: async (nfId: number, motivo: string) => {
+    const response = await api.delete(`/notas-fiscais/${nfId}`, { data: { motivo } });
+    return response.data;
+  },
+
+  listarHistorico: async () => {
+    const response = await api.get("/notas-fiscais/historico");
+    return response.data;
+  },
 };
 
 export const unidadesMedidaService = {
@@ -158,6 +178,21 @@ export const contratosService = {
     },
   ) => {
     const response = await api.post(`/contratos/${id}/aditivo`, dados);
+    return response.data;
+  },
+};
+
+export const relatoriosService = {
+  saldoContratos: async (params: {
+    contrato_id?: number
+    fornecedor_id?: number
+    situacao?: string
+    almoxarifado_id?: number
+    vigencia_inicio?: string
+    vigencia_fim?: string
+    objeto?: string
+  } = {}) => {
+    const response = await api.get("/relatorios/saldo-contratos", { params });
     return response.data;
   },
 };

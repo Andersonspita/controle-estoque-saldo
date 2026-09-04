@@ -15,6 +15,7 @@ def _fake_user(perfil: str = "ADMIN", user_id: int = 1):
         ativo=True,
         perfil=perfil,
         nome="Usuário de Teste",
+        pode_estornar=False,
     )
 
 

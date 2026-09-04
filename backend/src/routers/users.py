@@ -26,6 +26,7 @@ class UserPublic(BaseModel):
     is_superuser: bool = False
     full_name: str | None = None
     perfil: str
+    pode_estornar: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -42,6 +43,7 @@ class UserCreate(BaseModel):
     is_active: bool = True
     is_superuser: bool = False
     perfil: Literal["ADMIN", "OPERADOR"] | None = None
+    pode_estornar: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -51,6 +53,7 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
     is_superuser: bool | None = None
     perfil: Literal["ADMIN", "OPERADOR"] | None = None
+    pode_estornar: bool | None = None
 
 
 class UserUpdateMe(BaseModel):
@@ -75,6 +78,7 @@ def _to_public(user: Usuario) -> UserPublic:
         is_superuser=is_admin(user),
         full_name=user.nome,
         perfil=(user.perfil or "").upper(),
+        pode_estornar=is_admin(user) or bool(user.pode_estornar),
     )
 
 
@@ -197,6 +201,7 @@ async def create_user(
         senha_hash=get_password_hash(user_in.password),
         perfil=perfil,
         ativo=user_in.is_active,
+        pode_estornar=user_in.pode_estornar,
     )
     db.add(user)
     await db.commit()
@@ -240,6 +245,8 @@ async def update_user(
         user.senha_hash = get_password_hash(user_in.password)
     if user_in.is_active is not None:
         user.ativo = user_in.is_active
+    if user_in.pode_estornar is not None:
+        user.pode_estornar = user_in.pode_estornar
     user.perfil = novo_perfil
 
     db.add(user)

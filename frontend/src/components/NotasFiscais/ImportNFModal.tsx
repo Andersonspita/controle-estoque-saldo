@@ -86,7 +86,7 @@ export function ImportNFModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpe
     mutationFn: notasFiscaisService.parseArquivo,
     onSuccess: (data) => {
       setParsedData(data)
-      toast.success(data.origem === "ocr" ? "Leitura do DANFE (PDF) concluída!" : "Leitura do XML concluída com sucesso!")
+      toast.success(data.origem ? "Leitura do DANFE (PDF) concluída!" : "Leitura do XML concluída com sucesso!")
     },
     onError: (error: any) => {
       toast.error("Erro ao ler a Nota Fiscal", {
@@ -220,7 +220,7 @@ export function ImportNFModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpe
                 id="contrato"
                 value={selectedContratoId}
                 onChange={(e) => setSelectedContratoId(e.target.value)}
-                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 [&>option]:text-slate-900"
+                className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 [&>option]:text-slate-900"
                 required
                 disabled={isLoadingContratos}
               >
@@ -311,7 +311,7 @@ export function ImportNFModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpe
                                   <select
                                     value={v.item_contrato_id ?? ""}
                                     onChange={(e) => handleVinculoManual(v.indice_nf, e.target.value)}
-                                    className="w-full border border-slate-300 rounded p-1.5 text-xs focus:ring-1 focus:ring-blue-500"
+                                    className="w-full border border-slate-300 rounded p-1.5 text-xs bg-white text-slate-900 focus:ring-1 focus:ring-blue-500 [&>option]:text-slate-900"
                                     required
                                   >
                                     <option value="" disabled>Selecione...</option>
