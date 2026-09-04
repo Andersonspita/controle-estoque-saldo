@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,8 @@ from ..schemas import (
     VincularItensRequest, VincularItensResponse, ItemVinculoSugerido,
     AtualizarVinculosRequest,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/v1/notas-fiscais",
@@ -227,8 +230,12 @@ async def parse_xml_endpoint(arquivo_xml: UploadFile = File(...)):
         texto_xml = conteudo.decode("utf-8", errors="ignore")
         dados_extraidos = parse_nfe_xml(texto_xml)
         return dados_extraidos
-    except Exception:
-        raise HTTPException(status_code=400, detail="Não foi possível ler o XML da NF-e.")
+    except Exception as exc:
+        logger.exception("Falha ao interpretar o XML da NF-e enviado")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Não foi possível ler o XML da NF-e: {exc}",
+        )
 
 @router.post("/parse-pdf")
 async def parse_pdf_endpoint(arquivo_pdf: UploadFile = File(...)):
@@ -241,6 +248,12 @@ async def parse_pdf_endpoint(arquivo_pdf: UploadFile = File(...)):
         if not conteudo:
             raise ValueError("Arquivo PDF vazio")
         return parse_nfe_pdf(conteudo)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Não foi possível ler o PDF da DANFE.")
+    except Exception as exc:
+        logger.exception(
+            "Falha ao interpretar o PDF da DANFE enviado (%s)", arquivo_pdf.filename
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Não foi possível ler o PDF da DANFE: {exc}",
+        )
 
