@@ -11,14 +11,14 @@ from app.core.config import settings
 
 from ..database.session import get_db
 from ..deps import get_current_active_user
-from ..database.models import Almoxarifado, Contrato, ItemContrato, Movimentacao
+from ..database.models import Contrato
 from ..schemas import (
     RelatorioContratoSaldoOut,
     RelatorioEmitenteOut,
     RelatorioSaldoOut,
     RelatorioTotaisOut,
 )
-from ..services.relatorio_saldo import consumo_por_orgao, linha_item, totalizar
+from ..services.relatorio_saldo import linha_item, totalizar
 
 router = APIRouter(
     prefix="/api/v1/relatorios",
@@ -43,9 +43,6 @@ async def relatorio_saldo_contratos(
     fornecedor_id: Optional[int] = Query(default=None),
     situacao: Optional[str] = Query(
         default=None, description="Situação do contrato; omitido traz todas"
-    ),
-    almoxarifado_id: Optional[int] = Query(
-        default=None, description="Considera apenas o consumo destinado a este órgão"
     ),
     vigencia_inicio: Optional[date] = Query(
         default=None,
@@ -91,33 +88,10 @@ async def relatorio_saldo_contratos(
     if contrato_id is not None and not contratos:
         raise HTTPException(status_code=404, detail="Contrato não encontrado")
 
-    nomes_orgaos = {
-        orgao.id: orgao.nome
-        for orgao in (await db.execute(select(Almoxarifado))).scalars().all()
-    }
-
-    ids_itens = [item.id for contrato in contratos for item in contrato.itens]
-    movimentacoes: List[Movimentacao] = []
-    if ids_itens:
-        stmt_mov = select(Movimentacao).where(Movimentacao.item_contrato_id.in_(ids_itens))
-        if almoxarifado_id is not None:
-            stmt_mov = stmt_mov.where(Movimentacao.almoxarifado_id == almoxarifado_id)
-        movimentacoes = list((await db.execute(stmt_mov)).scalars().all())
-
-    movimentacoes_por_contrato: dict[int, list[Movimentacao]] = {}
-    contrato_do_item = {
-        item.id: contrato.id for contrato in contratos for item in contrato.itens
-    }
-    for mov in movimentacoes:
-        destino = contrato_do_item.get(mov.item_contrato_id)
-        if destino is not None:
-            movimentacoes_por_contrato.setdefault(destino, []).append(mov)
-
     saida: List[RelatorioContratoSaldoOut] = []
     for contrato in contratos:
         itens = sorted(contrato.itens, key=lambda item: (item.numero_item or 0, item.id))
         linhas = [linha_item(item) for item in itens]
-        valores_unitarios = {item.id: float(item.valor_unitario or 0) for item in itens}
         fornecedor = contrato.fornecedor
 
         saida.append(
@@ -142,11 +116,6 @@ async def relatorio_saldo_contratos(
                 fornecedor_telefone=getattr(fornecedor, "telefone", None),
                 fornecedor_email=getattr(fornecedor, "email", None),
                 itens=linhas,
-                orgaos=consumo_por_orgao(
-                    movimentacoes_por_contrato.get(contrato.id, []),
-                    valores_unitarios,
-                    nomes_orgaos,
-                ),
                 totais=RelatorioTotaisOut(**totalizar(linhas)),
             )
         )

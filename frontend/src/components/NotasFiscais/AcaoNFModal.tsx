@@ -23,7 +23,7 @@ const TEXTOS = {
   estorno: {
     titulo: "Estornar baixa",
     descricao:
-      "O saldo volta para o contrato, a quantidade sai do órgão de destino e fica registrada uma movimentação de estorno. Depois disso a nota pode ser editada, excluída ou baixada de novo.",
+      "O saldo volta para o contrato e fica registrada uma movimentação de estorno. Depois disso a nota pode ser editada, excluída ou baixada de novo.",
     rotulo: "Justificativa do estorno",
     placeholder: "Ex.: nota lançada no contrato errado",
     confirmar: "Estornar baixa",

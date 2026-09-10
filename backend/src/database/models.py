@@ -19,25 +19,6 @@ class Usuario(Base):
     pode_estornar = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     criado_em = Column(DateTime(timezone=True), default=utcnow)
 
-class Almoxarifado(Base):
-    __tablename__ = "almoxarifados"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String, nullable=False)
-    localizacao = Column(String)
-    ativo = Column(Boolean, default=True)
-
-class EstoqueAlmoxarifado(Base):
-    __tablename__ = "estoque_almoxarifados"
-
-    id = Column(Integer, primary_key=True, index=True)
-    item_contrato_id = Column(Integer, ForeignKey("itens_contrato.id"), nullable=False)
-    almoxarifado_id = Column(Integer, ForeignKey("almoxarifados.id"), nullable=False)
-    quantidade = Column(Float, nullable=False, default=0)
-    
-    item_contrato = relationship("ItemContrato")
-    almoxarifado = relationship("Almoxarifado")
-
 class Fornecedor(Base):
     __tablename__ = "fornecedores"
 
@@ -107,6 +88,7 @@ class ItemContrato(Base):
     descricao = Column(Text, nullable=False)
     unidade = Column(String, nullable=False)
     marca = Column(String)
+    observacao = Column(Text)
     quantidade_contratada = Column(Float, nullable=False)
     quantidade_inicial = Column(Float, nullable=False)
     valor_unitario = Column(Float, nullable=False)
@@ -174,7 +156,6 @@ class Movimentacao(Base):
     quantidade = Column(Float, nullable=False)
     saldo_anterior = Column(Float, nullable=False)
     saldo_posterior = Column(Float, nullable=False)
-    almoxarifado_id = Column(Integer, ForeignKey("almoxarifados.id"), nullable=True) # Pode ser null para estornos ou compatibilidade
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     data_hora = Column(DateTime(timezone=True), default=utcnow)
     justificativa = Column(Text)

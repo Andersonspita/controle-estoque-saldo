@@ -7,7 +7,6 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from ..database.models import (
-    EstoqueAlmoxarifado,
     ItemContrato,
     Movimentacao,
     NotaFiscal,
@@ -51,8 +50,8 @@ async def estornar_baixa_nf(
     usuario_id: int,
 ) -> List[Movimentacao]:
     """
-    Desfaz a baixa de uma nota: devolve o saldo ao contrato, retira a
-    quantidade do almoxarifado e registra uma movimentação de ESTORNO.
+    Desfaz a baixa de uma nota: devolve o saldo ao contrato e registra
+    uma movimentação de ESTORNO.
     """
     stmt = (
         select(NotaFiscal)
@@ -93,30 +92,6 @@ async def estornar_baixa_nf(
                 detail=f"Item de contrato ID {baixa.item_contrato_id} não encontrado",
             )
 
-        # O estoque do almoxarifado precisa comportar a devolução: se a
-        # quantidade já saiu de lá, estornar deixaria o estoque negativo.
-        if baixa.almoxarifado_id is not None:
-            stmt_est = (
-                select(EstoqueAlmoxarifado)
-                .where(
-                    EstoqueAlmoxarifado.item_contrato_id == item_contrato.id,
-                    EstoqueAlmoxarifado.almoxarifado_id == baixa.almoxarifado_id,
-                )
-                .with_for_update()
-            )
-            estoque = (await db.execute(stmt_est)).scalar_one_or_none()
-            disponivel = estoque.quantidade if estoque else 0
-            if disponivel < baixa.quantidade:
-                raise HTTPException(
-                    status_code=422,
-                    detail=(
-                        f"O item '{item_contrato.descricao}' já saiu do órgão de destino "
-                        f"({disponivel:g} de {baixa.quantidade:g} disponíveis). "
-                        "Estorne ou corrija a movimentação de estoque antes."
-                    ),
-                )
-            estoque.quantidade -= baixa.quantidade
-
         saldo_anterior = item_contrato.saldo_atual
         saldo_posterior = saldo_anterior + baixa.quantidade
         item_contrato.saldo_atual = saldo_posterior
@@ -128,7 +103,6 @@ async def estornar_baixa_nf(
             quantidade=baixa.quantidade,
             saldo_anterior=saldo_anterior,
             saldo_posterior=saldo_posterior,
-            almoxarifado_id=baixa.almoxarifado_id,
             usuario_id=usuario_id,
             justificativa=justificativa,
         )

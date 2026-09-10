@@ -281,9 +281,9 @@ async def estornar_nota_fiscal(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Desfaz a baixa: devolve o saldo ao contrato, retira a quantidade do órgão
-    de destino e registra a movimentação de ESTORNO. Depois disso a nota volta
-    a poder ser editada, excluída ou baixada de novo.
+    Desfaz a baixa: devolve o saldo ao contrato e registra a movimentação
+    de ESTORNO. Depois disso a nota volta a poder ser editada, excluída ou
+    baixada de novo.
     """
     return await estornar_baixa_nf(
         nf_id, body.justificativa, db, usuario_id=current_user.id

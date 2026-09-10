@@ -1,6 +1,4 @@
 from src.services.relatorio_saldo import (
-    SEM_ORGAO,
-    consumo_por_orgao,
     linha_item,
     totalizar,
 )
@@ -104,43 +102,3 @@ def test_totalizar_sem_linhas_zera_tudo():
     totais = totalizar([])
     assert totais["valor_vigente"] == 0
     assert totais["percentual_utilizado"] == 0
-
-
-def test_consumo_por_orgao_agrupa_baixas_e_desconta_estorno():
-    movimentacoes = [
-        _Registro(tipo_movimento="BAIXA", item_contrato_id=1, almoxarifado_id=10, quantidade=100),
-        _Registro(tipo_movimento="BAIXA", item_contrato_id=1, almoxarifado_id=10, quantidade=40),
-        _Registro(tipo_movimento="ESTORNO", item_contrato_id=1, almoxarifado_id=10, quantidade=15),
-        _Registro(tipo_movimento="BAIXA", item_contrato_id=2, almoxarifado_id=20, quantidade=10),
-    ]
-    grupos = consumo_por_orgao(
-        movimentacoes,
-        {1: 2.0, 2: 5.0},
-        {10: "Fundo Municipal de Educação", 20: "Fundo Municipal de Saúde"},
-    )
-    assert [g["nome"] for g in grupos] == [
-        "Fundo Municipal de Educação",
-        "Fundo Municipal de Saúde",
-    ]
-    assert grupos[0]["quantidade_utilizada"] == 125
-    assert grupos[0]["valor_utilizado"] == 250.0
-    assert grupos[1]["valor_utilizado"] == 50.0
-
-
-def test_consumo_por_orgao_rotula_baixa_sem_orgao():
-    grupos = consumo_por_orgao(
-        [_Registro(tipo_movimento="BAIXA", item_contrato_id=1, almoxarifado_id=None, quantidade=3)],
-        {1: 7.0},
-        {},
-    )
-    assert grupos[0]["nome"] == SEM_ORGAO
-    assert grupos[0]["valor_utilizado"] == 21.0
-
-
-def test_consumo_por_orgao_ignora_movimento_que_nao_e_consumo():
-    grupos = consumo_por_orgao(
-        [_Registro(tipo_movimento="ENTRADA", item_contrato_id=1, almoxarifado_id=10, quantidade=5)],
-        {1: 7.0},
-        {10: "Órgão"},
-    )
-    assert grupos == []

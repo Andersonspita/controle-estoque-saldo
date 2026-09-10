@@ -6,38 +6,6 @@ from .services.documento import formatar_cpf_cnpj
 from .services.unidades_medida import normalizar_unidade
 from .services.modalidades_licitacao import normalizar_modalidade
 
-class AlmoxarifadoBase(BaseModel):
-    nome: str
-    localizacao: Optional[str] = None
-    ativo: bool = True
-
-class AlmoxarifadoCreate(AlmoxarifadoBase):
-    pass
-
-class AlmoxarifadoUpdate(BaseModel):
-    nome: Optional[str] = None
-    localizacao: Optional[str] = None
-    ativo: Optional[bool] = None
-
-class AlmoxarifadoOut(AlmoxarifadoBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-class DestinacaoItemOut(BaseModel):
-    item_contrato_id: int
-    codigo: Optional[str] = None
-    descricao: str
-    unidade: str
-    contrato_id: int
-    contrato_numero: str
-    contrato_ano: int
-    quantidade_destinada: float
-    saldo_contrato: float
-
-class AlmoxarifadoDetalhadoOut(AlmoxarifadoOut):
-    destinos: List[DestinacaoItemOut] = []
-
 class FornecedorBase(BaseModel):
     razao_social: str
     nome_fantasia: Optional[str] = None
@@ -158,6 +126,8 @@ class ItemContratoCreate(BaseModel):
     codigo: Optional[str] = None
     descricao: str
     unidade: str = "UN"
+    marca: Optional[str] = None
+    observacao: Optional[str] = None
     quantidade_contratada: float
     valor_unitario: float
     numero_item: Optional[int] = None
@@ -166,6 +136,14 @@ class ItemContratoCreate(BaseModel):
     @classmethod
     def _validar_unidade(cls, valor: str) -> str:
         return normalizar_unidade(valor)
+
+    @field_validator("marca", "observacao", "codigo", mode="before")
+    @classmethod
+    def _texto_opcional_item(cls, valor):
+        if valor is None:
+            return None
+        texto = str(valor).strip()
+        return texto or None
 
 class ContratoCreate(ContratoBase):
     objeto: str = Field(..., min_length=1)
@@ -187,13 +165,24 @@ class ItemContratoUpdate(BaseModel):
     codigo: Optional[str] = None
     descricao: str
     unidade: str = "UN"
+    marca: Optional[str] = None
+    observacao: Optional[str] = None
     quantidade_contratada: float
     valor_unitario: float
+    numero_item: Optional[int] = None
 
     @field_validator("unidade")
     @classmethod
     def _validar_unidade(cls, valor: str) -> str:
         return normalizar_unidade(valor)
+
+    @field_validator("marca", "observacao", "codigo", mode="before")
+    @classmethod
+    def _texto_opcional_item(cls, valor):
+        if valor is None:
+            return None
+        texto = str(valor).strip()
+        return texto or None
 
 class ContratoUpdate(BaseModel):
     fornecedor_id: Optional[int] = None
@@ -250,6 +239,8 @@ class ItemContratoOut(BaseModel):
     codigo: Optional[str] = None
     descricao: str
     unidade: str
+    marca: Optional[str] = None
+    observacao: Optional[str] = None
     quantidade_contratada: float
     quantidade_inicial: Optional[float] = None
     valor_unitario: float
@@ -391,7 +382,6 @@ class AtualizarVinculosRequest(BaseModel):
 
 class BaixaRequest(BaseModel):
     justificativa: Optional[str] = None
-    almoxarifado_id: Optional[int] = None
 
 
 class EstornoRequest(BaseModel):
@@ -431,7 +421,6 @@ class MovimentacaoOut(BaseModel):
     quantidade: float
     saldo_anterior: float
     saldo_posterior: float
-    almoxarifado_id: Optional[int] = None
     usuario_id: int
     data_hora: datetime
     justificativa: str
@@ -457,6 +446,8 @@ class RelatorioItemSaldoOut(BaseModel):
     numero_item: int
     codigo: Optional[str] = None
     descricao: str
+    marca: Optional[str] = None
+    observacao: Optional[str] = None
     unidade: str
     valor_unitario: float
     valor_unitario_inicial: float
@@ -487,13 +478,6 @@ class RelatorioTotaisOut(BaseModel):
     percentual_utilizado: float = 0
 
 
-class RelatorioOrgaoConsumoOut(BaseModel):
-    almoxarifado_id: Optional[int] = None
-    nome: str
-    quantidade_utilizada: float
-    valor_utilizado: float
-
-
 class RelatorioContratoSaldoOut(BaseModel):
     contrato_id: int
     numero: str
@@ -515,7 +499,6 @@ class RelatorioContratoSaldoOut(BaseModel):
     fornecedor_telefone: Optional[str] = None
     fornecedor_email: Optional[str] = None
     itens: List[RelatorioItemSaldoOut] = []
-    orgaos: List[RelatorioOrgaoConsumoOut] = []
     totais: RelatorioTotaisOut
 
 

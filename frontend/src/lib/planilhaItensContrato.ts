@@ -2,11 +2,25 @@ import * as XLSX from "xlsx"
 
 import { resolverUnidade } from "@/lib/unidadesMedida"
 
+/** Colunas oficiais do arquivo `modelo-itens-contrato.xlsx`. */
+export const CABECALHOS_MODELO = [
+  "Item",
+  "Descrição",
+  "Unidade",
+  "Quantidade",
+  "Marca",
+  "Valor_unitário",
+  "Observação",
+] as const
+
 export type ItemPlanilhaContrato = {
+  numero_item?: number
   descricao: string
   unidade: string
   quantidade_contratada: number
+  marca?: string
   valor_unitario: number
+  observacao?: string
 }
 
 function normalizarCabecalho(valor: string): string {
@@ -14,33 +28,20 @@ function normalizarCabecalho(valor: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
 }
 
-function chaveCampo(cabecalho: string): keyof ItemPlanilhaContrato | null {
-  const n = normalizarCabecalho(cabecalho)
-  if (["descricao", "item", "produto", "nome", "especificacao"].includes(n)) return "descricao"
-  if (
-    ["unidade", "und", "un", "um", "sigla", "unidade de medida", "unid"].includes(n)
-  ) {
-    return "unidade"
-  }
-  if (
-    n.includes("quantidade") ||
-    n === "qtd" ||
-    n === "qtde" ||
-    n === "qtd contratada"
-  ) {
-    return "quantidade_contratada"
-  }
-  if (
-    (n.includes("valor") || n.includes("preco")) &&
-    !n.includes("total")
-  ) {
-    return "valor_unitario"
-  }
-  return null
+const CABECALHOS_ESPERADOS = CABECALHOS_MODELO.map((c) => normalizarCabecalho(c))
+
+const MAPA_CAMPO: Record<string, keyof ItemPlanilhaContrato> = {
+  item: "numero_item",
+  descricao: "descricao",
+  unidade: "unidade",
+  quantidade: "quantidade_contratada",
+  marca: "marca",
+  valor_unitario: "valor_unitario",
+  observacao: "observacao",
 }
 
 export function parseNumeroPlanilha(valor: unknown): number {
@@ -61,74 +62,81 @@ export function parseNumeroPlanilha(valor: unknown): number {
   return negativo && numero > 0 ? -numero : numero
 }
 
-export function mapearLinhasPlanilha(linhas: unknown[][]): ItemPlanilhaContrato[] {
-  if (!linhas.length) return []
-  const cabecalhos = (linhas[0] || []).map((c) => String(c ?? ""))
-  const indices: Partial<Record<keyof ItemPlanilhaContrato, number>> = {}
-  cabecalhos.forEach((cabecalho, index) => {
-    const campo = chaveCampo(cabecalho)
-    if (campo && indices[campo] === undefined) indices[campo] = index
-  })
-  if (indices.descricao === undefined) {
+function validarCabecalhosModelo(cabecalhos: string[]) {
+  const normalizados = cabecalhos.map((c) => normalizarCabecalho(String(c ?? "")))
+  const preenchidos = normalizados.filter(Boolean)
+  if (preenchidos.length < CABECALHOS_ESPERADOS.length) {
     throw new Error(
-      "A planilha precisa de uma coluna de descrição (Descrição, Item ou Produto).",
+      `Use o modelo oficial. Cabeçalhos esperados: ${CABECALHOS_MODELO.join(", ")}.`,
     )
   }
+  for (let i = 0; i < CABECALHOS_ESPERADOS.length; i++) {
+    if (normalizados[i] !== CABECALHOS_ESPERADOS[i]) {
+      throw new Error(
+        `Planilha fora do modelo. Na coluna ${i + 1} esperava "${CABECALHOS_MODELO[i]}", recebeu "${cabecalhos[i] || "(vazio)"}". Baixe o modelo e preencha sem alterar o cabeçalho.`,
+      )
+    }
+  }
+}
+
+export function mapearLinhasPlanilha(linhas: unknown[][]): ItemPlanilhaContrato[] {
+  if (!linhas.length) {
+    throw new Error("A planilha está vazia. Use o modelo oficial de itens.")
+  }
+  const cabecalhos = (linhas[0] || []).map((c) => String(c ?? ""))
+  validarCabecalhosModelo(cabecalhos)
+
+  const indices: Partial<Record<keyof ItemPlanilhaContrato, number>> = {}
+  cabecalhos.forEach((cabecalho, index) => {
+    const chave = MAPA_CAMPO[normalizarCabecalho(cabecalho)]
+    if (chave) indices[chave] = index
+  })
 
   const itens: ItemPlanilhaContrato[] = []
   for (const linha of linhas.slice(1)) {
     if (!linha || linha.every((celula) => String(celula ?? "").trim() === "")) continue
-    const descricao = String(linha[indices.descricao] ?? "").trim()
+    const descricao = String(linha[indices.descricao!] ?? "").trim()
     if (!descricao) continue
-    const quantidade = parseNumeroPlanilha(
-      indices.quantidade_contratada !== undefined ? linha[indices.quantidade_contratada] : 1,
-    )
-    const valor = parseNumeroPlanilha(
-      indices.valor_unitario !== undefined ? linha[indices.valor_unitario] : 0,
-    )
-    const unidadeRaw =
-      indices.unidade !== undefined ? String(linha[indices.unidade] ?? "").trim() : ""
+
+    const quantidade = parseNumeroPlanilha(linha[indices.quantidade_contratada!])
+    const valor = parseNumeroPlanilha(linha[indices.valor_unitario!])
+    const unidadeRaw = String(linha[indices.unidade!] ?? "").trim()
+    const marca = String(linha[indices.marca!] ?? "").trim()
+    const observacao = String(linha[indices.observacao!] ?? "").trim()
+    const numeroRaw = parseNumeroPlanilha(linha[indices.numero_item!])
+
     itens.push({
+      numero_item: numeroRaw > 0 ? Math.round(numeroRaw) : undefined,
       descricao,
       unidade: resolverUnidade(unidadeRaw),
       quantidade_contratada: quantidade > 0 ? quantidade : 1,
+      marca: marca || undefined,
       valor_unitario: valor < 0 ? 0 : valor,
+      observacao: observacao || undefined,
     })
   }
   return itens
 }
 
-export const MODELO_CSV_ITENS = [
-  "descricao;unidade;quantidade;valor_unitario",
-  "Caneta esferográfica azul;UN;100;1,50",
-  "Resma de papel A4;UN;20;28,90",
-  "Álcool etílico 70%;L;50;12,00",
-].join("\r\n")
-
 export function baixarModeloPlanilhaItens() {
-  const blob = new Blob(["\uFEFF" + MODELO_CSV_ITENS], {
-    type: "text/csv;charset=utf-8;",
-  })
-  const url = URL.createObjectURL(blob)
   const link = document.createElement("a")
-  link.href = url
-  link.download = "modelo-itens-contrato.csv"
+  link.href = `${import.meta.env.BASE_URL}modelo-itens-contrato.xlsx`
+  link.download = "Modelo para importação de itens.xlsx"
   link.click()
-  URL.revokeObjectURL(url)
 }
 
 function linhasDaPlanilha(arquivo: File, buffer: ArrayBuffer): unknown[][] {
   const nome = arquivo.name.toLowerCase()
-  let workbook: XLSX.WorkBook
   if (nome.endsWith(".csv") || nome.endsWith(".txt")) {
-    const texto = new TextDecoder("utf-8").decode(buffer).replace(/^\uFEFF/, "")
-    const primeira = texto.split(/\r?\n/, 1)[0] || ""
-    const fs = primeira.split(";").length > primeira.split(",").length ? ";" : ","
-    workbook = XLSX.read(texto, { type: "string", FS: fs, raw: false })
-  } else {
-    workbook = XLSX.read(buffer, { type: "array", raw: true })
+    throw new Error(
+      "Aceito apenas o modelo oficial em Excel (.xlsx). Baixe o modelo e preencha as colunas.",
+    )
   }
-  const folha = workbook.Sheets[workbook.SheetNames[0]]
+  const workbook = XLSX.read(buffer, { type: "array", raw: true })
+  const folhaNome =
+    workbook.SheetNames.find((n) => n.toLowerCase().includes("modelo")) ||
+    workbook.SheetNames[0]
+  const folha = workbook.Sheets[folhaNome]
   if (!folha) return []
   return XLSX.utils.sheet_to_json(folha, {
     header: 1,

@@ -52,6 +52,8 @@ async def create_contrato(contrato: ContratoCreate, db: AsyncSession = Depends(g
                 codigo=item.codigo,
                 descricao=item.descricao,
                 unidade=item.unidade,
+                marca=item.marca,
+                observacao=item.observacao,
                 quantidade_inicial=quantidade,
                 valor_unitario_inicial=item.valor_unitario,
                 quantidade_contratada=quantidade,
@@ -199,6 +201,12 @@ async def update_contrato(
                     )
                 if "codigo" in item_in.model_fields_set:
                     item.codigo = item_in.codigo
+                if "marca" in item_in.model_fields_set:
+                    item.marca = item_in.marca
+                if "observacao" in item_in.model_fields_set:
+                    item.observacao = item_in.observacao
+                if item_in.numero_item is not None:
+                    item.numero_item = item_in.numero_item
                 item.descricao = item_in.descricao
                 item.unidade = item_in.unidade
                 item.quantidade_contratada = item_in.quantidade_contratada
@@ -209,10 +217,12 @@ async def update_contrato(
                 proximo_numero += 1
                 db.add(ItemContrato(
                     contrato_id=contrato.id,
-                    numero_item=proximo_numero,
+                    numero_item=item_in.numero_item or proximo_numero,
                     codigo=item_in.codigo,
                     descricao=item_in.descricao,
                     unidade=item_in.unidade,
+                    marca=item_in.marca,
+                    observacao=item_in.observacao,
                     quantidade_inicial=item_in.quantidade_contratada,
                     valor_unitario_inicial=item_in.valor_unitario,
                     quantidade_contratada=item_in.quantidade_contratada,

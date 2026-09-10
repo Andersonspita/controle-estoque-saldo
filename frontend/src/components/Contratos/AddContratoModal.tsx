@@ -23,11 +23,13 @@ import { MoneyInput } from "@/components/ui/money-input"
 
 type ItemForm = {
   id?: number
-  codigo?: string
+  numero_item?: number
   descricao: string
   unidade: string
   quantidade_contratada: number
+  marca?: string
   valor_unitario: number
+  observacao?: string
   saldo_atual?: number
   consumido?: number
 }
@@ -36,7 +38,9 @@ const itemVazio = (): ItemForm => ({
   descricao: "",
   unidade: "UN",
   quantidade_contratada: 1,
+  marca: "",
   valor_unitario: 0,
+  observacao: "",
 })
 
 const campo =
@@ -113,11 +117,13 @@ export function AddContratoModal({
       })
       const carregados = (contrato.itens || []).map((item: any) => ({
         id: item.id,
-        codigo: item.codigo || "",
+        numero_item: item.numero_item,
         descricao: item.descricao || "",
         unidade: resolverUnidade(item.unidade),
         quantidade_contratada: item.quantidade_contratada ?? 0,
+        marca: item.marca || "",
         valor_unitario: item.valor_unitario ?? 0,
+        observacao: item.observacao || "",
         saldo_atual: item.saldo_atual,
         consumido: (item.quantidade_contratada || 0) - (item.saldo_atual || 0),
       }))
@@ -168,13 +174,22 @@ export function AddContratoModal({
       const importados = await lerItensDeArquivo(arquivo)
       if (!importados.length) {
         toast.error("Nenhum item encontrado na planilha", {
-          description: "Confira o modelo: descrição, unidade, quantidade e valor unitário.",
+          description: "Preencha ao menos a descrição no modelo oficial.",
         })
         return
       }
       setItens((atuais) => {
         const soRascunho = atuais.every((item) => !item.id && !item.descricao.trim())
-        const linhas = importados.map((item) => ({ ...itemVazio(), ...item }))
+        const linhas = importados.map((item) => ({
+          ...itemVazio(),
+          numero_item: item.numero_item,
+          descricao: item.descricao,
+          unidade: item.unidade,
+          quantidade_contratada: item.quantidade_contratada,
+          marca: item.marca || "",
+          valor_unitario: item.valor_unitario,
+          observacao: item.observacao || "",
+        }))
         if (soRascunho) return linhas
         return [...atuais, ...linhas]
       })
@@ -184,7 +199,7 @@ export function AddContratoModal({
       )
     } catch (erro: any) {
       toast.error("Não foi possível ler a planilha", {
-        description: erro?.message || "Use o modelo CSV ou um arquivo .xlsx.",
+        description: erro?.message || "Baixe o modelo oficial .xlsx e preencha sem alterar o cabeçalho.",
       })
     } finally {
       setImportando(false)
@@ -224,11 +239,13 @@ export function AddContratoModal({
       data_fim: formData.data_fim,
       situacao: formData.situacao,
       valor_total: total,
-      itens: itens.map((item) => ({
+      itens: itens.map((item, index) => ({
         id: item.id,
-        ...(item.codigo ? { codigo: item.codigo } : {}),
+        numero_item: item.numero_item || index + 1,
         descricao: item.descricao,
         unidade: item.unidade,
+        marca: item.marca?.trim() || null,
+        observacao: item.observacao?.trim() || null,
         quantidade_contratada: item.quantidade_contratada,
         valor_unitario: item.valor_unitario,
       })),
@@ -245,8 +262,9 @@ export function AddContratoModal({
           </Dialog.Title>
           <Dialog.Description className="text-sm text-muted-foreground">
             Cadastre o objeto do contrato, os dados da licitação, a vigência e os itens
-            previstos. Você pode digitar os itens ou importar uma planilha (.xlsx ou .csv).
-            Para acrescentar quantidade em itens já existentes, use o botão Aditivo na lista.
+            previstos. Você pode digitar os itens ou importar o modelo oficial
+            (.xlsx). A planilha precisa manter o cabeçalho: Item, Descrição,
+            Unidade, Quantidade, Marca, Valor_unitário e Observação.
           </Dialog.Description>
 
           <form onSubmit={handleSubmit} className="space-y-6 mt-2 text-sm">
@@ -391,7 +409,7 @@ export function AddContratoModal({
                   <input
                     ref={planilhaRef}
                     type="file"
-                    accept=".xlsx,.xls,.csv,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     className="hidden"
                     onChange={(e) => importarPlanilha(e.target.files?.[0])}
                   />
@@ -424,85 +442,139 @@ export function AddContratoModal({
 
               <div className="space-y-3">
                 {itens.map((item, index) => (
-                  <div key={item.id ?? `novo-${index}`} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-12 sm:col-span-4 space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">Descrição</label>
-                      <input
-                        required
-                        value={item.descricao}
-                        onChange={(e) => {
-                          const n = [...itens]
-                          n[index].descricao = e.target.value
-                          setItens(n)
-                        }}
-                        className={campoItem}
-                      />
+                  <div
+                    key={item.id ?? `novo-${index}`}
+                    className="space-y-2 rounded-lg border p-3"
+                  >
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-3 space-y-1 sm:col-span-1">
+                        <label className="text-xs font-medium text-muted-foreground">Item</label>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={item.numero_item ?? index + 1}
+                          onChange={(e) => {
+                            const n = [...itens]
+                            n[index].numero_item = parseInt(e.target.value) || undefined
+                            setItens(n)
+                          }}
+                          className={campoItem}
+                        />
+                      </div>
+                      <div className="col-span-9 space-y-1 sm:col-span-5">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Descrição *
+                        </label>
+                        <input
+                          required
+                          value={item.descricao}
+                          onChange={(e) => {
+                            const n = [...itens]
+                            n[index].descricao = e.target.value
+                            setItens(n)
+                          }}
+                          className={campoItem}
+                        />
+                      </div>
+                      <div className="col-span-6 space-y-1 sm:col-span-3">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Unidade *
+                        </label>
+                        <select
+                          required
+                          value={item.unidade}
+                          onChange={(e) => {
+                            const n = [...itens]
+                            n[index].unidade = e.target.value
+                            setItens(n)
+                          }}
+                          className={campoItem}
+                        >
+                          {grupos.map((grupo) => (
+                            <optgroup key={grupo.grupo} label={grupo.grupo}>
+                              {grupo.itens.map((unidade) => (
+                                <option key={unidade.sigla} value={unidade.sigla}>
+                                  {unidade.sigla} — {unidade.nome}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-6 space-y-1 sm:col-span-2">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Quantidade *
+                        </label>
+                        <input
+                          required
+                          type="number"
+                          step="any"
+                          min="0.1"
+                          value={item.quantidade_contratada}
+                          onChange={(e) => {
+                            const n = [...itens]
+                            n[index].quantidade_contratada = parseFloat(e.target.value)
+                            setItens(n)
+                          }}
+                          className={campoItem}
+                        />
+                      </div>
+                      <div className="col-span-2 pb-1 sm:col-span-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeItem(index)}
+                          disabled={itens.length === 1}
+                          className="text-critical hover:text-critical"
+                          aria-label="Remover item"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="col-span-6 sm:col-span-3 space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">
-                        Unidade de medida
-                      </label>
-                      <select
-                        required
-                        value={item.unidade}
-                        onChange={(e) => {
-                          const n = [...itens]
-                          n[index].unidade = e.target.value
-                          setItens(n)
-                        }}
-                        className={campoItem}
-                      >
-                        {grupos.map((grupo) => (
-                          <optgroup key={grupo.grupo} label={grupo.grupo}>
-                            {grupo.itens.map((unidade) => (
-                              <option key={unidade.sigla} value={unidade.sigla}>
-                                {unidade.sigla} — {unidade.nome}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-span-6 sm:col-span-2 space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">Qtd</label>
-                      <input
-                        required
-                        type="number"
-                        step="any"
-                        min="0.1"
-                        value={item.quantidade_contratada}
-                        onChange={(e) => {
-                          const n = [...itens]
-                          n[index].quantidade_contratada = parseFloat(e.target.value)
-                          setItens(n)
-                        }}
-                        className={campoItem}
-                      />
-                    </div>
-                    <div className="col-span-10 sm:col-span-2 space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">Valor unitário</label>
-                      <MoneyInput
-                        required
-                        value={item.valor_unitario}
-                        onValueChange={(valor) => {
-                          const n = [...itens]
-                          n[index].valor_unitario = valor
-                          setItens(n)
-                        }}
-                      />
-                    </div>
-                    <div className="col-span-2 sm:col-span-1 pb-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeItem(index)}
-                        disabled={itens.length === 1}
-                        className="text-critical hover:text-critical"
-                        aria-label="Remover item"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-12 space-y-1 sm:col-span-4">
+                        <label className="text-xs font-medium text-muted-foreground">Marca</label>
+                        <input
+                          value={item.marca || ""}
+                          onChange={(e) => {
+                            const n = [...itens]
+                            n[index].marca = e.target.value
+                            setItens(n)
+                          }}
+                          className={campoItem}
+                        />
+                      </div>
+                      <div className="col-span-12 space-y-1 sm:col-span-3">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Valor unitário *
+                        </label>
+                        <MoneyInput
+                          required
+                          value={item.valor_unitario}
+                          onValueChange={(valor) => {
+                            const n = [...itens]
+                            n[index].valor_unitario = valor
+                            setItens(n)
+                          }}
+                        />
+                      </div>
+                      <div className="col-span-12 space-y-1 sm:col-span-5">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Observação
+                        </label>
+                        <input
+                          value={item.observacao || ""}
+                          onChange={(e) => {
+                            const n = [...itens]
+                            n[index].observacao = e.target.value
+                            setItens(n)
+                          }}
+                          className={campoItem}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}

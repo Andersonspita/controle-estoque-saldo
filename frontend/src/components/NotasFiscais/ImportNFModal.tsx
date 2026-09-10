@@ -13,6 +13,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatarMoeda } from "@/lib/money"
+import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 import { StatusVinculoBadge } from "./vinculoStatus"
 
@@ -386,7 +387,7 @@ export function ImportNFModal({
                                   {contratoSelecionado?.itens?.map((ic: any) => (
                                     <option key={ic.id} value={ic.id}>
                                       {ic.codigo ? `${ic.codigo} - ` : ""}
-                                      {ic.descricao} (saldo: {ic.saldo_atual})
+                                      {rotuloItemContrato(ic)}
                                     </option>
                                   ))}
                                 </select>

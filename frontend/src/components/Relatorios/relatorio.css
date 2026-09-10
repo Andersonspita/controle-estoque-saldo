@@ -168,6 +168,14 @@
   white-space: nowrap;
 }
 
+.rel-meta {
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  color: #555;
+  font-weight: normal;
+  white-space: normal;
+}
+
 .rel-grupo {
   border-left: 1.5px solid var(--rel-borda);
 }

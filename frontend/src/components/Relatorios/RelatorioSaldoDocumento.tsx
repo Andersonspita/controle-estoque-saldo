@@ -1,5 +1,3 @@
-import { Fragment } from "react"
-
 import { formatarDataBR } from "@/lib/contrato"
 import {
   dataHoraExtenso,
@@ -17,6 +15,8 @@ export type RelatorioItem = {
   numero_item: number
   codigo?: string | null
   descricao: string
+  marca?: string | null
+  observacao?: string | null
   unidade: string
   valor_unitario: number
   quantidade_contratada: number
@@ -38,16 +38,11 @@ export type RelatorioTotais = Omit<
   | "numero_item"
   | "codigo"
   | "descricao"
+  | "marca"
+  | "observacao"
   | "unidade"
   | "valor_unitario"
 >
-
-export type RelatorioOrgao = {
-  almoxarifado_id?: number | null
-  nome: string
-  quantidade_utilizada: number
-  valor_utilizado: number
-}
 
 export type RelatorioContrato = {
   contrato_id: number
@@ -69,7 +64,6 @@ export type RelatorioContrato = {
   fornecedor_telefone?: string | null
   fornecedor_email?: string | null
   itens: RelatorioItem[]
-  orgaos: RelatorioOrgao[]
   totais: RelatorioTotais
 }
 
@@ -114,61 +108,6 @@ function Emitente({ emitente }: { emitente: RelatorioSaldo["emitente"] }) {
         <div className="rel-emitente-linha">{emitente.setor}</div>
       ) : null}
       <div className="rel-titulo">Relatório de Saldo de Contrato</div>
-    </div>
-  )
-}
-
-function ConsumoPorOrgao({ orgaos }: { orgaos: RelatorioOrgao[] }) {
-  if (orgaos.length === 0) return null
-
-  // Duas colunas por linha, como no relatório de origem.
-  const linhas: RelatorioOrgao[][] = []
-  for (let i = 0; i < orgaos.length; i += 2) {
-    linhas.push(orgaos.slice(i, i + 2))
-  }
-
-  return (
-    <div className="rel-secao">
-      <div className="rel-secao-titulo">Consumo por órgão de destino</div>
-      <table className="rel-tabela">
-        <thead>
-          <tr>
-            <th>Unidade / Órgão</th>
-            <th style={{ width: "12%" }}>Quant. utilizada</th>
-            <th style={{ width: "14%" }}>Valor utilizado</th>
-            <th>Unidade / Órgão</th>
-            <th style={{ width: "12%" }}>Quant. utilizada</th>
-            <th style={{ width: "14%" }}>Valor utilizado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {linhas.map((par) => (
-            <tr key={par.map((o) => o.nome).join("|")}>
-              {[0, 1].map((coluna) => {
-                const orgao = par[coluna]
-                if (!orgao) {
-                  return (
-                    <td key={coluna} colSpan={3} aria-hidden>
-                      &nbsp;
-                    </td>
-                  )
-                }
-                return (
-                  <Fragment key={coluna}>
-                    <td>{orgao.nome}</td>
-                    <td className="rel-num">
-                      {quantidadeTotalBR(orgao.quantidade_utilizada)}
-                    </td>
-                    <td className="rel-num">
-                      {numeroBR(orgao.valor_utilizado)}
-                    </td>
-                  </Fragment>
-                )
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   )
 }
@@ -247,6 +186,12 @@ function TabelaItens({ contrato }: { contrato: RelatorioContrato }) {
                   <td>
                     {item.codigo ? `${item.codigo} · ` : ""}
                     {item.descricao}
+                    {item.marca ? (
+                      <div className="rel-meta">Marca: {item.marca}</div>
+                    ) : null}
+                    {item.observacao ? (
+                      <div className="rel-meta">{item.observacao}</div>
+                    ) : null}
                   </td>
                   <td className="rel-centro">{item.unidade}</td>
                   <td className="rel-num">{numeroBR(item.valor_unitario)}</td>
@@ -407,7 +352,6 @@ function FolhaContrato({
         ) : null}
       </div>
 
-      <ConsumoPorOrgao orgaos={contrato.orgaos} />
       <TabelaItens contrato={contrato} />
 
       <div className="rel-rodape">

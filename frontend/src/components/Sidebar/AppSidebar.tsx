@@ -1,5 +1,4 @@
 import {
-  Briefcase,
   FileBarChart,
   FileSignature,
   FileText,
@@ -27,7 +26,6 @@ const baseItems: Item[] = [
   { icon: FileSignature, title: "Contratos", path: "/contratos" },
   { icon: FileText, title: "Notas Fiscais", path: "/notas-fiscais" },
   { icon: History, title: "Estornos e exclusões", path: "/estornos" },
-  { icon: Briefcase, title: "Órgãos", path: "/almoxarifados" },
   { icon: FileBarChart, title: "Relatórios", path: "/relatorios" },
 ]
 

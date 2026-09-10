@@ -99,7 +99,7 @@ export function ContratoDetalhePanel({
     const termo = busca.trim().toLowerCase()
     if (!termo) return itens
     return itens.filter((item: any) =>
-      [item.descricao, item.codigo, item.unidade]
+                      [item.descricao, item.codigo, item.unidade, item.marca, item.observacao]
         .join(" ")
         .toLowerCase()
         .includes(termo),
@@ -265,16 +265,22 @@ export function ContratoDetalhePanel({
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-sm font-medium break-words">
-                              {item.codigo ? `${item.codigo} · ` : ""}
+                              {item.numero_item != null ? `${item.numero_item}. ` : ""}
                               {item.descricao}
                             </p>
                             <p className="text-xs text-muted-foreground">
+                              {item.marca ? `${item.marca} · ` : ""}
                               {formatarMoeda(item.valor_unitario || 0)} /{" "}
                               {item.unidade}
                               {itemTemAditivo(item)
                                 ? ` · aditivado (inicial ${Number(item.quantidade_inicial).toLocaleString("pt-BR")})`
                                 : ""}
                             </p>
+                            {item.observacao ? (
+                              <p className="mt-1 text-xs text-muted-foreground break-words">
+                                {item.observacao}
+                              </p>
+                            ) : null}
                           </div>
                           <div className="text-right">
                             <p className="font-semibold tabular-nums">

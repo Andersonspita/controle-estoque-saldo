@@ -8,7 +8,7 @@
 - **NF-e:** `xmltodict` (XML), `pymupdf` + `rapidocr` + `onnxruntime` (DANFE em PDF).
 
 ## 2. Regra de saldo
-O saldo controlado é o do **item do contrato**: quantidade (`itens_contrato.saldo_atual`) e valor (`saldo_atual × valor_unitario`). O contrato **não depende de licitação**. O **órgão** (`almoxarifados` / `estoque_almoxarifados`) registra apenas para onde o material foi destinado após a baixa.
+O saldo controlado é o do **item do contrato**: quantidade (`itens_contrato.saldo_atual`) e valor (`saldo_atual × valor_unitario`). O contrato **não depende de licitação**. Não há cadastro de órgão de destino físico.
 
 ## 3. Como Rodar o Projeto Localmente
 
@@ -53,11 +53,7 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | POST | `/notas-fiscais/` | Cadastra NF **manualmente** (JSON, sem arquivo). Mesmas regras de vínculo; XML/PDF continua em `/importar` |
 | PATCH | `/notas-fiscais/{id}/vinculos` | Ajusta vínculos NF × contrato em nota ainda não baixada |
 | GET | `/notas-fiscais/{id}/arquivo` | Download autenticado do PDF/XML importado |
-| POST | `/notas-fiscais/{id}/baixar` | Baixa saldo do contrato (usuário vem do JWT) e destina ao órgão |
-| GET | `/almoxarifados/` | Lista órgãos (tabela `almoxarifados`) |
-| GET | `/almoxarifados/{id}` | Destinação física + saldo do contrato |
-| POST | `/almoxarifados/` | Cria órgão (**ADMIN**) |
-| PATCH | `/almoxarifados/{id}` | Edita órgão (**ADMIN**) |
+| POST | `/notas-fiscais/{id}/baixar` | Baixa saldo do contrato (usuário vem do JWT; justificativa opcional) |
 | POST | `/fornecedores/` | Cria fornecedor (**ADMIN**). Campo `cnpj` aceita CPF (11 dígitos) ou CNPJ (14); grava formatado |
 | PATCH | `/fornecedores/{id}` | Edita fornecedor (**ADMIN**) |
 | POST | `/login/access-token` | Login (público). Form `username` + `password`. 5 falhas / 15 min → **429** |
@@ -72,19 +68,17 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 
 Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token>`, exceto login e health.
 
-**Perfis:** `OPERADOR` lista, importa NF, inclui NF manualmente, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato, órgão e aplica aditivo (`require_admin` → 403 para os demais).
+**Perfis:** `OPERADOR` lista, importa NF, inclui NF manualmente, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato e aplica aditivo (`require_admin` → 403 para os demais).
 
 Cadastro de fornecedor: UF em select e municípios pela API do IBGE (`https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome`). ADMIN edita pelo botão na linha. Valores monetários na interface usam BRL (`R$ 1.234,56`). Tabelas no mobile rolam na horizontal.
 
-Cadastro/edição de contrato: o **objeto** é o objeto do contrato. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é derivado da vigência inicial. Também há **número da licitação**, **modalidade** (select; `GET /modalidades-licitacao/`), **objeto da licitação** e **observação**, gravados no contrato. Itens: descrição, unidade de medida (select com sigla) e valores — sem campo de código na tela. Podem ser digitados ou importados de planilha. Colunas reconhecidas: descrição (obrigatória), unidade/sigla, quantidade e valor unitário. Números no formato BR (`1.234,56`) são aceitos. Há **Baixar modelo** (CSV). Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON. `GET /unidades-medida/` devolve o lookup de unidades.
+Cadastro/edição de contrato: o **objeto** é o objeto do contrato. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é derivado da vigência inicial. Também há **número da licitação**, **modalidade** (select; `GET /modalidades-licitacao/`), **objeto da licitação** e **observação**, gravados no contrato. Itens seguem o modelo oficial de planilha: **Item**, **Descrição**, **Unidade**, **Quantidade**, **Marca**, **Valor_unitário** e **Observação**. Podem ser digitados ou importados só pelo `.xlsx` do modelo (`frontend/public/modelo-itens-contrato.xlsx` — botão **Baixar modelo**). Cabeçalhos fora do modelo são rejeitados. Números no formato BR (`1.234,56`) são aceitos. Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON. `GET /unidades-medida/` devolve o lookup de unidades.
 
 Notas fiscais: a tela **Nova nota fiscal** oferece **Importar XML ou PDF** (`POST /notas-fiscais/importar`) e **Incluir manualmente** (`POST /notas-fiscais/`). A importação por arquivo permanece; a inclusão digitada exige contrato, número, data e ao menos um item vinculado ao contrato. XML/PDF anexo no cadastro manual é opcional.
 
-A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`, `bg-card`, `text-foreground`, `border-input`). Modais de NF, contrato, aditivo e fornecedor seguem o mesmo padrão do modal de baixa (sem `bg-white` hardcoded). Status de vínculo NF→contrato usa `<Badge>` (`vinculoStatus.tsx`). Tema claro/escuro/sistema na sidebar em português (**Aparência**). Relatórios: a pré-visualização permanece em fundo branco (paridade com impressão A4), com rótulo explicativo no dark mode. Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante, órgão de destino e justificativa opcional.
+A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`, `bg-card`, `text-foreground`, `border-input`). Modais de NF, contrato, aditivo e fornecedor seguem o mesmo padrão do modal de baixa (sem `bg-white` hardcoded). Status de vínculo NF→contrato usa `<Badge>` (`vinculoStatus.tsx`). Tema claro/escuro/sistema na sidebar em português (**Aparência**). Relatórios: a pré-visualização permanece em fundo branco (paridade com impressão A4), com rótulo explicativo no dark mode. Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante e justificativa opcional.
 
 Na edição (**ADMIN**) o modal altera dados cadastrais e a quantidade/valor atuais. Para acrescentar quantidade em itens já existentes, o botão **Aditivo** abre outro modal: o usuário marca os itens, informa a quantidade extra (inteira em UN) e o valor unitário. A quantidade inicial do contrato não muda. OPERADOR recebe **403**.
-
-A tela **Órgãos** (menu; URL `/almoxarifados`) permite criar e editar (**ADMIN**). Na baixa da NF o destino é o órgão.
 
 ## 5. Como Executar os Testes
 

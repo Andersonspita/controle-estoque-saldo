@@ -30,10 +30,10 @@ const titulos: Record<string, string> = {
   "/notas-fiscais": "Notas Fiscais",
   "/contratos": "Contratos",
   "/fornecedores": "Fornecedores",
-  "/almoxarifados": "Órgãos",
   "/relatorios": "Relatórios",
   "/admin": "Admin",
   "/settings": "Configurações",
+  "/estornos": "Estornos e exclusões",
 }
 
 function tituloDaRota(pathname: string) {

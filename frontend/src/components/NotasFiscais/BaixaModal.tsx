@@ -6,7 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { almoxarifadosService, contratosService, notasFiscaisService } from "../../services/api"
+import { contratosService, notasFiscaisService } from "../../services/api"
 
 export function BaixaModal({
   nf,
@@ -19,12 +19,7 @@ export function BaixaModal({
 }) {
   const queryClient = useQueryClient()
   const [justificativa, setJustificativa] = useState("")
-  const [almoxarifadoId, setAlmoxarifadoId] = useState<string>("")
 
-  const { data: almoxarifados = [], isLoading: isLoadingAlmoxarifados } = useQuery({
-    queryKey: ["almoxarifados"],
-    queryFn: () => almoxarifadosService.listar(),
-  })
   const { data: contratos = [] } = useQuery({
     queryKey: ["contratos"],
     queryFn: () => contratosService.listar(),
@@ -50,7 +45,7 @@ export function BaixaModal({
   }, [contratos, nf])
 
   const mutation = useMutation({
-    mutationFn: (data: { justificativa?: string; almoxarifado_id?: number }) =>
+    mutationFn: (data: { justificativa?: string }) =>
       notasFiscaisService.baixar(nf.id, data),
     onSuccess: (data) => {
       toast.success("Baixa realizada com sucesso!", {
@@ -59,7 +54,6 @@ export function BaixaModal({
       queryClient.invalidateQueries({ queryKey: ["notas-fiscais"] })
       queryClient.invalidateQueries({ queryKey: ["contratos"] })
       queryClient.invalidateQueries({ queryKey: ["movimentacoes"] })
-      queryClient.invalidateQueries({ queryKey: ["almoxarifados"] })
       queryClient.invalidateQueries({ queryKey: ["previsao-consumo"] })
       onOpenChange(false)
     },
@@ -79,13 +73,8 @@ export function BaixaModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!almoxarifadoId) {
-      toast.error("Selecione um órgão para destinar o material.")
-      return
-    }
     mutation.mutate({
       justificativa: justificativa.trim() || undefined,
-      almoxarifado_id: parseInt(almoxarifadoId),
     })
   }
 
@@ -135,29 +124,6 @@ export function BaixaModal({
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="almoxarifado" className="text-sm font-medium">
-                Órgão de destino <span className="text-critical">*</span>
-              </label>
-              <select
-                id="almoxarifado"
-                value={almoxarifadoId}
-                onChange={(e) => setAlmoxarifadoId(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent p-2 text-sm"
-                required
-                disabled={isLoadingAlmoxarifados}
-              >
-                <option value="" disabled>
-                  {isLoadingAlmoxarifados ? "Carregando..." : "Selecione o órgão"}
-                </option>
-                {almoxarifados.map((al: any) => (
-                  <option key={al.id} value={al.id}>
-                    {al.nome} {al.localizacao ? `- ${al.localizacao}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
               <label className="text-sm font-medium">Justificativa (opcional)</label>
               <textarea
                 value={justificativa}
@@ -173,7 +139,7 @@ export function BaixaModal({
                   Cancelar
                 </Button>
               </Dialog.Close>
-              <Button type="submit" disabled={mutation.isPending || isLoadingAlmoxarifados}>
+              <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending && <Loader2 className="animate-spin" />}
                 Confirmar baixa
               </Button>

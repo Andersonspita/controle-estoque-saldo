@@ -5,6 +5,7 @@ import { AlertTriangle, Link2, Loader2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
 import { Button } from "@/components/ui/button"
+import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 import { StatusVinculoBadge } from "./vinculoStatus"
 
@@ -160,7 +161,7 @@ export function ConferenciaModal({
                             {(contrato?.itens || []).map((ic: any) => (
                               <option key={ic.id} value={ic.id}>
                                 {ic.codigo ? `${ic.codigo} - ` : ""}
-                                {ic.descricao} (saldo: {ic.saldo_atual})
+                                {rotuloItemContrato(ic)}
                               </option>
                             ))}
                           </select>

@@ -5,8 +5,8 @@ from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
 from typing import List
 
-from ..database.models import NotaFiscal, ItemNotaFiscal, ItemContrato, Movimentacao, Almoxarifado, EstoqueAlmoxarifado
-from ..schemas import BaixaRequest, MovimentacaoOut
+from ..database.models import NotaFiscal, ItemContrato, Movimentacao
+from ..schemas import BaixaRequest
 from ..http_errors import MENSAGEM_GENERICA, logger
 
 async def efetuar_baixa_nf(
@@ -31,14 +31,6 @@ async def efetuar_baixa_nf(
     
     if nf.status == "Baixada":
         raise HTTPException(status_code=400, detail="Esta Nota Fiscal já foi baixada")
-
-    if not baixa_req.almoxarifado_id:
-        raise HTTPException(status_code=400, detail="Órgão de destino é obrigatório")
-
-    stmt_alm = select(Almoxarifado).where(Almoxarifado.id == baixa_req.almoxarifado_id)
-    result_alm = await db.execute(stmt_alm)
-    if not result_alm.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Órgão não encontrado")
 
     if not nf.itens:
         raise HTTPException(status_code=400, detail="Nota Fiscal não possui itens vinculados")
@@ -73,44 +65,24 @@ async def efetuar_baixa_nf(
             quantidade=item_nf.quantidade,
             saldo_anterior=saldo_anterior,
             saldo_posterior=novo_saldo,
-            almoxarifado_id=baixa_req.almoxarifado_id,
             usuario_id=usuario_id,
             justificativa=justificativa
         )
         db.add(movimentacao)
         movimentacoes_geradas.append(movimentacao)
 
-        stmt_est = select(EstoqueAlmoxarifado).where(
-            EstoqueAlmoxarifado.item_contrato_id == item_contrato.id,
-            EstoqueAlmoxarifado.almoxarifado_id == baixa_req.almoxarifado_id,
-        ).with_for_update()
-        result_est = await db.execute(stmt_est)
-        estoque = result_est.scalar_one_or_none()
-
-        if estoque:
-            estoque.quantidade += item_nf.quantidade
-        else:
-            db.add(EstoqueAlmoxarifado(
-                item_contrato_id=item_contrato.id,
-                almoxarifado_id=baixa_req.almoxarifado_id,
-                quantidade=item_nf.quantidade,
-            ))
-
     # 3. Atualizar Status da NF
     nf.status = "Baixada"
 
-    # Tudo isso será commitado pela rota, ou podemos dar commit aqui mesmo
     try:
         await db.commit()
         
-        # Opcionalmente, dar refresh nas movimentações geradas
         for mov in movimentacoes_geradas:
             await db.refresh(mov)
             
         return movimentacoes_geradas
     except Exception as e:
         await db.rollback()
-        # Aqui a Mágica Acontece: Se o SQLAlchemy estourar erro de 'IntegrityError' (Check Constraint), ele cai aqui!
         if 'ck_itens_contrato_saldo' in str(e) or 'IntegrityError' in str(e):
              raise HTTPException(
                  status_code=422, 

@@ -9,8 +9,6 @@ total original, e não apenas a quantidade extra vezes o preço novo.
 
 from __future__ import annotations
 
-SEM_ORGAO = "Não informado"
-
 
 def _num(valor) -> float:
     try:
@@ -50,6 +48,8 @@ def linha_item(item) -> dict:
         "numero_item": getattr(item, "numero_item", 0) or 0,
         "codigo": getattr(item, "codigo", None),
         "descricao": getattr(item, "descricao", ""),
+        "marca": getattr(item, "marca", None),
+        "observacao": getattr(item, "observacao", None),
         "unidade": getattr(item, "unidade", "UN"),
         "valor_unitario": valor_unitario,
         "valor_unitario_inicial": valor_unitario_inicial,
@@ -93,46 +93,3 @@ def totalizar(linhas) -> dict:
         totais["valor_utilizado"], totais["valor_vigente"]
     )
     return totais
-
-
-def consumo_por_orgao(movimentacoes, valores_unitarios, nomes_orgaos) -> list[dict]:
-    """Agrupa as baixas por órgão de destino.
-
-    ``valores_unitarios`` mapeia ``item_contrato_id`` para o preço unitário e
-    ``nomes_orgaos`` mapeia ``almoxarifado_id`` para o nome. Estornos entram
-    com sinal negativo; os demais tipos de movimento não são consumo.
-    """
-    acumulado: dict[int | None, dict] = {}
-    for mov in movimentacoes:
-        tipo = (getattr(mov, "tipo_movimento", "") or "").strip().upper()
-        if tipo == "BAIXA":
-            sinal = 1
-        elif tipo == "ESTORNO":
-            sinal = -1
-        else:
-            continue
-
-        item_id = getattr(mov, "item_contrato_id", None)
-        orgao_id = getattr(mov, "almoxarifado_id", None)
-        quantidade = sinal * _num(getattr(mov, "quantidade", 0))
-
-        grupo = acumulado.setdefault(
-            orgao_id,
-            {
-                "almoxarifado_id": orgao_id,
-                "nome": nomes_orgaos.get(orgao_id, SEM_ORGAO),
-                "quantidade_utilizada": 0.0,
-                "valor_utilizado": 0.0,
-            },
-        )
-        grupo["quantidade_utilizada"] += quantidade
-        grupo["valor_utilizado"] += quantidade * _num(valores_unitarios.get(item_id))
-
-    for grupo in acumulado.values():
-        grupo["quantidade_utilizada"] = _dinheiro(grupo["quantidade_utilizada"])
-        grupo["valor_utilizado"] = _dinheiro(grupo["valor_utilizado"])
-
-    return sorted(
-        acumulado.values(),
-        key=lambda grupo: (-grupo["valor_utilizado"], grupo["nome"]),
-    )

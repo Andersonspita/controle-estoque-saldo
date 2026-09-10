@@ -51,7 +51,7 @@ export const notasFiscaisService = {
     return response.data
   },
 
-  baixar: async (nfId: number, baixaReq: { justificativa?: string; almoxarifado_id?: number }) => {
+  baixar: async (nfId: number, baixaReq: { justificativa?: string } = {}) => {
     const response = await api.post(`/notas-fiscais/${nfId}/baixar`, baixaReq);
     return response.data;
   },
@@ -187,7 +187,6 @@ export const relatoriosService = {
     contrato_id?: number
     fornecedor_id?: number
     situacao?: string
-    almoxarifado_id?: number
     vigencia_inicio?: string
     vigencia_fim?: string
     objeto?: string
@@ -224,23 +223,4 @@ export const movimentacoesService = {
     const response = await api.get("/movimentacoes/");
     return response.data;
   }
-};
-
-export const almoxarifadosService = {
-  listar: async () => {
-    const response = await api.get("/almoxarifados/");
-    return response.data;
-  },
-  detalhar: async (id: number) => {
-    const response = await api.get(`/almoxarifados/${id}`);
-    return response.data;
-  },
-  criar: async (dados: any) => {
-    const response = await api.post("/almoxarifados/", dados);
-    return response.data;
-  },
-  atualizar: async (id: number, dados: any) => {
-    const response = await api.patch(`/almoxarifados/${id}`, dados);
-    return response.data;
-  },
 };

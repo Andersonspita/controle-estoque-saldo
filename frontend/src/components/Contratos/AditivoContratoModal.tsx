@@ -165,9 +165,12 @@ export function AditivoContratoModal({
                         />
                         <span className="min-w-0 flex-1">
                           <span className="block font-medium text-foreground">
+                            {item.numero_item != null ? `${item.numero_item}. ` : ""}
                             {item.descricao}
                           </span>
                           <span className="block text-xs text-muted-foreground">
+                            {item.marca ? `Marca: ${item.marca} · ` : ""}
+                            {item.observacao ? `${item.observacao} · ` : ""}
                             Atual: {item.quantidade_contratada} {item.unidade}
                             {item.quantidade_inicial != null &&
                             item.quantidade_inicial !== item.quantidade_contratada
