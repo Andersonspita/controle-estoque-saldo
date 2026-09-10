@@ -4,7 +4,9 @@ import { toast } from "sonner"
 import { AlertTriangle, Link2, Loader2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
+import { Button } from "@/components/ui/button"
 import { contratosService, notasFiscaisService } from "../../services/api"
+import { StatusVinculoBadge } from "./vinculoStatus"
 
 type VinculoLocal = {
   id: number
@@ -15,14 +17,6 @@ type VinculoLocal = {
   item_contrato_id: number | null
   percentual_confianca?: number | null
   status_identificacao?: string | null
-}
-
-const STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  CONFIRMADO: { label: "Confirmado", className: "bg-green-100 text-green-700" },
-  PROVAVEL: { label: "Provável", className: "bg-blue-100 text-blue-700" },
-  SUGERIDO: { label: "Sugerido", className: "bg-amber-100 text-amber-700" },
-  MANUAL: { label: "Manual", className: "bg-purple-100 text-purple-700" },
-  NAO_IDENTIFICADO: { label: "Não identificado", className: "bg-red-100 text-red-700" },
 }
 
 export function ConferenciaModal({
@@ -96,94 +90,95 @@ export function ConferenciaModal({
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
-          <Dialog.Title className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+          <Dialog.Title className="text-xl font-semibold text-foreground">
             Conferir vínculos da NF #{nf?.numero}
           </Dialog.Title>
-          <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
+          <Dialog.Description className="text-sm text-muted-foreground">
             Ajuste o item do contrato correspondente a cada item da nota antes da baixa.
           </Dialog.Description>
 
-          <form onSubmit={salvar} className="space-y-4 mt-2">
+          <form onSubmit={salvar} className="mt-2 space-y-4">
             {pendentes > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2 text-sm text-red-800">
-                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 rounded-lg border border-critical/30 bg-critical-bg p-3 text-sm text-critical">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
                 <span>{pendentes} item(ns) ainda sem vínculo com o contrato.</span>
               </div>
             )}
 
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                <Link2 size={16} /> NF → itens do contrato {contrato ? `${contrato.numero}/${contrato.ano}` : ""}
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Link2 size={16} /> NF → itens do contrato{" "}
+                {contrato ? `${contrato.numero}/${contrato.ano}` : ""}
               </h4>
-              <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border dark:border-slate-800 [-webkit-overflow-scrolling:touch]">
+              <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border [-webkit-overflow-scrolling:touch]">
                 <table className="w-full min-w-[36rem] text-xs">
-                  <thead className="bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400">
+                  <thead className="bg-muted/50 text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-2 text-left">Item da NF</th>
-                      <th className="px-3 py-2 text-left">Item do Contrato</th>
-                      <th className="px-3 py-2 text-left">Identificação</th>
+                      <th className="px-3 py-2 text-left font-medium">Item da NF</th>
+                      <th className="px-3 py-2 text-left font-medium">Item do Contrato</th>
+                      <th className="px-3 py-2 text-left font-medium">Identificação</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y dark:divide-slate-800">
-                    {vinculos.map((v) => {
-                      const status =
-                        STATUS_LABELS[v.status_identificacao || ""] ||
-                        STATUS_LABELS.NAO_IDENTIFICADO
-                      return (
-                        <tr key={v.id} className="bg-white dark:bg-slate-900">
-                          <td className="px-3 py-2">
-                            <p className="font-medium text-slate-800 dark:text-slate-200">{v.descricao}</p>
-                            {v.codigo && <p className="text-slate-500">Cód: {v.codigo}</p>}
-                            <p className="text-slate-500">
-                              {v.quantidade} {v.unidade}
-                            </p>
-                          </td>
-                          <td className="px-3 py-2">
-                            <select
-                              value={v.item_contrato_id ?? ""}
-                              onChange={(e) =>
-                                setVinculos((atual) =>
-                                  atual.map((item) =>
-                                    item.id === v.id
-                                      ? {
-                                          ...item,
-                                          item_contrato_id: e.target.value
-                                            ? parseInt(e.target.value)
-                                            : null,
-                                          status_identificacao: "MANUAL",
-                                        }
-                                      : item,
-                                  ),
-                                )
-                              }
-                              className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded p-1.5 text-xs"
-                              required
-                            >
-                              <option value="" disabled>
-                                Selecione...
+                  <tbody className="divide-y">
+                    {vinculos.map((v) => (
+                      <tr key={v.id} className="bg-card">
+                        <td className="px-3 py-2">
+                          <p className="font-medium text-foreground">{v.descricao}</p>
+                          {v.codigo && (
+                            <p className="text-muted-foreground">Cód: {v.codigo}</p>
+                          )}
+                          <p className="text-muted-foreground">
+                            {v.quantidade} {v.unidade}
+                          </p>
+                        </td>
+                        <td className="px-3 py-2">
+                          <select
+                            value={v.item_contrato_id ?? ""}
+                            onChange={(e) =>
+                              setVinculos((atual) =>
+                                atual.map((item) =>
+                                  item.id === v.id
+                                    ? {
+                                        ...item,
+                                        item_contrato_id: e.target.value
+                                          ? parseInt(e.target.value)
+                                          : null,
+                                        status_identificacao: "MANUAL",
+                                      }
+                                    : item,
+                                ),
+                              )
+                            }
+                            className="w-full rounded border border-input bg-transparent p-1.5 text-xs text-foreground [&>option]:bg-popover [&>option]:text-popover-foreground"
+                            required
+                          >
+                            <option value="" disabled>
+                              Selecione...
+                            </option>
+                            {(contrato?.itens || []).map((ic: any) => (
+                              <option key={ic.id} value={ic.id}>
+                                {ic.codigo ? `${ic.codigo} - ` : ""}
+                                {ic.descricao} (saldo: {ic.saldo_atual})
                               </option>
-                              {(contrato?.itens || []).map((ic: any) => (
-                                <option key={ic.id} value={ic.id}>
-                                  {ic.codigo ? `${ic.codigo} - ` : ""}
-                                  {ic.descricao} (saldo: {ic.saldo_atual})
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-3 py-2">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${status.className}`}>
-                              {status.label}
-                              {v.percentual_confianca != null ? ` (${v.percentual_confianca}%)` : ""}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <StatusVinculoBadge
+                            status={v.status_identificacao}
+                            confianca={v.percentual_confianca}
+                          />
+                        </td>
+                      </tr>
+                    ))}
                     {vinculos.length === 0 && (
                       <tr>
-                        <td colSpan={3} className="px-3 py-6 text-center text-slate-500">
+                        <td
+                          colSpan={3}
+                          className="px-3 py-6 text-center text-muted-foreground"
+                        >
                           Esta nota não possui itens.
                         </td>
                       </tr>
@@ -193,23 +188,19 @@ export function ConferenciaModal({
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-800">
+            <div className="flex justify-end gap-3 border-t pt-4">
               <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md"
-                >
+                <Button type="button" variant="outline">
                   Cancelar
-                </button>
+                </Button>
               </Dialog.Close>
-              <button
+              <Button
                 type="submit"
                 disabled={pendentes > 0 || mutation.isPending || vinculos.length === 0}
-                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg flex items-center gap-2"
               >
-                {mutation.isPending && <Loader2 size={16} className="animate-spin" />}
+                {mutation.isPending && <Loader2 className="animate-spin" />}
                 Salvar vínculos
-              </button>
+              </Button>
             </div>
           </form>
         </Dialog.Content>

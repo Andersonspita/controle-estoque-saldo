@@ -307,12 +307,17 @@ function RelatoriosPage() {
           />
         </div>
       ) : relatorio ? (
-        <div className="overflow-x-auto rounded-xl border bg-white shadow-sm print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
-          <div className="min-w-[1024px] print:min-w-0">
-            <RelatorioSaldoDocumento
-              relatorio={relatorio}
-              comConsolidado={comConsolidado}
-            />
+        <div className="space-y-2 print:space-y-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground print:hidden">
+            Pré-visualização da folha A4 (cores de impressão)
+          </p>
+          <div className="overflow-x-auto rounded-xl border border-border bg-muted/30 p-3 shadow-sm print:overflow-visible print:rounded-none print:border-0 print:bg-transparent print:p-0 print:shadow-none">
+            <div className="min-w-[1024px] overflow-hidden rounded-lg border bg-white text-slate-900 shadow-sm print:min-w-0 print:rounded-none print:border-0 print:shadow-none">
+              <RelatorioSaldoDocumento
+                relatorio={relatorio}
+                comConsolidado={comConsolidado}
+              />
+            </div>
           </div>
         </div>
       ) : null}

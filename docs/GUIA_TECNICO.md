@@ -80,7 +80,7 @@ Cadastro/edição de contrato: o **objeto** é o objeto do contrato. A tela pede
 
 Notas fiscais: a tela **Nova nota fiscal** oferece **Importar XML ou PDF** (`POST /notas-fiscais/importar`) e **Incluir manualmente** (`POST /notas-fiscais/`). A importação por arquivo permanece; a inclusão digitada exige contrato, número, data e ao menos um item vinculado ao contrato. XML/PDF anexo no cadastro manual é opcional.
 
-A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`). Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante, órgão de destino e justificativa opcional.
+A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`, `bg-card`, `text-foreground`, `border-input`). Modais de NF, contrato, aditivo e fornecedor seguem o mesmo padrão do modal de baixa (sem `bg-white` hardcoded). Status de vínculo NF→contrato usa `<Badge>` (`vinculoStatus.tsx`). Tema claro/escuro/sistema na sidebar em português (**Aparência**). Relatórios: a pré-visualização permanece em fundo branco (paridade com impressão A4), com rótulo explicativo no dark mode. Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante, órgão de destino e justificativa opcional.
 
 Na edição (**ADMIN**) o modal altera dados cadastrais e a quantidade/valor atuais. Para acrescentar quantidade em itens já existentes, o botão **Aditivo** abre outro modal: o usuário marca os itens, informa a quantidade extra (inteira em UN) e o valor unitário. A quantidade inicial do contrato não muda. OPERADOR recebe **403**.
 

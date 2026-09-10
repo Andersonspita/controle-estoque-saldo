@@ -127,7 +127,7 @@ export function AcaoNFModal({
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             placeholder={texto.placeholder}
-            className="w-full rounded-md border border-slate-300 bg-transparent p-2 text-sm dark:border-slate-700"
+            className="w-full rounded-md border border-input bg-transparent p-2 text-sm text-foreground"
           />
           <p className="text-xs text-muted-foreground">
             Obrigatório, no mínimo {MOTIVO_MINIMO} caracteres.

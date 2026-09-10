@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 24/08/2026 — objeto e vigência do contrato; dados da licitação e observação; lookup de unidade de medida; backup obrigatório antes de cada alteração
+> **Última Atualização:** 10/09/2026 — contraste dark mode nos modais; tokens unificados; seletor de tema em PT-BR; prévia de relatório enquadrada
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -51,6 +51,7 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - **Aditivo (ADMIN):** botão **Aditivo** na linha do contrato abre um modal. O usuário marca quais itens entram no aditivo e informa a **quantidade extra** e o **valor unitário** (pré-preenchido com o atual). Endpoint: `POST /api/v1/contratos/{id}/aditivo`. Só os itens marcados mudam: `quantidade_contratada` e `saldo_atual` somam a extra; o valor unitário pode ser atualizado. A quantidade inicial permanece como snapshot da contratação original. Extra deve ser maior que zero; em unidade (`UN` e similares) a quantidade é inteira (não existe 21,5 UN). OPERADOR recebe **403**.
 - **Tela Contratos:** a linha mostra valor total e **saldo atual do contrato** em R$. Se algum item já foi aditivado, aparece “Com aditivo” e o valor inicial. Expandir a linha (botão com `aria-expanded`, Tab + Enter) mostra os itens sem tabela aninhada. ADMIN edita pelo botão na linha ou aplica aditivo pelo botão **Aditivo**.
 - **Interface (redesign):** tokens `success` / `warning` / `critical` em `index.css`. Status usa `<Badge>`. Ações usam `<Button>`. Notas fiscais, fornecedores e Admin usam `DataTable` com busca, filtro e paginação. Dashboard centra no consumo do valor contratado, gráfico mensal e alertas acionáveis. Em telas `< md` as listas viram cards. Login usa marca, tagline e painel de produto. A marca é o **selo em relevo** (`Logo.tsx` + favicon SVG/ICO); o ícone de GitHub saiu do rodapé.
+- **Dark mode / contraste:** modais de NF (importar, manual, conferência), contrato, aditivo e fornecedor usam `bg-card` / `text-foreground` / `border-input` (mesmo padrão do `BaixaModal`). Status de vínculo (`CONFIRMADO`, `PROVAVEL`, etc.) usa `<Badge>` semântico via `vinculoStatus.tsx`. `MoneyInput` não força cores claras/escuras hardcoded. Seletor de tema na sidebar: **Aparência / Claro / Escuro / Sistema**. Relatórios mantêm folha branca de impressão, com rótulo “Pré-visualização da folha A4” no dark mode.
 - **Valores monetários:** campos de valor (unitário, totais, saldos) são exibidos e digitados em BRL (`R$ 1.234,56`). Quantidade permanece numérica. A API devolve `valor_contratado` e `saldo_monetario` em cada item e `saldo_atual` monetário no contrato detalhado.
 - **Órgãos:** interface usa o nome **Órgão** (API/tabelas continuam `almoxarifados`). CRUD em `/api/v1/almoxarifados/` com `POST` e `PATCH` (**ADMIN**). `GET /api/v1/almoxarifados/{id}` lista destinação física após baixas, lado a lado com o saldo do contrato.
 - **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` exige órgão de destino, bloqueia a linha da NF (`FOR UPDATE`) para evitar baixa duplicada, deduz o saldo do item do contrato, grava movimentação e atualiza `estoque_almoxarifados`. O `usuario_id` vem do token JWT, não do corpo da requisição.
@@ -84,7 +85,9 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo: objeto e vigência do contrato; **número, modalidade e objeto da licitação** e **observação** no cadastro; unidade de medida em lookup. Backup Git **antes** dos dados da licitação: tag `backup-pre-licitacao-obs-20260824` (commit `e8fdd8b`). Tag anterior (objeto/vigência): `backup-pre-objeto-vigencia-20260824`.
+Concluído neste ciclo: **contraste dark mode** nos modais (NF, contrato, aditivo, fornecedor) e `MoneyInput`; badges semânticos de vínculo; tema em PT-BR; prévia de relatório enquadrada. Backup Git: tag `backup-pre-ui-contraste-20260910` (commit `09e6d45`).
+
+Ciclo anterior: objeto e vigência do contrato; **número, modalidade e objeto da licitação** e **observação** no cadastro; unidade de medida em lookup. Tags: `backup-pre-licitacao-obs-20260824` (`e8fdd8b`), `backup-pre-objeto-vigencia-20260824`.
 
 Regra permanente: **toda alteração** exige backup Git (tag `backup-pre-<resumo>-YYYYMMDD`) **antes** de editar. No deploy, dump do Postgres conforme `docs/GUIA_TECNICO.md` §6.5.
 

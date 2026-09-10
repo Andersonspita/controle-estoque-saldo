@@ -18,6 +18,7 @@ import {
   baixarModeloPlanilhaItens,
   lerItensDeArquivo,
 } from "@/lib/planilhaItensContrato"
+import { Button } from "@/components/ui/button"
 import { MoneyInput } from "@/components/ui/money-input"
 
 type ItemForm = {
@@ -39,7 +40,10 @@ const itemVazio = (): ItemForm => ({
 })
 
 const campo =
-  "w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-2 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 [&>option]:text-slate-900 [&>option]:dark:bg-slate-900"
+  "w-full rounded-lg border border-input bg-transparent p-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>option]:bg-popover [&>option]:text-popover-foreground"
+
+const campoItem =
+  "w-full rounded-md border border-input bg-transparent p-1.5 text-xs text-foreground [&>option]:bg-popover [&>option]:text-popover-foreground"
 
 export function AddContratoModal({
   isOpen,
@@ -234,12 +238,12 @@ export function AddContratoModal({
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
-          <Dialog.Title className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+          <Dialog.Title className="text-xl font-semibold text-foreground">
             {editando ? "Editar Contrato" : "Novo Contrato"}
           </Dialog.Title>
-          <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
+          <Dialog.Description className="text-sm text-muted-foreground">
             Cadastre o objeto do contrato, os dados da licitação, a vigência e os itens
             previstos. Você pode digitar os itens ou importar uma planilha (.xlsx ou .csv).
             Para acrescentar quantidade em itens já existentes, use o botão Aditivo na lista.
@@ -248,7 +252,7 @@ export function AddContratoModal({
           <form onSubmit={handleSubmit} className="space-y-6 mt-2 text-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1 sm:col-span-2">
-                <label className="font-medium text-slate-700 dark:text-slate-300">Fornecedor *</label>
+                <label className="font-medium">Fornecedor *</label>
                 <select
                   required
                   value={formData.fornecedor_id}
@@ -266,7 +270,7 @@ export function AddContratoModal({
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="font-medium text-slate-700 dark:text-slate-300">Número do contrato *</label>
+                <label className="font-medium">Número do contrato *</label>
                 <input
                   required
                   value={formData.numero}
@@ -277,7 +281,7 @@ export function AddContratoModal({
               </div>
               {editando && (
                 <div className="space-y-1">
-                  <label className="font-medium text-slate-700 dark:text-slate-300">Situação</label>
+                  <label className="font-medium">Situação</label>
                   <select
                     value={formData.situacao}
                     onChange={(e) => setFormData({ ...formData, situacao: e.target.value })}
@@ -290,7 +294,7 @@ export function AddContratoModal({
                 </div>
               )}
               <div className="space-y-1 sm:col-span-2 md:col-span-4">
-                <label className="font-medium text-slate-700 dark:text-slate-300">Objeto do contrato *</label>
+                <label className="font-medium">Objeto do contrato *</label>
                 <textarea
                   required
                   rows={3}
@@ -301,7 +305,7 @@ export function AddContratoModal({
                 />
               </div>
               <div className="space-y-1">
-                <label className="font-medium text-slate-700 dark:text-slate-300">
+                <label className="font-medium">
                   Vigência inicial *
                 </label>
                 <input
@@ -313,7 +317,7 @@ export function AddContratoModal({
                 />
               </div>
               <div className="space-y-1">
-                <label className="font-medium text-slate-700 dark:text-slate-300">
+                <label className="font-medium">
                   Vigência final *
                 </label>
                 <input
@@ -326,7 +330,7 @@ export function AddContratoModal({
                 />
               </div>
               <div className="space-y-1">
-                <label className="font-medium text-slate-700 dark:text-slate-300">Número da licitação</label>
+                <label className="font-medium">Número da licitação</label>
                 <input
                   value={formData.licitacao_numero}
                   onChange={(e) => setFormData({ ...formData, licitacao_numero: e.target.value })}
@@ -335,7 +339,7 @@ export function AddContratoModal({
                 />
               </div>
               <div className="space-y-1">
-                <label className="font-medium text-slate-700 dark:text-slate-300">Modalidade</label>
+                <label className="font-medium">Modalidade</label>
                 <select
                   value={formData.modalidade}
                   onChange={(e) => setFormData({ ...formData, modalidade: e.target.value })}
@@ -350,7 +354,7 @@ export function AddContratoModal({
                 </select>
               </div>
               <div className="space-y-1 sm:col-span-2 md:col-span-4">
-                <label className="font-medium text-slate-700 dark:text-slate-300">Objeto da licitação</label>
+                <label className="font-medium">Objeto da licitação</label>
                 <textarea
                   rows={2}
                   value={formData.objeto_licitacao}
@@ -360,7 +364,7 @@ export function AddContratoModal({
                 />
               </div>
               <div className="space-y-1 sm:col-span-2 md:col-span-4">
-                <label className="font-medium text-slate-700 dark:text-slate-300">Observação</label>
+                <label className="font-medium">Observação</label>
                 <textarea
                   rows={2}
                   value={formData.observacao}
@@ -371,17 +375,19 @@ export function AddContratoModal({
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
-                <h3 className="font-semibold text-slate-800 dark:text-slate-200">Itens do Contrato</h3>
+            <div className="border-t pt-4">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h3 className="font-semibold text-foreground">Itens do Contrato</h3>
                 <div className="flex flex-wrap items-center gap-3">
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={baixarModeloPlanilhaItens}
-                    className="text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 text-xs font-medium flex items-center gap-1"
+                    className="h-auto gap-1 px-2 py-1 text-xs text-muted-foreground"
                   >
                     <Download size={14} /> Baixar modelo
-                  </button>
+                  </Button>
                   <input
                     ref={planilhaRef}
                     type="file"
@@ -389,11 +395,13 @@ export function AddContratoModal({
                     className="hidden"
                     onChange={(e) => importarPlanilha(e.target.files?.[0])}
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     disabled={importando}
                     onClick={() => planilhaRef.current?.click()}
-                    className="text-blue-600 hover:text-blue-700 disabled:opacity-50 text-xs font-medium flex items-center gap-1"
+                    className="h-auto gap-1 px-2 py-1 text-xs text-primary"
                   >
                     {importando ? (
                       <Loader2 size={14} className="animate-spin" />
@@ -401,14 +409,16 @@ export function AddContratoModal({
                       <FileSpreadsheet size={14} />
                     )}
                     Importar planilha
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={addItem}
-                    className="text-blue-600 hover:text-blue-700 text-xs font-medium flex items-center gap-1 shrink-0"
+                    className="h-auto shrink-0 gap-1 px-2 py-1 text-xs text-primary"
                   >
                     <Plus size={14} /> Digitar item
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -416,7 +426,7 @@ export function AddContratoModal({
                 {itens.map((item, index) => (
                   <div key={item.id ?? `novo-${index}`} className="grid grid-cols-12 gap-2 items-end">
                     <div className="col-span-12 sm:col-span-4 space-y-1">
-                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Descrição</label>
+                      <label className="text-xs font-medium text-muted-foreground">Descrição</label>
                       <input
                         required
                         value={item.descricao}
@@ -425,11 +435,11 @@ export function AddContratoModal({
                           n[index].descricao = e.target.value
                           setItens(n)
                         }}
-                        className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-1.5 text-xs text-slate-800 dark:text-slate-200"
+                        className={campoItem}
                       />
                     </div>
                     <div className="col-span-6 sm:col-span-3 space-y-1">
-                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                      <label className="text-xs font-medium text-muted-foreground">
                         Unidade de medida
                       </label>
                       <select
@@ -440,7 +450,7 @@ export function AddContratoModal({
                           n[index].unidade = e.target.value
                           setItens(n)
                         }}
-                        className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-1.5 text-xs text-slate-800 dark:text-slate-200 [&>option]:text-slate-900 [&>option]:dark:bg-slate-900"
+                        className={campoItem}
                       >
                         {grupos.map((grupo) => (
                           <optgroup key={grupo.grupo} label={grupo.grupo}>
@@ -454,7 +464,7 @@ export function AddContratoModal({
                       </select>
                     </div>
                     <div className="col-span-6 sm:col-span-2 space-y-1">
-                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Qtd</label>
+                      <label className="text-xs font-medium text-muted-foreground">Qtd</label>
                       <input
                         required
                         type="number"
@@ -466,11 +476,11 @@ export function AddContratoModal({
                           n[index].quantidade_contratada = parseFloat(e.target.value)
                           setItens(n)
                         }}
-                        className="w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-1.5 text-xs text-slate-800 dark:text-slate-200"
+                        className={campoItem}
                       />
                     </div>
                     <div className="col-span-10 sm:col-span-2 space-y-1">
-                      <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Valor unitário</label>
+                      <label className="text-xs font-medium text-muted-foreground">Valor unitário</label>
                       <MoneyInput
                         required
                         value={item.valor_unitario}
@@ -482,42 +492,38 @@ export function AddContratoModal({
                       />
                     </div>
                     <div className="col-span-2 sm:col-span-1 pb-1">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         onClick={() => removeItem(index)}
                         disabled={itens.length === 1}
-                        className="text-rose-500 hover:text-rose-700 disabled:opacity-30 p-1"
+                        className="text-critical hover:text-critical"
+                        aria-label="Remover item"
                       >
                         <Trash2 size={16} />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}
               </div>
               <div className="mt-4 text-right">
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                <p className="text-sm font-medium text-foreground">
                   Total do contrato: {formatarMoeda(total)}
                 </p>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 mt-6">
+            <div className="mt-6 flex justify-end gap-3 border-t pt-4">
               <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className="px-4 py-2 font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-                >
+                <Button type="button" variant="outline">
                   Cancelar
-                </button>
+                </Button>
               </Dialog.Close>
-              <button
-                type="submit"
-                disabled={mutation.isPending}
-                className="px-4 py-2 font-medium text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg flex items-center gap-2"
-              >
-                {mutation.isPending && <Loader2 size={16} className="animate-spin" />}
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending && <Loader2 className="animate-spin" />}
                 {editando ? "Salvar alterações" : "Salvar Contrato"}
-              </button>
+              </Button>
             </div>
           </form>
         </Dialog.Content>
