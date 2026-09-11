@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 11/09/2026 — REL-2 (relatório sem código antes da descrição), REL-4 (vigência dos aditivos), CFG (`pode_gerir_contratos`)
+> **Última Atualização:** 11/09/2026 — correção `selectinload(Contrato.aditivos)` nas rotas de contrato + ajuste testes auth (mensagem CFG)
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -87,7 +87,9 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo (11/09/2026): **REL-2** (relatório sem código antes da descrição), **REL-4** (vigência dos aditivos em `contrato_aditivos` + UI + relatório), **CFG** (`pode_gerir_contratos` no Admin/Settings). Backup: tag `backup-pre-rel2-rel4-cfg-20260911`. Migração `d5e9f1a2b803`.
+Concluído neste ciclo (11/09/2026): após smoke de testes, **correção** de `selectinload(Contrato.aditivos)` em listagem/PATCH/arquivo de contratos (evita `MissingGreenlet` ao serializar `ContratoDetalhadoOut`) e alinhamento dos asserts de `test_auth` com a mensagem de `pode_gerir_contratos`. Backup: tag `backup-pre-fix-selectinload-aditivos-20260911`.
+
+Ciclo anterior: **REL-2** (relatório sem código antes da descrição), **REL-4** (vigência dos aditivos em `contrato_aditivos` + UI + relatório), **CFG** (`pode_gerir_contratos` no Admin/Settings). Backup: tag `backup-pre-rel2-rel4-cfg-20260911`. Migração `d5e9f1a2b803`.
 
 Ciclo anterior: **log de auditoria ampliado** (baixa/estorno/vínculos NF, fornecedores e usuários) + tela **Log de usuários** (`/auditoria`, só ADMIN). Backup: tag `backup-pre-auditoria-tela-admin-20260911`.
 

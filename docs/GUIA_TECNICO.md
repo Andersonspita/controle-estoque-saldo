@@ -99,7 +99,9 @@ Testes relevantes do domínio:
 - `tests/test_nfe_parser.py` / `test_parse_xml_endpoint.py`
 - `tests/test_item_matcher.py`
 - `tests/test_danfe_parser.py` (rápido; usa fixture OCR)
-- `tests/test_auth.py` (401 sem token; `/health` público; OPERADOR recebe 403 em POST de cadastro, PATCH de contrato e nas rotas de usuários)
+- `tests/test_auth.py` (401 sem token; `/health` público; OPERADOR recebe 403 em POST de cadastro, PATCH de contrato — mensagem de `pode_gerir_contratos` — e nas rotas de usuários)
+- `tests/test_aditivo.py` / `test_relatorio_saldo.py` / `test_estorno_exclusao_nf.py` (aditivo com vigência, relatório, estorno/permissões)
+- Respostas `ContratoDetalhadoOut` carregam `aditivos` via `selectinload` (listagem, GET, PATCH, aditivo e upload de arquivo)
 - `tests/test_login_throttle.py` (bloqueio após falhas de login)
 - `tests/test_arquivos.py` (nome de upload sanitizado)
 - `tests/test_documento.py` (validação e formatação de CPF/CNPJ; schema `FornecedorCreate`)

@@ -115,7 +115,11 @@ async def list_contratos(skip: int = 0, limit: int = 100, db: AsyncSession = Dep
     from sqlalchemy.orm import selectinload
     result = await db.execute(
         select(Contrato)
-        .options(selectinload(Contrato.fornecedor), selectinload(Contrato.itens))
+        .options(
+            selectinload(Contrato.fornecedor),
+            selectinload(Contrato.itens),
+            selectinload(Contrato.aditivos),
+        )
         .offset(skip).limit(limit)
     )
     return result.scalars().all()
@@ -196,7 +200,11 @@ async def update_contrato(
 ):
     stmt = (
         select(Contrato)
-        .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+        .options(
+            selectinload(Contrato.itens),
+            selectinload(Contrato.fornecedor),
+            selectinload(Contrato.aditivos),
+        )
         .where(Contrato.id == contrato_id)
     )
     result = await db.execute(stmt)
@@ -306,7 +314,11 @@ async def update_contrato(
         await db.commit()
         result = await db.execute(
             select(Contrato)
-            .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+            .options(
+                selectinload(Contrato.itens),
+                selectinload(Contrato.fornecedor),
+                selectinload(Contrato.aditivos),
+            )
             .where(Contrato.id == contrato.id)
         )
         return result.scalar_one()
@@ -432,7 +444,11 @@ async def enviar_arquivo_contrato(
 
     stmt = (
         select(Contrato)
-        .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+        .options(
+            selectinload(Contrato.itens),
+            selectinload(Contrato.fornecedor),
+            selectinload(Contrato.aditivos),
+        )
         .where(Contrato.id == contrato_id)
     )
     contrato = (await db.execute(stmt)).scalar_one_or_none()
@@ -463,7 +479,11 @@ async def enviar_arquivo_contrato(
                 pass
         result = await db.execute(
             select(Contrato)
-            .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+            .options(
+                selectinload(Contrato.itens),
+                selectinload(Contrato.fornecedor),
+                selectinload(Contrato.aditivos),
+            )
             .where(Contrato.id == contrato.id)
         )
         return result.scalar_one()
