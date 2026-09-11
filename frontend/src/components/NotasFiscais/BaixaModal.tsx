@@ -82,7 +82,7 @@ export function BaixaModal({
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border bg-card p-6 shadow-xl">
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
           <Dialog.Title className="text-xl font-semibold text-foreground">
             Executar baixa da NF {nf?.numero}?
           </Dialog.Title>
@@ -98,9 +98,9 @@ export function BaixaModal({
           </div>
 
           {previsao.length > 0 && (
-            <div className="overflow-hidden rounded-lg border">
+            <div className="max-h-[40vh] overflow-y-auto rounded-lg border">
               <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs text-muted-foreground">
+                <thead className="sticky top-0 bg-muted/95 text-xs text-muted-foreground backdrop-blur">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium">Item</th>
                     <th className="px-3 py-2 text-right font-medium">Saldo após a baixa</th>
@@ -133,7 +133,7 @@ export function BaixaModal({
               />
             </div>
 
-            <div className="flex justify-end gap-3 border-t pt-4">
+            <div className="sticky bottom-0 flex justify-end gap-3 border-t bg-card pt-4">
               <Dialog.Close asChild>
                 <Button type="button" variant="outline">
                   Cancelar

@@ -1,17 +1,18 @@
 import os
 import json
 import logging
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from ..database.session import get_db
-from ..deps import get_current_active_user, RequireEstorno
+from ..deps import get_current_active_user, RequireEstorno, CurrentUser
 from ..database.models import NotaFiscal, ItemNotaFiscal, Contrato, Fornecedor, ItemContrato, Movimentacao, Usuario
 from ..http_errors import http_erro_interno
 from ..services.arquivos import caminho_upload_seguro
 from ..services.nota_fiscal import persistir_nota_fiscal, atualizar_nota_fiscal
+from ..core.audit import registrar_auditoria, get_client_ip
 from ..schemas import (
     NotaFiscalCreate, ItemNotaFiscalCreate, NotaFiscalOut,
     NotaFiscalManualCreate,
@@ -116,11 +117,32 @@ async def historico_notas_fiscais(db: AsyncSession = Depends(get_db)):
 @router.post("/", response_model=NotaFiscalOut)
 async def criar_nota_fiscal_manual(
     body: NotaFiscalManualCreate,
+    request: Request,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     """Cadastra nota fiscal digitada. A importação por XML/PDF permanece em POST /importar."""
     nf_create = NotaFiscalCreate(**body.model_dump(exclude={"itens"}))
-    return await persistir_nota_fiscal(db, nf_create, list(body.itens))
+    nf = await persistir_nota_fiscal(
+        db, nf_create, list(body.itens), usuario_id=current_user.id
+    )
+    await registrar_auditoria(
+        db,
+        usuario_id=current_user.id,
+        operacao="INSERT",
+        tabela="notas_fiscais",
+        registro_id=str(nf.id),
+        dados_novos={
+            "numero": nf.numero,
+            "serie": nf.serie,
+            "origem": "manual",
+            "contrato_id": nf.contrato_id,
+            "valor_total": nf.valor_total,
+        },
+        ip=get_client_ip(request),
+    )
+    await db.commit()
+    return nf
 
 @router.get("/{nf_id}/arquivo")
 async def baixar_arquivo_nf(nf_id: int, db: AsyncSession = Depends(get_db)):
@@ -215,6 +237,8 @@ async def atualizar_vinculos_nf(
 
 @router.post("/importar", response_model=NotaFiscalOut)
 async def importar_nota_fiscal(
+    request: Request,
+    current_user: CurrentUser,
     arquivo_pdf: UploadFile = File(...),
     nota_fiscal_data: str = Form(..., description="JSON contendo os dados da NotaFiscalCreate e um array 'itens' com ItemNotaFiscalCreate"),
     db: AsyncSession = Depends(get_db)
@@ -232,9 +256,30 @@ async def importar_nota_fiscal(
         buffer.write(await arquivo_pdf.read())
 
     try:
-        return await persistir_nota_fiscal(
-            db, nf_create, itens_create, arquivo_path=file_path
+        nf = await persistir_nota_fiscal(
+            db,
+            nf_create,
+            itens_create,
+            arquivo_path=file_path,
+            usuario_id=current_user.id,
         )
+        await registrar_auditoria(
+            db,
+            usuario_id=current_user.id,
+            operacao="INSERT",
+            tabela="notas_fiscais",
+            registro_id=str(nf.id),
+            dados_novos={
+                "numero": nf.numero,
+                "serie": nf.serie,
+                "origem": "importacao",
+                "contrato_id": nf.contrato_id,
+                "valor_total": nf.valor_total,
+            },
+            ip=get_client_ip(request),
+        )
+        await db.commit()
+        return nf
     except Exception:
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -242,10 +287,8 @@ async def importar_nota_fiscal(
 
 from ..services.baixa_service import efetuar_baixa_nf
 from ..services.estorno_service import estornar_baixa_nf, STATUS_ESTORNADA
-from ..core.audit import registrar_auditoria
 from ..database.models import utcnow
 from ..schemas import BaixaRequest, MovimentacaoOut
-from ..deps import CurrentUser
 
 @router.post("/{nf_id}/baixar", response_model=List[MovimentacaoOut])
 async def baixar_nota_fiscal(
@@ -266,11 +309,30 @@ async def baixar_nota_fiscal(
 async def editar_nota_fiscal(
     nf_id: int,
     body: NotaFiscalManualCreate,
+    request: Request,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     """Regrava cabeçalho e itens. Nota baixada precisa ser estornada antes."""
     nf_update = NotaFiscalCreate(**body.model_dump(exclude={"itens"}))
-    return await atualizar_nota_fiscal(db, nf_id, nf_update, list(body.itens))
+    nf = await atualizar_nota_fiscal(db, nf_id, nf_update, list(body.itens))
+    await registrar_auditoria(
+        db,
+        usuario_id=current_user.id,
+        operacao="UPDATE",
+        tabela="notas_fiscais",
+        registro_id=str(nf.id),
+        dados_novos={
+            "numero": nf.numero,
+            "serie": nf.serie,
+            "contrato_id": nf.contrato_id,
+            "valor_total": nf.valor_total,
+            "status": nf.status,
+        },
+        ip=get_client_ip(request),
+    )
+    await db.commit()
+    return nf
 
 
 @router.post("/{nf_id}/estornar", response_model=List[MovimentacaoOut])

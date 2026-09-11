@@ -54,6 +54,7 @@ async def persistir_nota_fiscal(
     nf_create: NotaFiscalCreate,
     itens: list[ItemNotaFiscalCreate],
     arquivo_path: Optional[str] = None,
+    usuario_id: Optional[int] = None,
 ) -> NotaFiscal:
     dados = nf_create.model_dump()
 
@@ -97,6 +98,7 @@ async def persistir_nota_fiscal(
         **dados,
         arquivo_pdf_path=arquivo_path,
         status=STATUS_AGUARDANDO_CONFERENCIA,
+        criado_por=usuario_id,
     )
     db.add(db_nf)
     try:

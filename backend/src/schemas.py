@@ -229,8 +229,14 @@ class ContratoOut(ContratoBase):
     id: int
     valor_total_inicial: Optional[float] = None
     percentual_aditivo: float = 0
+    arquivo_pdf_path: Optional[str] = Field(default=None, exclude=True)
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def tem_arquivo(self) -> bool:
+        return bool(self.arquivo_pdf_path)
 
 class ItemContratoOut(BaseModel):
     id: int
@@ -364,6 +370,7 @@ class NotaFiscalOut(NotaFiscalCreate):
     arquivo_pdf_path: Optional[str] = Field(default=None, exclude=True)
     status: str
     criado_em: datetime
+    criado_por: Optional[int] = None
     itens: List[ItemNotaFiscalOut] = []
 
     model_config = ConfigDict(from_attributes=True)

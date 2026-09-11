@@ -261,9 +261,6 @@ function FolhaContrato({
 }) {
   const vigente = contrato.totais.valor_vigente
   const documentoFornecedor = contrato.fornecedor_cnpj || ""
-  const cidadeUf = [contrato.fornecedor_cidade, contrato.fornecedor_estado]
-    .filter(Boolean)
-    .join(" / ")
 
   return (
     <section className="rel-folha">
@@ -282,12 +279,7 @@ function FolhaContrato({
           <Campo
             rotulo="CNPJ / CPF"
             valor={documentoFornecedor}
-            className="rel-campo--duplo"
-          />
-          <Campo
-            rotulo="Cidade / UF"
-            valor={cidadeUf}
-            className="rel-campo--duplo rel-campo--fim"
+            className="rel-campo--largo"
           />
         </div>
         <div className="rel-grade">

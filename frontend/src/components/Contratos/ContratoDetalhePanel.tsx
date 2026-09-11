@@ -1,5 +1,6 @@
-import { FilePlus2, Pencil, Search } from "lucide-react"
+import { Download, Eye, FilePlus2, Pencil, Search } from "lucide-react"
 import { useMemo, useState } from "react"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +19,7 @@ import {
   valorContratadoItem,
 } from "@/lib/money"
 import { percentualRestante } from "@/lib/status"
+import { contratosService } from "@/services/api"
 import { ConsumoBar } from "../Common/ConsumoBar"
 
 /** Um item só conta como aditivado quando a quantidade vigente difere da inicial. */
@@ -193,8 +195,8 @@ export function ContratoDetalhePanel({
               {contrato.objeto ||
               contrato.licitacao_numero ||
               contrato.modalidade ||
-              contrato.objeto_licitacao ||
-              contrato.observacao ? (
+              contrato.observacao ||
+              contrato.tem_arquivo ? (
                 <div className="mt-5 grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <Ficha
@@ -211,14 +213,40 @@ export function ContratoDetalhePanel({
                     valor={contrato.licitacao_numero}
                   />
                   <div className="sm:col-span-2">
-                    <Ficha
-                      rotulo="Objeto da licitação"
-                      valor={contrato.objeto_licitacao}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
                     <Ficha rotulo="Observação" valor={contrato.observacao} />
                   </div>
+                  {contrato.tem_arquivo ? (
+                    <div className="flex flex-wrap gap-2 sm:col-span-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          contratosService.abrirArquivo(contrato).catch((erro: any) =>
+                            toast.error("Não foi possível abrir o PDF", {
+                              description: erro.response?.data?.detail || erro.message,
+                            }),
+                          )
+                        }
+                      >
+                        <Eye /> Visualizar PDF
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          contratosService.downloadArquivo(contrato).catch((erro: any) =>
+                            toast.error("Não foi possível baixar o PDF", {
+                              description: erro.response?.data?.detail || erro.message,
+                            }),
+                          )
+                        }
+                      >
+                        <Download /> Download PDF
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 

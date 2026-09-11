@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Download, FileSpreadsheet, Loader2, Plus, Trash2 } from "lucide-react"
+import { Download, Eye, FileSpreadsheet, FileText, Loader2, Plus, Trash2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
 import { contratosService, fornecedoresService, unidadesMedidaService, modalidadesLicitacaoService } from "../../services/api"
@@ -90,7 +90,6 @@ export function AddContratoModal({
     objeto: "",
     licitacao_numero: "",
     modalidade: "",
-    objeto_licitacao: "",
     observacao: "",
     data_inicio: "",
     data_fim: "",
@@ -98,7 +97,10 @@ export function AddContratoModal({
   })
   const [itens, setItens] = useState<ItemForm[]>([itemVazio()])
   const [importando, setImportando] = useState(false)
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [temArquivoAtual, setTemArquivoAtual] = useState(false)
   const planilhaRef = useRef<HTMLInputElement>(null)
+  const pdfRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!isOpen) return
@@ -109,7 +111,6 @@ export function AddContratoModal({
         objeto: contrato.objeto || "",
         licitacao_numero: contrato.licitacao_numero || "",
         modalidade: contrato.modalidade || "",
-        objeto_licitacao: contrato.objeto_licitacao || "",
         observacao: contrato.observacao || "",
         data_inicio: dataISO(contrato.data_inicio),
         data_fim: dataISO(contrato.data_fim),
@@ -128,6 +129,8 @@ export function AddContratoModal({
         consumido: (item.quantidade_contratada || 0) - (item.saldo_atual || 0),
       }))
       setItens(carregados.length ? carregados : [itemVazio()])
+      setTemArquivoAtual(Boolean(contrato.tem_arquivo))
+      setPdfFile(null)
     } else {
       setFormData({
         fornecedor_id: "",
@@ -135,13 +138,14 @@ export function AddContratoModal({
         objeto: "",
         licitacao_numero: "",
         modalidade: "",
-        objeto_licitacao: "",
         observacao: "",
         data_inicio: "",
         data_fim: "",
         situacao: "Ativo",
       })
       setItens([itemVazio()])
+      setTemArquivoAtual(false)
+      setPdfFile(null)
     }
   }, [isOpen, contrato])
 
@@ -151,8 +155,15 @@ export function AddContratoModal({
   )
 
   const mutation = useMutation({
-    mutationFn: (data: any) =>
-      editando ? contratosService.atualizar(contrato.id, data) : contratosService.criar(data),
+    mutationFn: async (data: any) => {
+      const salvo = editando
+        ? await contratosService.atualizar(contrato.id, data)
+        : await contratosService.criar(data)
+      if (pdfFile) {
+        await contratosService.enviarArquivo(salvo.id, pdfFile)
+      }
+      return salvo
+    },
     onSuccess: () => {
       toast.success(editando ? "Contrato atualizado" : "Contrato cadastrado com sucesso!")
       queryClient.invalidateQueries({ queryKey: ["contratos"] })
@@ -233,7 +244,6 @@ export function AddContratoModal({
       objeto: formData.objeto.trim(),
       licitacao_numero: formData.licitacao_numero.trim() || null,
       modalidade: formData.modalidade || null,
-      objeto_licitacao: formData.objeto_licitacao.trim() || null,
       observacao: formData.observacao.trim() || null,
       data_inicio: formData.data_inicio,
       data_fim: formData.data_fim,
@@ -261,10 +271,9 @@ export function AddContratoModal({
             {editando ? "Editar Contrato" : "Novo Contrato"}
           </Dialog.Title>
           <Dialog.Description className="text-sm text-muted-foreground">
-            Cadastre o objeto do contrato, os dados da licitação, a vigência e os itens
-            previstos. Você pode digitar os itens ou importar o modelo oficial
-            (.xlsx). A planilha precisa manter o cabeçalho: Item, Descrição,
-            Unidade, Quantidade, Marca, Valor_unitário e Observação.
+            Cadastre o objeto do contrato, a vigência e os itens previstos. Você
+            pode digitar os itens ou importar o modelo oficial (.xlsx). Anexe o
+            PDF do contrato para visualizar e baixar depois.
           </Dialog.Description>
 
           <form onSubmit={handleSubmit} className="space-y-6 mt-2 text-sm">
@@ -372,16 +381,6 @@ export function AddContratoModal({
                 </select>
               </div>
               <div className="space-y-1 sm:col-span-2 md:col-span-4">
-                <label className="font-medium">Objeto da licitação</label>
-                <textarea
-                  rows={2}
-                  value={formData.objeto_licitacao}
-                  onChange={(e) => setFormData({ ...formData, objeto_licitacao: e.target.value })}
-                  placeholder="Objeto do edital ou do processo licitatório"
-                  className={campo}
-                />
-              </div>
-              <div className="space-y-1 sm:col-span-2 md:col-span-4">
                 <label className="font-medium">Observação</label>
                 <textarea
                   rows={2}
@@ -390,6 +389,79 @@ export function AddContratoModal({
                   placeholder="Anotações internas sobre o contrato"
                   className={campo}
                 />
+              </div>
+              <div className="space-y-1 sm:col-span-2 md:col-span-4">
+                <label className="font-medium">PDF do contrato</label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={pdfRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const arquivo = e.target.files?.[0] || null
+                      if (arquivo && !arquivo.name.toLowerCase().endsWith(".pdf")) {
+                        toast.error("Envie um arquivo PDF")
+                        e.target.value = ""
+                        return
+                      }
+                      setPdfFile(arquivo)
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => pdfRef.current?.click()}
+                    className="gap-1"
+                  >
+                    <FileText size={14} />
+                    {pdfFile || temArquivoAtual ? "Trocar PDF" : "Anexar PDF"}
+                  </Button>
+                  {pdfFile ? (
+                    <span className="text-xs text-muted-foreground">{pdfFile.name}</span>
+                  ) : temArquivoAtual ? (
+                    <span className="text-xs text-muted-foreground">
+                      PDF já anexado neste contrato
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Opcional</span>
+                  )}
+                  {editando && temArquivoAtual && !pdfFile ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() =>
+                          contratosService.abrirArquivo(contrato).catch((erro: any) =>
+                            toast.error("Não foi possível abrir o PDF", {
+                              description: erro.response?.data?.detail || erro.message,
+                            }),
+                          )
+                        }
+                      >
+                        <Eye size={14} /> Visualizar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() =>
+                          contratosService.downloadArquivo(contrato).catch((erro: any) =>
+                            toast.error("Não foi possível baixar o PDF", {
+                              description: erro.response?.data?.detail || erro.message,
+                            }),
+                          )
+                        }
+                      >
+                        <Download size={14} /> Download
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
               </div>
             </div>
 
@@ -561,7 +633,18 @@ export function AddContratoModal({
                           }}
                         />
                       </div>
-                      <div className="col-span-12 space-y-1 sm:col-span-5">
+                      <div className="col-span-6 space-y-1 sm:col-span-2">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Valor total
+                        </label>
+                        <p className="rounded-md border border-dashed border-input bg-muted/30 px-2 py-1.5 text-xs font-medium tabular-nums text-foreground">
+                          {formatarMoeda(
+                            (Number(item.quantidade_contratada) || 0) *
+                              (Number(item.valor_unitario) || 0),
+                          )}
+                        </p>
+                      </div>
+                      <div className="col-span-12 space-y-1 sm:col-span-3">
                         <label className="text-xs font-medium text-muted-foreground">
                           Observação
                         </label>

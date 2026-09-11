@@ -180,6 +180,41 @@ export const contratosService = {
     const response = await api.post(`/contratos/${id}/aditivo`, dados);
     return response.data;
   },
+  enviarArquivo: async (id: number, arquivo: File) => {
+    const form = new FormData();
+    form.append("arquivo", arquivo);
+    const response = await api.post(`/contratos/${id}/arquivo`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
+  downloadArquivo: async (contrato: { id: number; numero?: string; ano?: number }) => {
+    const response = await api.get(`/contratos/${contrato.id}/arquivo`, {
+      responseType: "blob",
+    });
+    const disposition = String(response.headers["content-disposition"] || "");
+    const match = disposition.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
+    const nomeHeader = match?.[1] ? decodeURIComponent(match[1].replace(/"/g, "")) : "";
+    const nome =
+      nomeHeader ||
+      `contrato-${contrato.numero || contrato.id}${contrato.ano ? `-${contrato.ano}` : ""}.pdf`;
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nome;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+  abrirArquivo: async (contrato: { id: number }) => {
+    const response = await api.get(`/contratos/${contrato.id}/arquivo`, {
+      responseType: "blob",
+    });
+    const url = URL.createObjectURL(
+      new Blob([response.data], { type: "application/pdf" }),
+    );
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
 };
 
 export const relatoriosService = {

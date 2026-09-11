@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import {
   ChevronRight,
+  Eye,
   FilePlus2,
   FileSignature,
   Pencil,
@@ -88,7 +89,6 @@ function ContratosPage() {
           contrato.objeto,
           contrato.licitacao_numero,
           contrato.modalidade,
-          contrato.objeto_licitacao,
           contrato.observacao,
           contrato.fornecedor?.razao_social,
           formatarVigencia(contrato.data_inicio, contrato.data_fim),
@@ -240,6 +240,13 @@ function ContratosPage() {
                     <Button
                       variant="outline"
                       className="h-11 flex-1"
+                      onClick={() => setContratoDetalheId(contrato.id)}
+                    >
+                      <Eye /> Visualizar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-11 flex-1"
                       onClick={() => setContratoEdicao(contrato)}
                     >
                       <Pencil /> Editar
@@ -252,6 +259,15 @@ function ContratosPage() {
                       <FilePlus2 /> Aditivo
                     </Button>
                   </div>
+                )}
+                {!isAdmin && (
+                  <Button
+                    variant="outline"
+                    className="h-11 w-full"
+                    onClick={() => setContratoDetalheId(contrato.id)}
+                  >
+                    <Eye /> Visualizar contrato
+                  </Button>
                 )}
               </div>
             )
@@ -267,7 +283,7 @@ function ContratosPage() {
                 <th className="px-4 py-3 text-right">Valor total</th>
                 <th className="px-4 py-3 text-right">Saldo atual</th>
                 <th className="px-4 py-3 text-left">Status</th>
-                {isAdmin && <th className="px-4 py-3 text-right">Ações</th>}
+                <th className="px-4 py-3 text-right">Ações</th>
                 <th className="px-4 py-3 text-right">Consumo</th>
               </tr>
             </thead>
@@ -360,32 +376,41 @@ function ContratosPage() {
                         {contrato.situacao}
                       </Badge>
                     </td>
-                    {isAdmin && (
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setContratoAditivo(null)
-                              setContratoEdicao(contrato)
-                            }}
-                          >
-                            <Pencil /> Editar
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setContratoEdicao(null)
-                              setContratoAditivo(contrato)
-                            }}
-                          >
-                            <FilePlus2 /> Aditivo
-                          </Button>
-                        </div>
-                      </td>
-                    )}
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setContratoDetalheId(contrato.id)}
+                        >
+                          <Eye /> Visualizar
+                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setContratoAditivo(null)
+                                setContratoEdicao(contrato)
+                              }}
+                            >
+                              <Pencil /> Editar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setContratoEdicao(null)
+                                setContratoAditivo(contrato)
+                              }}
+                            >
+                              <FilePlus2 /> Aditivo
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <ConsumoBar percentual={pct} size="sm" />
                     </td>

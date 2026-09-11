@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { Eye, FileBarChart, Printer, RotateCcw } from "lucide-react"
+import { ChevronDown, Eye, FileBarChart, Printer, RotateCcw } from "lucide-react"
 import { useMemo, useState } from "react"
 import { EmptyState } from "@/components/Common/EmptyState"
 import { PageHeader } from "@/components/Common/PageHeader"
@@ -23,6 +23,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { pageTitle } from "@/lib/brand"
 import { rotuloContrato } from "@/lib/contrato"
+import { cn } from "@/lib/utils"
 import {
   contratosService,
   fornecedoresService,
@@ -68,6 +69,7 @@ function RelatoriosPage() {
   const [vigenciaFim, setVigenciaFim] = useState(FILTROS_INICIAIS.vigenciaFim)
   const [objeto, setObjeto] = useState(FILTROS_INICIAIS.objeto)
   const [comConsolidado, setComConsolidado] = useState(true)
+  const [filtrosAvancadosAbertos, setFiltrosAvancadosAbertos] = useState(false)
 
   // O relatório só é buscado quando o usuário pede — nada é gerado ao abrir a tela.
   const [filtrosAplicados, setFiltrosAplicados] = useState<Filtros | null>(null)
@@ -134,6 +136,10 @@ function RelatoriosPage() {
     setObjeto(FILTROS_INICIAIS.objeto)
     setFiltrosAplicados(null)
   }
+
+  const filtrosAvancadosAtivos = Boolean(
+    vigenciaInicio || vigenciaFim || objeto.trim(),
+  )
 
   return (
     <div className="min-w-0 space-y-4 animate-in fade-in duration-500">
@@ -206,44 +212,72 @@ function RelatoriosPage() {
               </SelectContent>
             </Select>
           </div>
+        </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="rel-vigencia-inicio">
-              Vigência inicial a partir de
-            </Label>
-            <Input
-              id="rel-vigencia-inicio"
-              type="date"
-              value={vigenciaInicio}
-              onChange={(evento) => setVigenciaInicio(evento.target.value)}
+        <div className="mt-3 border-t pt-3">
+          <button
+            type="button"
+            onClick={() => setFiltrosAvancadosAbertos((aberto) => !aberto)}
+            className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1.5 text-left text-sm font-medium text-foreground hover:bg-muted/50"
+            aria-expanded={filtrosAvancadosAbertos}
+          >
+            <span>
+              Filtros avançados
+              {filtrosAvancadosAtivos ? (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  (ativos)
+                </span>
+              ) : null}
+            </span>
+            <ChevronDown
+              className={cn(
+                "size-4 text-muted-foreground transition-transform",
+                filtrosAvancadosAbertos && "rotate-180",
+              )}
             />
-          </div>
+          </button>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="rel-vigencia-fim">Vigência final até</Label>
-            <Input
-              id="rel-vigencia-fim"
-              type="date"
-              value={vigenciaFim}
-              onChange={(evento) => setVigenciaFim(evento.target.value)}
-              aria-invalid={periodoInvalido}
-            />
-            {periodoInvalido ? (
-              <p className="text-xs text-destructive">
-                A vigência final deve ser posterior à vigência inicial.
-              </p>
-            ) : null}
-          </div>
+          {filtrosAvancadosAbertos ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="rel-vigencia-inicio">
+                  Vigência inicial a partir de
+                </Label>
+                <Input
+                  id="rel-vigencia-inicio"
+                  type="date"
+                  value={vigenciaInicio}
+                  onChange={(evento) => setVigenciaInicio(evento.target.value)}
+                />
+              </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="rel-objeto">Objeto do contrato</Label>
-            <Input
-              id="rel-objeto"
-              value={objeto}
-              onChange={(evento) => setObjeto(evento.target.value)}
-              placeholder="Ex.: material de limpeza"
-            />
-          </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rel-vigencia-fim">Vigência final até</Label>
+                <Input
+                  id="rel-vigencia-fim"
+                  type="date"
+                  value={vigenciaFim}
+                  onChange={(evento) => setVigenciaFim(evento.target.value)}
+                  aria-invalid={periodoInvalido}
+                />
+                {periodoInvalido ? (
+                  <p className="text-xs text-destructive">
+                    A vigência final deve ser posterior à vigência inicial.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="rel-objeto">Objeto do contrato</Label>
+                <Input
+                  id="rel-objeto"
+                  value={objeto}
+                  onChange={(evento) => setObjeto(evento.target.value)}
+                  placeholder="Ex.: material de limpeza"
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">

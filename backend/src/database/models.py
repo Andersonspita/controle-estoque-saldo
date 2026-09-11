@@ -69,6 +69,7 @@ class Contrato(Base):
     valor_total_inicial = Column(Float, nullable=False, default=0)
     percentual_aditivo = Column(Float, nullable=False, default=0)
     situacao = Column(String, nullable=False)
+    arquivo_pdf_path = Column(String)
     
     licitacao = relationship("Licitacao", back_populates="contratos")
     fornecedor = relationship("Fornecedor", back_populates="contratos")
