@@ -63,6 +63,11 @@ def tem_permissao_estorno(user: Usuario) -> bool:
     return is_admin(user) or bool(getattr(user, "pode_estornar", False))
 
 
+def tem_permissao_contratos(user: Usuario) -> bool:
+    """Criar/editar contrato, aditivo e PDF: do ADMIN, ou de quem ele liberar."""
+    return is_admin(user) or bool(getattr(user, "pode_gerir_contratos", False))
+
+
 async def require_estorno(
     current_user: Annotated[Usuario, Depends(get_current_active_user)],
 ) -> Usuario:
@@ -71,6 +76,20 @@ async def require_estorno(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
                 "Seu usuário não tem permissão para estornar ou excluir notas fiscais. "
+                "Peça a liberação a um administrador."
+            ),
+        )
+    return current_user
+
+
+async def require_gestao_contratos(
+    current_user: Annotated[Usuario, Depends(get_current_active_user)],
+) -> Usuario:
+    if not tem_permissao_contratos(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Seu usuário não tem permissão para gerir contratos. "
                 "Peça a liberação a um administrador."
             ),
         )
@@ -91,4 +110,5 @@ async def require_admin(
 CurrentUser = Annotated[Usuario, Depends(get_current_active_user)]
 RequireAdmin = Annotated[Usuario, Depends(require_admin)]
 RequireEstorno = Annotated[Usuario, Depends(require_estorno)]
+RequireGestaoContratos = Annotated[Usuario, Depends(require_gestao_contratos)]
 

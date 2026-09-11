@@ -61,7 +61,11 @@ async def relatorio_saldo_contratos(
     """Saldo de cada item do contrato aberto em contratado, aditivado, utilizado e saldo."""
     stmt = (
         select(Contrato)
-        .options(selectinload(Contrato.fornecedor), selectinload(Contrato.itens))
+        .options(
+            selectinload(Contrato.fornecedor),
+            selectinload(Contrato.itens),
+            selectinload(Contrato.aditivos),
+        )
         .order_by(Contrato.ano.desc(), Contrato.numero)
     )
     if contrato_id is not None:
@@ -115,6 +119,7 @@ async def relatorio_saldo_contratos(
                 fornecedor_estado=getattr(fornecedor, "estado", None),
                 fornecedor_telefone=getattr(fornecedor, "telefone", None),
                 fornecedor_email=getattr(fornecedor, "email", None),
+                aditivos=list(contrato.aditivos or []),
                 itens=linhas,
                 totais=RelatorioTotaisOut(**totalizar(linhas)),
             )

@@ -17,6 +17,10 @@ class Usuario(Base):
     ativo = Column(Boolean, default=True)
     # Concedida pelo ADMIN: libera estornar a baixa e excluir nota fiscal.
     pode_estornar = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    # Concedida pelo ADMIN: libera criar/editar contrato, aditivo e PDF.
+    pode_gerir_contratos = Column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     criado_em = Column(DateTime(timezone=True), default=utcnow)
 
 class Fornecedor(Base):
@@ -74,6 +78,12 @@ class Contrato(Base):
     licitacao = relationship("Licitacao", back_populates="contratos")
     fornecedor = relationship("Fornecedor", back_populates="contratos")
     itens = relationship("ItemContrato", back_populates="contrato", cascade="all, delete-orphan")
+    aditivos = relationship(
+        "ContratoAditivo",
+        back_populates="contrato",
+        cascade="all, delete-orphan",
+        order_by="ContratoAditivo.criado_em",
+    )
 
 class ItemContrato(Base):
     __tablename__ = "itens_contrato"
@@ -97,6 +107,20 @@ class ItemContrato(Base):
     saldo_atual = Column(Float, nullable=False)
     
     contrato = relationship("Contrato", back_populates="itens")
+
+
+class ContratoAditivo(Base):
+    __tablename__ = "contrato_aditivos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contrato_id = Column(Integer, ForeignKey("contratos.id"), nullable=False)
+    data_inicio = Column(Date, nullable=False)
+    data_fim = Column(Date, nullable=False)
+    criado_em = Column(DateTime(timezone=True), default=utcnow)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"))
+
+    contrato = relationship("Contrato", back_populates="aditivos")
+
 
 class NotaFiscal(Base):
     __tablename__ = "notas_fiscais"

@@ -31,6 +31,8 @@ export function AditivoContratoModal({
   const queryClient = useQueryClient()
   const itens = contrato?.itens || []
   const [linhas, setLinhas] = useState<Record<number, ItemLinha>>({})
+  const [dataInicio, setDataInicio] = useState("")
+  const [dataFim, setDataFim] = useState("")
 
   useEffect(() => {
     if (!isOpen || !contrato) return
@@ -43,6 +45,8 @@ export function AditivoContratoModal({
       }
     }
     setLinhas(inicial)
+    setDataInicio(contrato.data_inicio ? String(contrato.data_inicio).slice(0, 10) : "")
+    setDataFim(contrato.data_fim ? String(contrato.data_fim).slice(0, 10) : "")
   }, [isOpen, contrato])
 
   const selecionados = useMemo(
@@ -88,6 +92,14 @@ export function AditivoContratoModal({
       toast.error("Selecione ao menos um item para aditivar")
       return
     }
+    if (!dataInicio || !dataFim) {
+      toast.error("Informe a vigência do aditivo")
+      return
+    }
+    if (dataFim < dataInicio) {
+      toast.error("A vigência final deve ser igual ou posterior à inicial")
+      return
+    }
     const itensEnvio = []
     for (const item of selecionados) {
       const linha = linhas[item.id]
@@ -108,7 +120,11 @@ export function AditivoContratoModal({
         valor_unitario: Number(linha.valor_unitario),
       })
     }
-    mutation.mutate({ itens: itensEnvio })
+    mutation.mutate({
+      itens: itensEnvio,
+      data_inicio: dataInicio,
+      data_fim: dataFim,
+    })
   }
 
   if (!contrato) return null
@@ -122,12 +138,40 @@ export function AditivoContratoModal({
             Aditivo — {rotuloContrato(contrato)}
           </Dialog.Title>
           <Dialog.Description className="text-sm text-muted-foreground">
-            Marque os itens que entram no aditivo e informe a quantidade extra. O valor
-            unitário pode ser mantido ou atualizado. A quantidade inicial do contrato não
-            muda; o saldo atual ganha as unidades aditivadas.
+            Marque os itens que entram no aditivo e informe a quantidade extra. Informe
+            também a vigência do aditivo. O valor unitário pode ser mantido ou atualizado.
+            A quantidade inicial do contrato não muda; o saldo atual ganha as unidades
+            aditivadas.
           </Dialog.Description>
 
           <form onSubmit={handleSubmit} className="mt-2 space-y-4 text-sm">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Vigência inicial do aditivo
+                </label>
+                <input
+                  required
+                  type="date"
+                  className={campo}
+                  value={dataInicio}
+                  onChange={(e) => setDataInicio(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Vigência final do aditivo
+                </label>
+                <input
+                  required
+                  type="date"
+                  className={campo}
+                  value={dataFim}
+                  onChange={(e) => setDataFim(e.target.value)}
+                />
+              </div>
+            </div>
+
             {itens.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Este contrato ainda não possui itens.

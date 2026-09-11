@@ -3,11 +3,15 @@ from types import SimpleNamespace
 import pytest
 from httpx import AsyncClient
 
-from src.deps import tem_permissao_estorno
+from src.deps import tem_permissao_estorno, tem_permissao_contratos
 
 
-def _usuario(perfil: str, pode_estornar: bool = False):
-    return SimpleNamespace(perfil=perfil, pode_estornar=pode_estornar)
+def _usuario(perfil: str, pode_estornar: bool = False, pode_gerir_contratos: bool = False):
+    return SimpleNamespace(
+        perfil=perfil,
+        pode_estornar=pode_estornar,
+        pode_gerir_contratos=pode_gerir_contratos,
+    )
 
 
 def test_admin_sempre_pode_estornar():
@@ -30,6 +34,19 @@ def test_usuario_sem_o_campo_nao_quebra():
     """Sessões antigas podem não trazer o campo novo."""
     assert tem_permissao_estorno(SimpleNamespace(perfil="OPERADOR")) is False
 
+
+def test_admin_sempre_pode_gerir_contratos():
+    assert tem_permissao_contratos(_usuario("ADMIN")) is True
+
+
+def test_operador_sem_liberacao_nao_gerencia_contratos():
+    assert tem_permissao_contratos(_usuario("OPERADOR")) is False
+
+
+def test_operador_liberado_gerencia_contratos():
+    assert (
+        tem_permissao_contratos(_usuario("OPERADOR", pode_gerir_contratos=True)) is True
+    )
 
 @pytest.mark.asyncio
 async def test_estorno_negado_para_operador_sem_permissao(

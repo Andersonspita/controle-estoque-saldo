@@ -224,6 +224,23 @@ class ItemAditivoIn(BaseModel):
 
 class ContratoAditivoIn(BaseModel):
     itens: List[ItemAditivoIn]
+    data_inicio: date
+    data_fim: date
+
+    @model_validator(mode="after")
+    def _vigencia_aditivo(self):
+        if self.data_fim < self.data_inicio:
+            raise ValueError("A vigência final do aditivo deve ser igual ou posterior à inicial")
+        return self
+
+
+class ContratoAditivoOut(BaseModel):
+    id: int
+    data_inicio: date
+    data_fim: date
+    criado_em: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 class ContratoOut(ContratoBase):
     id: int
@@ -268,6 +285,7 @@ class ItemContratoOut(BaseModel):
 class ContratoDetalhadoOut(ContratoOut):
     fornecedor: Optional[FornecedorOut] = None
     itens: List[ItemContratoOut] = []
+    aditivos: List[ContratoAditivoOut] = []
 
     @computed_field
     @property
@@ -505,6 +523,7 @@ class RelatorioContratoSaldoOut(BaseModel):
     fornecedor_estado: Optional[str] = None
     fornecedor_telefone: Optional[str] = None
     fornecedor_email: Optional[str] = None
+    aditivos: List[ContratoAditivoOut] = []
     itens: List[RelatorioItemSaldoOut] = []
     totais: RelatorioTotaisOut
 

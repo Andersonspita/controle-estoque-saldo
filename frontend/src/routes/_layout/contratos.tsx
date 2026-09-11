@@ -55,7 +55,9 @@ function ContratosPage() {
   )
   const [status, setStatus] = useState("ativos")
   const [saldoCritico, setSaldoCritico] = useState(false)
-  const { isAdmin } = useAuth()
+  const { isAdmin, user } = useAuth()
+  const podeGerirContratos =
+    isAdmin || Boolean((user as { pode_gerir_contratos?: boolean } | null)?.pode_gerir_contratos)
   const { query, setQuery } = useListSearch()
   const isMobile = useIsMobile()
   const modalAberto = isAddModalOpen || !!contratoEdicao
@@ -107,7 +109,7 @@ function ContratosPage() {
   const contratoDetalhe =
     contratos.find((c: any) => c.id === contratoDetalheId) || null
 
-  const novoContrato = isAdmin ? (
+  const novoContrato = podeGerirContratos ? (
     <Button
       onClick={() => {
         setContratoEdicao(null)
@@ -235,7 +237,7 @@ function ContratosPage() {
                     toque para ver o detalhe
                   </p>
                 </button>
-                {isAdmin && (
+                {podeGerirContratos && (
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -260,7 +262,7 @@ function ContratosPage() {
                     </Button>
                   </div>
                 )}
-                {!isAdmin && (
+                {!podeGerirContratos && (
                   <Button
                     variant="outline"
                     className="h-11 w-full"
@@ -385,7 +387,7 @@ function ContratosPage() {
                         >
                           <Eye /> Visualizar
                         </Button>
-                        {isAdmin && (
+                        {podeGerirContratos && (
                           <>
                             <Button
                               variant="ghost"
@@ -427,7 +429,7 @@ function ContratosPage() {
         onOpenChange={(open) => {
           if (!open) setContratoDetalheId(null)
         }}
-        podeEditar={isAdmin}
+        podeEditar={podeGerirContratos}
         onEditar={(contrato) => {
           setContratoDetalheId(null)
           setContratoAditivo(null)
@@ -440,7 +442,7 @@ function ContratosPage() {
         }}
       />
 
-      {isAdmin && (
+      {podeGerirContratos && (
         <>
           <AddContratoModal
             isOpen={modalAberto}

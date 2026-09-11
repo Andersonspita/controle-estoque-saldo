@@ -41,10 +41,10 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | GET | `/unidades-medida/` | Lookup de unidades de medida (sigla, nome, grupo, se a quantidade é inteira) |
 | GET | `/modalidades-licitacao/` | Lookup de modalidades (Pregão eletrônico, Dispensa, etc.) |
 | GET | `/contratos/` | Lista contratos com itens, `valor_contratado`/`saldo_monetario` por item e `saldo_atual` monetário do contrato |
-| POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN**. Cabeçalho: objeto, vigência, nº/modalidade da licitação, observação. Grava auditoria do usuário |
-| PATCH | `/contratos/{id}` | Edita cabeçalho e itens (**ADMIN**). Quantidade ≥ já baixado; item com baixa não pode ser removido. Auditoria do usuário |
-| POST | `/contratos/{id}/aditivo` | Aditivo seletivo (**ADMIN**): itens escolhidos recebem quantidade extra e, opcionalmente, novo valor unitário |
-| POST | `/contratos/{id}/arquivo` | Anexa/substitui o PDF do contrato (**ADMIN**) |
+| POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN** ou `pode_gerir_contratos`. Cabeçalho: objeto, vigência, nº/modalidade da licitação, observação. Grava auditoria do usuário |
+| PATCH | `/contratos/{id}` | Edita cabeçalho e itens (**ADMIN** ou `pode_gerir_contratos`). Quantidade ≥ já baixado; item com baixa não pode ser removido. Auditoria do usuário |
+| POST | `/contratos/{id}/aditivo` | Aditivo seletivo (**ADMIN** ou `pode_gerir_contratos`): itens escolhidos + **vigência do aditivo** (`data_inicio`/`data_fim`); grava `contrato_aditivos` |
+| POST | `/contratos/{id}/arquivo` | Anexa/substitui o PDF do contrato (**ADMIN** ou `pode_gerir_contratos`) |
 | GET | `/contratos/{id}/arquivo` | Download/visualização autenticada do PDF do contrato |
 | GET | `/contratos/previsao-consumo` | Dias restantes por item (taxa diária) + saldo monetário |
 | GET | `/notas-fiscais/` | Lista NFs (`tem_arquivo` indica se o PDF/XML está disponível; `criado_por` quando houver) |
@@ -74,7 +74,7 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 
 Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token>`, exceto login e health.
 
-**Perfis:** `OPERADOR` lista, importa NF, inclui NF manualmente, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato, aplica aditivo e consulta o **Log de usuários** (`/auditoria`).
+**Perfis:** `OPERADOR` lista, importa NF, inclui NF manualmente, baixa o PDF, confere vínculos e dá baixa. Com `pode_gerir_contratos`, também cria/edita/aditiva contratos. `ADMIN` faz o mesmo, gerencia usuários (flags `pode_estornar` e `pode_gerir_contratos`) e consulta o **Log de usuários** (`/auditoria`). Em **Configurações**, cada usuário vê as permissões liberadas (somente leitura).
 
 Cadastro de fornecedor: UF em select e municípios pela API do IBGE (`https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome`). ADMIN edita pelo botão na linha. Valores monetários na interface usam BRL (`R$ 1.234,56`). Tabelas no mobile rolam na horizontal.
 
@@ -82,9 +82,9 @@ Cadastro/edição de contrato: o **objeto** é o objeto do contrato. A tela pede
 
 Notas fiscais: a tela **Nova nota fiscal** oferece **Importar XML ou PDF** (`POST /notas-fiscais/importar`) e **Incluir manualmente** (`POST /notas-fiscais/`). A importação por arquivo permanece; a inclusão digitada exige contrato, número, data e ao menos um item vinculado ao contrato. Nas listas de vínculo manual o rótulo mostra **nome + valor unitário + saldo**. O modal de baixa rola (`max-h`) até **Confirmar baixa**. Create/import/edit/vínculos/baixa/estorno/exclusão registram o usuário em `log_auditoria` (baixa/estorno também em `movimentacoes`).
 
-A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`, `bg-card`, `text-foreground`, `border-input`). Modais de NF, contrato, aditivo e fornecedor seguem o mesmo padrão do modal de baixa (sem `bg-white` hardcoded). Status de vínculo NF→contrato usa `<Badge>` (`vinculoStatus.tsx`). Tema claro/escuro/sistema na sidebar em português (**Aparência**). Relatórios: a pré-visualização permanece em fundo branco (paridade com impressão A4), com rótulo explicativo no dark mode; **Cidade/UF** saiu do cabeçalho do documento (permanecem CNPJ/CPF e **Valor vigente**); filtros de vigência e objeto ficam em **Filtros avançados** retráteis. Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante e justificativa opcional. A tela **Log de usuários** lista o `log_auditoria` (data, usuário, operação, tabela, registro, detalhe, IP) e só aparece para ADMIN.
+A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`, `bg-card`, `text-foreground`, `border-input`). Modais de NF, contrato, aditivo e fornecedor seguem o mesmo padrão do modal de baixa (sem `bg-white` hardcoded). Status de vínculo NF→contrato usa `<Badge>` (`vinculoStatus.tsx`). Tema claro/escuro/sistema na sidebar em português (**Aparência**). Relatórios: a pré-visualização permanece em fundo branco (paridade com impressão A4), com rótulo explicativo no dark mode; **Cidade/UF** saiu do cabeçalho do documento (permanecem CNPJ/CPF e **Valor vigente**); a descrição do item **não** prefixa código; com aditivos, o relatório lista **Vigência do(s) aditivo(s)**; filtros de vigência e objeto ficam em **Filtros avançados** retráteis. Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante e justificativa opcional. A tela **Log de usuários** lista o `log_auditoria` (data, usuário, operação, tabela, registro, detalhe, IP) e só aparece para ADMIN.
 
-Na edição (**ADMIN**) o modal altera dados cadastrais e a quantidade/valor atuais. Para acrescentar quantidade em itens já existentes, o botão **Aditivo** abre outro modal: o usuário marca os itens, informa a quantidade extra (inteira em UN) e o valor unitário. A quantidade inicial do contrato não muda. OPERADOR recebe **403**.
+Na edição (**ADMIN** ou `pode_gerir_contratos`) o modal altera dados cadastrais e a quantidade/valor atuais. Para acrescentar quantidade em itens já existentes, o botão **Aditivo** abre outro modal: o usuário marca os itens, informa a quantidade extra (inteira em UN), o valor unitário e a **vigência do aditivo**. A quantidade inicial do contrato não muda. Sem permissão → **403**.
 
 ## 5. Como Executar os Testes
 
@@ -240,7 +240,7 @@ docker run --rm -v controle-estoque-saldo_uploads:/data -v "$BK":/backup alpine 
   tar czf /backup/uploads.tgz -C /data .
 ```
 
-Ponto de restauração no Git **antes** do CRUD de notas fiscais (estorno e exclusão): tag `backup-pre-crud-nf-20260904` (commit `942db02`). Tags anteriores: `backup-pre-leitura-danfe-pdf-20260904`, `backup-pre-relatorio-saldo-20260901`, `backup-pre-licitacao-obs-20260824`, `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos. Tag deste ciclo: `backup-pre-ajustes-nf-contrato-relatorio-20260911`.
+Ponto de restauração no Git **antes** do CRUD de notas fiscais (estorno e exclusão): tag `backup-pre-crud-nf-20260904` (commit `942db02`). Tags anteriores: `backup-pre-leitura-danfe-pdf-20260904`, `backup-pre-relatorio-saldo-20260901`, `backup-pre-licitacao-obs-20260824`, `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos. Tag deste ciclo: `backup-pre-rel2-rel4-cfg-20260911`. Migração `d5e9f1a2b803`.
 
 Atualizar para a versão nova (depois do backup):
 

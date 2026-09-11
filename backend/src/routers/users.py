@@ -28,6 +28,7 @@ class UserPublic(BaseModel):
     full_name: str | None = None
     perfil: str
     pode_estornar: bool = False
+    pode_gerir_contratos: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -45,6 +46,7 @@ class UserCreate(BaseModel):
     is_superuser: bool = False
     perfil: Literal["ADMIN", "OPERADOR"] | None = None
     pode_estornar: bool = False
+    pode_gerir_contratos: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -55,6 +57,7 @@ class UserUpdate(BaseModel):
     is_superuser: bool | None = None
     perfil: Literal["ADMIN", "OPERADOR"] | None = None
     pode_estornar: bool | None = None
+    pode_gerir_contratos: bool | None = None
 
 
 class UserUpdateMe(BaseModel):
@@ -80,6 +83,7 @@ def _to_public(user: Usuario) -> UserPublic:
         full_name=user.nome,
         perfil=(user.perfil or "").upper(),
         pode_estornar=is_admin(user) or bool(user.pode_estornar),
+        pode_gerir_contratos=is_admin(user) or bool(user.pode_gerir_contratos),
     )
 
 
@@ -205,6 +209,7 @@ async def create_user(
         perfil=perfil,
         ativo=user_in.is_active,
         pode_estornar=user_in.pode_estornar,
+        pode_gerir_contratos=user_in.pode_gerir_contratos,
     )
     db.add(user)
     await db.flush()
@@ -220,6 +225,7 @@ async def create_user(
             "perfil": user.perfil,
             "ativo": user.ativo,
             "pode_estornar": user.pode_estornar,
+            "pode_gerir_contratos": user.pode_gerir_contratos,
         },
         ip=get_client_ip(request),
     )
@@ -246,6 +252,7 @@ async def update_user(
         "perfil": user.perfil,
         "ativo": user.ativo,
         "pode_estornar": user.pode_estornar,
+        "pode_gerir_contratos": user.pode_gerir_contratos,
     }
 
     novo_perfil = _resolve_perfil(
@@ -276,6 +283,8 @@ async def update_user(
         user.ativo = user_in.is_active
     if user_in.pode_estornar is not None:
         user.pode_estornar = user_in.pode_estornar
+    if user_in.pode_gerir_contratos is not None:
+        user.pode_gerir_contratos = user_in.pode_gerir_contratos
     user.perfil = novo_perfil
 
     db.add(user)
@@ -292,6 +301,7 @@ async def update_user(
             "perfil": user.perfil,
             "ativo": user.ativo,
             "pode_estornar": user.pode_estornar,
+            "pode_gerir_contratos": user.pode_gerir_contratos,
             "senha_alterada": bool(user_in.password),
         },
         ip=get_client_ip(request),

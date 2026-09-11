@@ -63,6 +63,12 @@ export type RelatorioContrato = {
   fornecedor_estado?: string | null
   fornecedor_telefone?: string | null
   fornecedor_email?: string | null
+  aditivos?: {
+    id: number
+    data_inicio: string
+    data_fim: string
+    criado_em?: string | null
+  }[]
   itens: RelatorioItem[]
   totais: RelatorioTotais
 }
@@ -184,7 +190,6 @@ function TabelaItens({ contrato }: { contrato: RelatorioContrato }) {
                 >
                   <td className="rel-centro">{item.numero_item}</td>
                   <td>
-                    {item.codigo ? `${item.codigo} · ` : ""}
                     {item.descricao}
                     {item.marca ? (
                       <div className="rel-meta">Marca: {item.marca}</div>
@@ -298,6 +303,20 @@ function FolhaContrato({
             valor={formatarDataBR(contrato.data_fim)}
           />
         </div>
+        {(contrato.aditivos || []).length > 0 ? (
+          <div className="rel-grade">
+            <Campo
+              rotulo="Vigência do(s) aditivo(s)"
+              valor={(contrato.aditivos || [])
+                .map(
+                  (aditivo, indice) =>
+                    `${indice + 1}º: ${formatarDataBR(aditivo.data_inicio)} a ${formatarDataBR(aditivo.data_fim)}`,
+                )
+                .join(" · ")}
+              className="rel-campo--largo"
+            />
+          </div>
+        ) : null}
         <div className="rel-grade">
           <Campo
             rotulo="Licitação nº"
@@ -393,6 +412,14 @@ function FolhaConsolidada({ relatorio }: { relatorio: RelatorioSaldo }) {
                 <td className="rel-centro">
                   {formatarDataBR(contrato.data_inicio)} a{" "}
                   {formatarDataBR(contrato.data_fim)}
+                  {(contrato.aditivos || []).length > 0 ? (
+                    <div className="rel-meta">
+                      {(contrato.aditivos || []).length}{" "}
+                      {(contrato.aditivos || []).length === 1
+                        ? "aditivo"
+                        : "aditivos"}
+                    </div>
+                  ) : null}
                 </td>
                 <td className="rel-centro">{contrato.situacao}</td>
                 <td className="rel-num">

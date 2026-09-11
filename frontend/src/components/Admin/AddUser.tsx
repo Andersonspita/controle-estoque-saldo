@@ -50,6 +50,7 @@ const formSchema = z
     perfil: z.enum(["ADMIN", "OPERADOR"]),
     is_active: z.boolean(),
     pode_estornar: z.boolean(),
+    pode_gerir_contratos: z.boolean(),
   })
   .refine((data) => data.password === data.confirm_password, {
     message: "As senhas não coincidem",
@@ -75,6 +76,7 @@ const AddUser = () => {
       perfil: "OPERADOR",
       is_active: true,
       pode_estornar: false,
+      pode_gerir_contratos: false,
     },
   })
 
@@ -99,8 +101,11 @@ const AddUser = () => {
       perfil: data.perfil,
       is_superuser: data.perfil === "ADMIN",
       is_active: data.is_active,
-      // Campo novo no backend; o client gerado ainda não o tipa.
-      ...({ pode_estornar: data.pode_estornar } as Record<string, unknown>),
+      // Campos novos no backend; o client gerado ainda não os tipa.
+      ...({
+        pode_estornar: data.pode_estornar,
+        pode_gerir_contratos: data.pode_gerir_contratos,
+      } as Record<string, unknown>),
     })
   }
 
@@ -242,6 +247,32 @@ const AddUser = () => {
                       {form.watch("perfil") === "ADMIN"
                         ? "Administradores já têm essa permissão."
                         : "Sem isso, o usuário lança e edita notas, mas não desfaz baixas nem exclui."}
+                    </p>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pode_gerir_contratos"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={form.watch("perfil") === "ADMIN" || field.value}
+                          disabled={form.watch("perfil") === "ADMIN"}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Pode criar, editar e aditivar contratos
+                      </FormLabel>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {form.watch("perfil") === "ADMIN"
+                        ? "Administradores já têm essa permissão."
+                        : "Libera cadastro, edição, aditivo e PDF do contrato."}
                     </p>
                   </FormItem>
                 )}

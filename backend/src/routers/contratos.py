@@ -9,8 +9,8 @@ from typing import List
 from datetime import date
 
 from ..database.session import get_db
-from ..deps import get_current_active_user, require_admin, CurrentUser
-from ..database.models import Contrato, ItemContrato, Movimentacao
+from ..deps import get_current_active_user, require_gestao_contratos, CurrentUser
+from ..database.models import Contrato, ItemContrato, Movimentacao, ContratoAditivo
 from ..schemas import (
     ContratoCreate,
     ContratoUpdate,
@@ -48,7 +48,7 @@ def _resumo_contrato(contrato: Contrato, qtd_itens: int | None = None) -> dict:
     }
 
 
-@router.post("/", response_model=ContratoOut, dependencies=[Depends(require_admin)])
+@router.post("/", response_model=ContratoOut, dependencies=[Depends(require_gestao_contratos)])
 async def create_contrato(
     contrato: ContratoCreate,
     request: Request,
@@ -186,7 +186,7 @@ async def previsao_consumo_contratos(db: AsyncSession = Depends(get_db)):
     return previsoes_com_dias + previsoes_sem_dias
 
 
-@router.patch("/{contrato_id}", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_admin)])
+@router.patch("/{contrato_id}", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_gestao_contratos)])
 async def update_contrato(
     contrato_id: int,
     contrato_in: ContratoUpdate,
@@ -315,7 +315,7 @@ async def update_contrato(
         raise http_erro_interno(e)
 
 
-@router.post("/{contrato_id}/aditivo", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_admin)])
+@router.post("/{contrato_id}/aditivo", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_gestao_contratos)])
 async def aditivar_contrato(
     contrato_id: int,
     body: ContratoAditivoIn,
@@ -325,7 +325,11 @@ async def aditivar_contrato(
 ):
     stmt = (
         select(Contrato)
-        .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+        .options(
+            selectinload(Contrato.itens),
+            selectinload(Contrato.fornecedor),
+            selectinload(Contrato.aditivos),
+        )
         .where(Contrato.id == contrato_id)
     )
     result = await db.execute(stmt)
@@ -361,6 +365,20 @@ async def aditivar_contrato(
             "valor_unitario": item_in.valor_unitario,
         })
 
+    registro_aditivo = ContratoAditivo(
+        contrato_id=contrato.id,
+        data_inicio=body.data_inicio,
+        data_fim=body.data_fim,
+        usuario_id=current_user.id,
+    )
+    db.add(registro_aditivo)
+
+    # Prorroga a vigência do contrato quando o aditivo termina depois.
+    if contrato.data_fim is None or body.data_fim > contrato.data_fim:
+        contrato.data_fim = body.data_fim
+    if contrato.data_inicio is None:
+        contrato.data_inicio = body.data_inicio
+
     contrato.valor_total = valor_total_itens(contrato.itens)
 
     try:
@@ -370,13 +388,23 @@ async def aditivar_contrato(
             operacao="UPDATE",
             tabela="contratos",
             registro_id=str(contrato.id),
-            dados_novos={"operacao": "aditivo", "itens": aditivos, "valor_total": contrato.valor_total},
+            dados_novos={
+                "operacao": "aditivo",
+                "itens": aditivos,
+                "valor_total": contrato.valor_total,
+                "data_inicio": str(body.data_inicio),
+                "data_fim": str(body.data_fim),
+            },
             ip=get_client_ip(request),
         )
         await db.commit()
         result = await db.execute(
             select(Contrato)
-            .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+            .options(
+                selectinload(Contrato.itens),
+                selectinload(Contrato.fornecedor),
+                selectinload(Contrato.aditivos),
+            )
             .where(Contrato.id == contrato.id)
         )
         return result.scalar_one()
@@ -388,7 +416,7 @@ async def aditivar_contrato(
 @router.post(
     "/{contrato_id}/arquivo",
     response_model=ContratoDetalhadoOut,
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(require_gestao_contratos)],
 )
 async def enviar_arquivo_contrato(
     contrato_id: int,
