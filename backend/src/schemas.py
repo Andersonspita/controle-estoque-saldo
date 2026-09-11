@@ -520,3 +520,19 @@ class RelatorioSaldoOut(BaseModel):
     gerado_em: datetime
     contratos: List[RelatorioContratoSaldoOut] = []
     totais: RelatorioTotaisOut
+
+
+class LogAuditoriaOut(BaseModel):
+    id: int
+    usuario_id: Optional[int] = None
+    usuario_nome: Optional[str] = None
+    usuario_email: Optional[str] = None
+    operacao: str
+    tabela: str
+    registro_id: str
+    dados_anteriores: Optional[dict] = None
+    dados_novos: Optional[dict] = None
+    data_hora: datetime
+    ip: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)

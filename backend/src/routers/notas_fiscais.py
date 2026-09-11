@@ -177,6 +177,8 @@ async def baixar_arquivo_nf(nf_id: int, db: AsyncSession = Depends(get_db)):
 async def atualizar_vinculos_nf(
     nf_id: int,
     body: AtualizarVinculosRequest,
+    request: Request,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     """Atualiza os vínculos NF × item do contrato em uma nota ainda não baixada."""
@@ -212,6 +214,10 @@ async def atualizar_vinculos_nf(
 
     ids_contrato = {item.id for item in contrato.itens}
     itens_por_id = {item.id: item for item in nf.itens}
+    anteriores = [
+        {"id": item.id, "item_contrato_id": item.item_contrato_id}
+        for item in nf.itens
+    ]
 
     for vinculo in body.itens:
         item_nf = itens_por_id.get(vinculo.id)
@@ -229,6 +235,22 @@ async def atualizar_vinculos_nf(
         item_nf.status_identificacao = "MANUAL"
 
     nf.status = "Aguardando conferência"
+    await registrar_auditoria(
+        db,
+        usuario_id=current_user.id,
+        operacao="UPDATE",
+        tabela="notas_fiscais",
+        registro_id=str(nf.id),
+        dados_anteriores={"operacao": "vinculos", "itens": anteriores},
+        dados_novos={
+            "operacao": "vinculos",
+            "itens": [
+                {"id": v.id, "item_contrato_id": v.item_contrato_id} for v in body.itens
+            ],
+            "status": nf.status,
+        },
+        ip=get_client_ip(request),
+    )
     await db.commit()
 
     stmt = select(NotaFiscal).options(selectinload(NotaFiscal.itens)).where(NotaFiscal.id == nf.id)
@@ -294,6 +316,7 @@ from ..schemas import BaixaRequest, MovimentacaoOut
 async def baixar_nota_fiscal(
     nf_id: int,
     baixa_req: BaixaRequest,
+    request: Request,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db)
 ):
@@ -301,7 +324,13 @@ async def baixar_nota_fiscal(
     Efetua a baixa da nota fiscal, deduzindo os itens do contrato e gerando as movimentações.
     Operação 100% transacional ACID (Tudo ou Nada).
     """
-    movimentacoes = await efetuar_baixa_nf(nf_id, baixa_req, db, usuario_id=current_user.id)
+    movimentacoes = await efetuar_baixa_nf(
+        nf_id,
+        baixa_req,
+        db,
+        usuario_id=current_user.id,
+        ip=get_client_ip(request),
+    )
     return movimentacoes
 
 
@@ -339,6 +368,7 @@ async def editar_nota_fiscal(
 async def estornar_nota_fiscal(
     nf_id: int,
     body: EstornoRequest,
+    request: Request,
     current_user: RequireEstorno,
     db: AsyncSession = Depends(get_db),
 ):
@@ -348,7 +378,11 @@ async def estornar_nota_fiscal(
     baixada de novo.
     """
     return await estornar_baixa_nf(
-        nf_id, body.justificativa, db, usuario_id=current_user.id
+        nf_id,
+        body.justificativa,
+        db,
+        usuario_id=current_user.id,
+        ip=get_client_ip(request),
     )
 
 

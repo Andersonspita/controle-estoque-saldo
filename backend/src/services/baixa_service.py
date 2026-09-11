@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
 from typing import List
 
+from ..core.audit import registrar_auditoria
 from ..database.models import NotaFiscal, ItemContrato, Movimentacao
 from ..schemas import BaixaRequest
 from ..http_errors import MENSAGEM_GENERICA, logger
@@ -14,6 +15,7 @@ async def efetuar_baixa_nf(
     baixa_req: BaixaRequest, 
     db: AsyncSession,
     usuario_id: int,
+    ip: str | None = None,
 ) -> List[Movimentacao]:
     
     # 1. Busca a NF bloqueando a linha (FOR UPDATE) para evitar baixa duplicada
@@ -73,6 +75,23 @@ async def efetuar_baixa_nf(
 
     # 3. Atualizar Status da NF
     nf.status = "Baixada"
+
+    await registrar_auditoria(
+        db,
+        usuario_id=usuario_id,
+        operacao="UPDATE",
+        tabela="notas_fiscais",
+        registro_id=str(nf.id),
+        dados_novos={
+            "operacao": "baixa",
+            "numero": nf.numero,
+            "serie": nf.serie,
+            "status": nf.status,
+            "qtd_itens": len(movimentacoes_geradas),
+            "justificativa": justificativa,
+        },
+        ip=ip,
+    )
 
     try:
         await db.commit()

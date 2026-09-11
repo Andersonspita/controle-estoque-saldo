@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 11/09/2026 — auditoria de usuário em NF/contrato; vínculo com valor unitário; scroll da baixa; remoção do Objeto da Licitação na UI; PDF do contrato (anexo/visualizar/download); valor total por item; relatório sem cidade e com filtros avançados retráteis
+> **Última Atualização:** 11/09/2026 — log de auditoria completo (NF, contratos, fornecedores, usuários, baixa/estorno/vínculos) + tela **Log de usuários** só para ADMIN
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -55,8 +55,8 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - **Valores monetários:** campos de valor (unitário, totais, saldos) são exibidos e digitados em BRL (`R$ 1.234,56`). Quantidade permanece numérica. A API devolve `valor_contratado` e `saldo_monetario` em cada item e `saldo_atual` monetário no contrato detalhado.
 - **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` abate o saldo do item do contrato e grava movimentação (justificativa opcional). Bloqueia a linha da NF (`FOR UPDATE`) para evitar baixa duplicada. O `usuario_id` vem do token JWT. Não há destino físico. O modal de baixa tem scroll (`max-h-[90vh]`) para chegar em **Confirmar baixa** com muitos itens.
 - **Vínculo NF × contrato:** o rótulo do select usa `rotuloItemContrato` — descrição (+ marca) + **valor unitário** + **saldo**.
-- **Auditoria de usuário:** criação/importação/edição de NF preenchem `criado_por` (na criação) e `log_auditoria`; baixa/estorno usam `Movimentacao.usuario_id`; exclusão usa `excluida_por` + auditoria. Contratos (create/update/aditivo/arquivo) gravam `log_auditoria`.
-- **Fornecedor:** o campo `cnpj` aceita **CPF (11) ou CNPJ (14)** com dígitos verificadores; a UI rotula **CPF/CNPJ**. UF em select; municípios vêm da API do IBGE (`/estados/{UF}/municipios`). Unicidade compara só os dígitos. Documentos já gravados não são revalidados na listagem. **ADMIN** cria e edita (`PATCH /api/v1/fornecedores/{id}`).
+- **Auditoria de usuário:** inclusões/alterações/exclusões gravam `log_auditoria` (usuário, operação, tabela, registro, dados e IP) para NF (create/import/edit/vínculos/baixa/estorno/exclusão), contratos (create/update/aditivo/arquivo), fornecedores (create/update) e usuários (create/update/delete). Baixa/estorno também mantêm `Movimentacao.usuario_id`. Tela **Log de usuários** (`/auditoria`, `GET /api/v1/auditoria/`) é **somente ADMIN**.
+- **Fornecedor:** o campo `cnpj` aceita **CPF (11) ou CNPJ (14)** com dígitos verificadores; a UI rotula **CPF/CNPJ**. UF em select; municípios vêm da API do IBGE (`/estados/{UF}/municipios`). Unicidade compara só os dígitos. Documentos já gravados não são revalidados na listagem. **ADMIN** cria e edita (`PATCH /api/v1/fornecedores/{id}`); create/update gravam auditoria.
 - **Arquivo da NF:** a importação grava o PDF/XML em disco com nome sanitizado (sem path traversal); a listagem oferece **Baixar PDF** (`GET /api/v1/notas-fiscais/{id}/arquivo`), inclusive após a baixa. A API devolve `tem_arquivo`, não o caminho interno do disco.
 - **Grids no mobile:** tabelas rolam na horizontal (`overflow-x-auto`, `min-w-0` no layout). Cabeçalhos e ações (editar, conferir, baixa) não ficam cortados.
 
@@ -72,9 +72,9 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - Frontend (`frontend/src/services/api.ts`) envia `Authorization: Bearer` a partir de `localStorage.access_token`. A origem da API ignora um `/api/v1` extra no `.env`, para o login (`/login/access-token` e `/users/me`) e o axios (`/api/v1/...`) apontarem para o mesmo backend.
 - Correção: `/users/me` deixou de usar uma SECRET_KEY dummy (que caía no primeiro usuário do banco).
 - **`GET /users/me`** devolve `perfil` (`ADMIN` ou `OPERADOR`) e `is_superuser` (`true` só para ADMIN).
-- **ADMIN:** cadastra usuários (tela Admin), fornecedores e contratos; edita contratos e fornecedores; aplica aditivo nos itens do contrato.
-- **OPERADOR:** consulta cadastros, importa/parseia NF, inclui NF digitada, vincula itens, baixa PDF da NF e dá baixa. POST/PATCH de cadastro (incluindo usuários, contratos, fornecedores e aditivo) → **403**.
-- **Usuários (ADMIN):** `GET/POST /users/`, `PATCH/DELETE /users/{id}`. Perfil `ADMIN` ou `OPERADOR`; não permite excluir a própria conta nem remover o último administrador. `PATCH /users/me` e `PATCH /users/me/password` atualizam dados da conta logada.
+- **ADMIN:** cadastra usuários (tela Admin), fornecedores e contratos; edita contratos e fornecedores; aplica aditivo; consulta o **Log de usuários**.
+- **OPERADOR:** consulta cadastros, importa/parseia NF, inclui NF digitada, vincula itens, baixa PDF da NF e dá baixa. POST/PATCH de cadastro (incluindo usuários, contratos, fornecedores e aditivo) e a tela/API de auditoria → **403**.
+- **Usuários (ADMIN):** `GET/POST /users/`, `PATCH/DELETE /users/{id}` (com auditoria). Perfil `ADMIN` ou `OPERADOR`; não permite excluir a própria conta nem remover o último administrador. `PATCH /users/me` e `PATCH /users/me/password` atualizam dados da conta logada.
 
 ## 7. E2E autenticado (Playwright)
 
@@ -86,7 +86,9 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo (11/09/2026): **auditoria de usuário** (NF create/import/edit + contratos create/update/aditivo/arquivo); **rótulo de vínculo** com valor unitário; **scroll no modal de baixa**; **remoção do Objeto da Licitação na UI**; **PDF do contrato** (upload/visualizar/download); **valor total por item** no formulário; relatório **sem Cidade/UF** e com **filtros avançados retráteis**. Backup: tag `backup-pre-ajustes-nf-contrato-relatorio-20260911`. Migração `c4d8e2a9f701`.
+Concluído neste ciclo (11/09/2026): **log de auditoria ampliado** (baixa/estorno/vínculos NF, fornecedores e usuários) + tela **Log de usuários** (`/auditoria`, só ADMIN). Backup: tag `backup-pre-auditoria-tela-admin-20260911`.
+
+Ciclo anterior: **auditoria de usuário** (NF create/import/edit + contratos create/update/aditivo/arquivo); **rótulo de vínculo** com valor unitário; **scroll no modal de baixa**; **remoção do Objeto da Licitação na UI**; **PDF do contrato** (upload/visualizar/download); **valor total por item** no formulário; relatório **sem Cidade/UF** e com **filtros avançados retráteis**. Backup: tag `backup-pre-ajustes-nf-contrato-relatorio-20260911`. Migração `c4d8e2a9f701`.
 
 Ciclo anterior: **modelo oficial de planilha de itens** (colunas Item / Descrição / Unidade / Quantidade / Marca / Valor_unitário / Observação; importação só `.xlsx` do modelo; formulários e API com `marca` e `observacao` no item). Backup: tag `backup-pre-modelo-itens-planilha-20260910`. Migração `a1c2e3f4b506`.
 

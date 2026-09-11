@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from ..core.audit import registrar_auditoria
 from ..database.models import (
     ItemContrato,
     Movimentacao,
@@ -48,6 +49,7 @@ async def estornar_baixa_nf(
     justificativa: str,
     db: AsyncSession,
     usuario_id: int,
+    ip: str | None = None,
 ) -> List[Movimentacao]:
     """
     Desfaz a baixa de uma nota: devolve o saldo ao contrato e registra
@@ -110,6 +112,23 @@ async def estornar_baixa_nf(
         estornos.append(estorno)
 
     nf.status = STATUS_ESTORNADA
+
+    await registrar_auditoria(
+        db,
+        usuario_id=usuario_id,
+        operacao="UPDATE",
+        tabela="notas_fiscais",
+        registro_id=str(nf.id),
+        dados_novos={
+            "operacao": "estorno",
+            "numero": nf.numero,
+            "serie": nf.serie,
+            "status": nf.status,
+            "qtd_itens": len(estornos),
+            "justificativa": justificativa,
+        },
+        ip=ip,
+    )
 
     try:
         await db.commit()

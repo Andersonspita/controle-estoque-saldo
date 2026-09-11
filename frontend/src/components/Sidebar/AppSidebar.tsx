@@ -1,4 +1,5 @@
 import {
+  ClipboardList,
   FileBarChart,
   FileSignature,
   FileText,
@@ -33,7 +34,11 @@ export function AppSidebar() {
   const { user: currentUser, isAdmin } = useAuth()
 
   const items = isAdmin
-    ? [...baseItems, { icon: Users, title: "Admin", path: "/admin" }]
+    ? [
+        ...baseItems,
+        { icon: ClipboardList, title: "Log de usuários", path: "/auditoria" },
+        { icon: Users, title: "Admin", path: "/admin" },
+      ]
     : baseItems
 
   return (

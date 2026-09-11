@@ -1,6 +1,6 @@
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from sqlalchemy.future import select
 
 from app.core.security import get_password_hash, verify_password
 
+from ..core.audit import get_client_ip, registrar_auditoria
 from ..database.models import Usuario
 from ..database.session import get_db
 from ..deps import CurrentUser, RequireAdmin, get_current_active_user, is_admin, require_admin
@@ -188,6 +189,8 @@ async def read_users(
 @router.post("/", response_model=UserPublic, dependencies=[Depends(require_admin)])
 async def create_user(
     user_in: UserCreate,
+    request: Request,
+    current_user: RequireAdmin,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Any:
     if await _email_em_uso(db, user_in.email):
@@ -204,6 +207,22 @@ async def create_user(
         pode_estornar=user_in.pode_estornar,
     )
     db.add(user)
+    await db.flush()
+    await registrar_auditoria(
+        db,
+        usuario_id=current_user.id,
+        operacao="INSERT",
+        tabela="usuarios",
+        registro_id=str(user.id),
+        dados_novos={
+            "email": user.email,
+            "nome": user.nome,
+            "perfil": user.perfil,
+            "ativo": user.ativo,
+            "pode_estornar": user.pode_estornar,
+        },
+        ip=get_client_ip(request),
+    )
     await db.commit()
     await db.refresh(user)
     return _to_public(user)
@@ -213,11 +232,21 @@ async def create_user(
 async def update_user(
     user_id: int,
     user_in: UserUpdate,
+    request: Request,
+    current_user: RequireAdmin,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Any:
     user = await _get_usuario(db, user_id)
     if user_in.email and await _email_em_uso(db, user_in.email, exclude_id=user.id):
         raise HTTPException(status_code=409, detail="Já existe um usuário com este e-mail")
+
+    anteriores = {
+        "email": user.email,
+        "nome": user.nome,
+        "perfil": user.perfil,
+        "ativo": user.ativo,
+        "pode_estornar": user.pode_estornar,
+    }
 
     novo_perfil = _resolve_perfil(
         perfil=user_in.perfil,
@@ -250,6 +279,23 @@ async def update_user(
     user.perfil = novo_perfil
 
     db.add(user)
+    await registrar_auditoria(
+        db,
+        usuario_id=current_user.id,
+        operacao="UPDATE",
+        tabela="usuarios",
+        registro_id=str(user.id),
+        dados_anteriores=anteriores,
+        dados_novos={
+            "email": user.email,
+            "nome": user.nome,
+            "perfil": user.perfil,
+            "ativo": user.ativo,
+            "pode_estornar": user.pode_estornar,
+            "senha_alterada": bool(user_in.password),
+        },
+        ip=get_client_ip(request),
+    )
     await db.commit()
     await db.refresh(user)
     return _to_public(user)
@@ -258,6 +304,7 @@ async def update_user(
 @router.delete("/{user_id}", response_model=Message, dependencies=[Depends(require_admin)])
 async def delete_user(
     user_id: int,
+    request: Request,
     current_user: RequireAdmin,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Any:
@@ -269,6 +316,20 @@ async def delete_user(
             status_code=400,
             detail="Não é possível excluir o último administrador",
         )
+    await registrar_auditoria(
+        db,
+        usuario_id=current_user.id,
+        operacao="DELETE",
+        tabela="usuarios",
+        registro_id=str(user.id),
+        dados_anteriores={
+            "email": user.email,
+            "nome": user.nome,
+            "perfil": user.perfil,
+            "ativo": user.ativo,
+        },
+        ip=get_client_ip(request),
+    )
     db.delete(user)
     await db.commit()
     return Message(message="Usuário excluído")

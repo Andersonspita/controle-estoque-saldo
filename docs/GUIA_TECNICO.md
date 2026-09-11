@@ -53,35 +53,36 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | POST | `/notas-fiscais/vincular-itens/{contrato_id}` | Sugere vínculo item NF → item do contrato |
 | POST | `/notas-fiscais/importar` | Grava NF + itens (vínculo obrigatório) e o arquivo em disco; registra `criado_por` e log de auditoria |
 | POST | `/notas-fiscais/` | Cadastra NF **manualmente** (JSON, sem arquivo). Mesmas regras de vínculo; XML/PDF continua em `/importar`. Auditoria |
-| PATCH | `/notas-fiscais/{id}/vinculos` | Ajusta vínculos NF × contrato em nota ainda não baixada |
+| PATCH | `/notas-fiscais/{id}/vinculos` | Ajusta vínculos NF × contrato em nota ainda não baixada; auditoria |
 | PUT | `/notas-fiscais/{id}` | Edita NF ainda não baixada; auditoria do usuário |
 | GET | `/notas-fiscais/{id}/arquivo` | Download autenticado do PDF/XML importado |
-| POST | `/notas-fiscais/{id}/baixar` | Baixa saldo do contrato (usuário vem do JWT; justificativa opcional) |
-| POST | `/notas-fiscais/{id}/estornar` | Estorna baixa (**ADMIN** ou `pode_estornar`) |
+| POST | `/notas-fiscais/{id}/baixar` | Baixa saldo do contrato (usuário JWT + `log_auditoria` + movimentação) |
+| POST | `/notas-fiscais/{id}/estornar` | Estorna baixa (**ADMIN** ou `pode_estornar`); auditoria + movimentação |
 | DELETE | `/notas-fiscais/{id}` | Exclusão lógica (lixeira/histórico); auditoria |
-| POST | `/fornecedores/` | Cria fornecedor (**ADMIN**). Campo `cnpj` aceita CPF (11 dígitos) ou CNPJ (14); grava formatado |
-| PATCH | `/fornecedores/{id}` | Edita fornecedor (**ADMIN**) |
+| POST | `/fornecedores/` | Cria fornecedor (**ADMIN**). Campo `cnpj` aceita CPF (11 dígitos) ou CNPJ (14); grava formatado; auditoria |
+| PATCH | `/fornecedores/{id}` | Edita fornecedor (**ADMIN**); auditoria |
+| GET | `/auditoria/` | Lista `log_auditoria` (**ADMIN**). Filtros: `tabela`, `operacao`, `usuario_id`, `skip`, `limit` |
 | POST | `/login/access-token` | Login (público). Form `username` + `password`. 5 falhas / 15 min → **429** |
 | GET | `/users/me` | Usuário logado (`perfil`, `is_superuser`) |
 | PATCH | `/users/me` | Atualiza nome/e-mail da conta logada |
 | PATCH | `/users/me/password` | Troca a senha da conta logada |
 | GET | `/users/` | Lista usuários (`ADMIN`) |
-| POST | `/users/` | Cria usuário (`ADMIN`). Corpo: `email`, `password`, `full_name`, `perfil` (`ADMIN`/`OPERADOR`), `is_active` |
-| PATCH | `/users/{id}` | Atualiza usuário e perfil (`ADMIN`) |
-| DELETE | `/users/{id}` | Exclui usuário (`ADMIN`; não exclui a própria conta nem o último ADMIN) |
+| POST | `/users/` | Cria usuário (`ADMIN`). Corpo: `email`, `password`, `full_name`, `perfil` (`ADMIN`/`OPERADOR`), `is_active`. Auditoria |
+| PATCH | `/users/{id}` | Atualiza usuário e perfil (`ADMIN`); auditoria |
+| DELETE | `/users/{id}` | Exclui usuário (`ADMIN`; não exclui a própria conta nem o último ADMIN); auditoria |
 | GET | `/health` | Health check (público) |
 
 Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token>`, exceto login e health.
 
-**Perfis:** `OPERADOR` lista, importa NF, inclui NF manualmente, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato e aplica aditivo (`require_admin` → 403 para os demais).
+**Perfis:** `OPERADOR` lista, importa NF, inclui NF manualmente, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato, aplica aditivo e consulta o **Log de usuários** (`/auditoria`).
 
 Cadastro de fornecedor: UF em select e municípios pela API do IBGE (`https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome`). ADMIN edita pelo botão na linha. Valores monetários na interface usam BRL (`R$ 1.234,56`). Tabelas no mobile rolam na horizontal.
 
 Cadastro/edição de contrato: o **objeto** é o objeto do contrato. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é derivado da vigência inicial. Também há **número da licitação**, **modalidade** (select; `GET /modalidades-licitacao/`) e **observação** (não há mais campo “objeto da licitação” na UI). Em cada item aparece o **valor total** (quantidade × unitário) para comparar com o contrato. É possível **anexar o PDF do contrato** no cadastro/edição (`POST /contratos/{id}/arquivo`), com **Visualizar** e **Download**. Botão **Visualizar** na lista abre o painel de detalhe. Itens seguem o modelo oficial de planilha: **Item**, **Descrição**, **Unidade**, **Quantidade**, **Marca**, **Valor_unitário** e **Observação**. Podem ser digitados ou importados só pelo `.xlsx` do modelo (`frontend/public/modelo-itens-contrato.xlsx` — botão **Baixar modelo**). Cabeçalhos fora do modelo são rejeitados. Números no formato BR (`1.234,56`) são aceitos. Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON. `GET /unidades-medida/` devolve o lookup de unidades.
 
-Notas fiscais: a tela **Nova nota fiscal** oferece **Importar XML ou PDF** (`POST /notas-fiscais/importar`) e **Incluir manualmente** (`POST /notas-fiscais/`). A importação por arquivo permanece; a inclusão digitada exige contrato, número, data e ao menos um item vinculado ao contrato. Nas listas de vínculo manual o rótulo mostra **nome + valor unitário + saldo**. O modal de baixa rola (`max-h`) até **Confirmar baixa**. Create/import/edit/baixa/estorno/exclusão registram o usuário (`criado_por`, `Movimentacao.usuario_id` ou `log_auditoria`).
+Notas fiscais: a tela **Nova nota fiscal** oferece **Importar XML ou PDF** (`POST /notas-fiscais/importar`) e **Incluir manualmente** (`POST /notas-fiscais/`). A importação por arquivo permanece; a inclusão digitada exige contrato, número, data e ao menos um item vinculado ao contrato. Nas listas de vínculo manual o rótulo mostra **nome + valor unitário + saldo**. O modal de baixa rola (`max-h`) até **Confirmar baixa**. Create/import/edit/vínculos/baixa/estorno/exclusão registram o usuário em `log_auditoria` (baixa/estorno também em `movimentacoes`).
 
-A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`, `bg-card`, `text-foreground`, `border-input`). Modais de NF, contrato, aditivo e fornecedor seguem o mesmo padrão do modal de baixa (sem `bg-white` hardcoded). Status de vínculo NF→contrato usa `<Badge>` (`vinculoStatus.tsx`). Tema claro/escuro/sistema na sidebar em português (**Aparência**). Relatórios: a pré-visualização permanece em fundo branco (paridade com impressão A4), com rótulo explicativo no dark mode; **Cidade/UF** saiu do cabeçalho do documento (permanecem CNPJ/CPF e **Valor vigente**); filtros de vigência e objeto ficam em **Filtros avançados** retráteis. Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante e justificativa opcional.
+A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`, `bg-card`, `text-foreground`, `border-input`). Modais de NF, contrato, aditivo e fornecedor seguem o mesmo padrão do modal de baixa (sem `bg-white` hardcoded). Status de vínculo NF→contrato usa `<Badge>` (`vinculoStatus.tsx`). Tema claro/escuro/sistema na sidebar em português (**Aparência**). Relatórios: a pré-visualização permanece em fundo branco (paridade com impressão A4), com rótulo explicativo no dark mode; **Cidade/UF** saiu do cabeçalho do documento (permanecem CNPJ/CPF e **Valor vigente**); filtros de vigência e objeto ficam em **Filtros avançados** retráteis. Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante e justificativa opcional. A tela **Log de usuários** lista o `log_auditoria` (data, usuário, operação, tabela, registro, detalhe, IP) e só aparece para ADMIN.
 
 Na edição (**ADMIN**) o modal altera dados cadastrais e a quantidade/valor atuais. Para acrescentar quantidade em itens já existentes, o botão **Aditivo** abre outro modal: o usuário marca os itens, informa a quantidade extra (inteira em UN) e o valor unitário. A quantidade inicial do contrato não muda. OPERADOR recebe **403**.
 

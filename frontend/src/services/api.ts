@@ -259,3 +259,30 @@ export const movimentacoesService = {
     return response.data;
   }
 };
+
+export type LogAuditoria = {
+  id: number;
+  usuario_id?: number | null;
+  usuario_nome?: string | null;
+  usuario_email?: string | null;
+  operacao: string;
+  tabela: string;
+  registro_id: string;
+  dados_anteriores?: Record<string, unknown> | null;
+  dados_novos?: Record<string, unknown> | null;
+  data_hora: string;
+  ip?: string | null;
+};
+
+export const auditoriaService = {
+  listar: async (params?: {
+    skip?: number;
+    limit?: number;
+    tabela?: string;
+    operacao?: string;
+    usuario_id?: number;
+  }): Promise<LogAuditoria[]> => {
+    const response = await api.get("/auditoria/", { params });
+    return response.data;
+  },
+};
