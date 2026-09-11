@@ -51,7 +51,7 @@ export const notasFiscaisService = {
     return response.data
   },
 
-  baixar: async (nfId: number, baixaReq: { justificativa?: string; almoxarifado_id?: number }) => {
+  baixar: async (nfId: number, baixaReq: { justificativa?: string } = {}) => {
     const response = await api.post(`/notas-fiscais/${nfId}/baixar`, baixaReq);
     return response.data;
   },
@@ -118,6 +118,26 @@ export const notasFiscaisService = {
     const response = await api.patch(`/notas-fiscais/${nfId}/vinculos`, { itens });
     return response.data;
   },
+
+  atualizar: async (nfId: number, dados: Record<string, unknown>) => {
+    const response = await api.put(`/notas-fiscais/${nfId}`, dados);
+    return response.data;
+  },
+
+  estornar: async (nfId: number, justificativa: string) => {
+    const response = await api.post(`/notas-fiscais/${nfId}/estornar`, { justificativa });
+    return response.data;
+  },
+
+  excluir: async (nfId: number, motivo: string) => {
+    const response = await api.delete(`/notas-fiscais/${nfId}`, { data: { motivo } });
+    return response.data;
+  },
+
+  listarHistorico: async () => {
+    const response = await api.get("/notas-fiscais/historico");
+    return response.data;
+  },
 };
 
 export const unidadesMedidaService = {
@@ -155,9 +175,60 @@ export const contratosService = {
     id: number,
     dados: {
       itens: { item_id: number; quantidade_aditivada: number; valor_unitario?: number }[];
+      data_inicio: string;
+      data_fim: string;
     },
   ) => {
     const response = await api.post(`/contratos/${id}/aditivo`, dados);
+    return response.data;
+  },
+  enviarArquivo: async (id: number, arquivo: File) => {
+    const form = new FormData();
+    form.append("arquivo", arquivo);
+    const response = await api.post(`/contratos/${id}/arquivo`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
+  downloadArquivo: async (contrato: { id: number; numero?: string; ano?: number }) => {
+    const response = await api.get(`/contratos/${contrato.id}/arquivo`, {
+      responseType: "blob",
+    });
+    const disposition = String(response.headers["content-disposition"] || "");
+    const match = disposition.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
+    const nomeHeader = match?.[1] ? decodeURIComponent(match[1].replace(/"/g, "")) : "";
+    const nome =
+      nomeHeader ||
+      `contrato-${contrato.numero || contrato.id}${contrato.ano ? `-${contrato.ano}` : ""}.pdf`;
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nome;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+  abrirArquivo: async (contrato: { id: number }) => {
+    const response = await api.get(`/contratos/${contrato.id}/arquivo`, {
+      responseType: "blob",
+    });
+    const url = URL.createObjectURL(
+      new Blob([response.data], { type: "application/pdf" }),
+    );
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
+};
+
+export const relatoriosService = {
+  saldoContratos: async (params: {
+    contrato_id?: number
+    fornecedor_id?: number
+    situacao?: string
+    vigencia_inicio?: string
+    vigencia_fim?: string
+    objeto?: string
+  } = {}) => {
+    const response = await api.get("/relatorios/saldo-contratos", { params });
     return response.data;
   },
 };
@@ -191,21 +262,29 @@ export const movimentacoesService = {
   }
 };
 
-export const almoxarifadosService = {
-  listar: async () => {
-    const response = await api.get("/almoxarifados/");
-    return response.data;
-  },
-  detalhar: async (id: number) => {
-    const response = await api.get(`/almoxarifados/${id}`);
-    return response.data;
-  },
-  criar: async (dados: any) => {
-    const response = await api.post("/almoxarifados/", dados);
-    return response.data;
-  },
-  atualizar: async (id: number, dados: any) => {
-    const response = await api.patch(`/almoxarifados/${id}`, dados);
+export type LogAuditoria = {
+  id: number;
+  usuario_id?: number | null;
+  usuario_nome?: string | null;
+  usuario_email?: string | null;
+  operacao: string;
+  tabela: string;
+  registro_id: string;
+  dados_anteriores?: Record<string, unknown> | null;
+  dados_novos?: Record<string, unknown> | null;
+  data_hora: string;
+  ip?: string | null;
+};
+
+export const auditoriaService = {
+  listar: async (params?: {
+    skip?: number;
+    limit?: number;
+    tabela?: string;
+    operacao?: string;
+    usuario_id?: number;
+  }): Promise<LogAuditoria[]> => {
+    const response = await api.get("/auditoria/", { params });
     return response.data;
   },
 };

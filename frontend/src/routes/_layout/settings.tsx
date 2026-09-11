@@ -34,7 +34,8 @@ function UserSettings() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
         <p className="text-muted-foreground">
-          Atualize seus dados de acesso. A exclusão de conta não está disponível.
+          Atualize seus dados de acesso e consulte as permissões liberadas pelo
+          administrador.
         </p>
       </div>
 

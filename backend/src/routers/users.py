@@ -1,6 +1,6 @@
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from sqlalchemy.future import select
 
 from app.core.security import get_password_hash, verify_password
 
+from ..core.audit import get_client_ip, registrar_auditoria
 from ..database.models import Usuario
 from ..database.session import get_db
 from ..deps import CurrentUser, RequireAdmin, get_current_active_user, is_admin, require_admin
@@ -26,6 +27,8 @@ class UserPublic(BaseModel):
     is_superuser: bool = False
     full_name: str | None = None
     perfil: str
+    pode_estornar: bool = False
+    pode_gerir_contratos: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -42,6 +45,8 @@ class UserCreate(BaseModel):
     is_active: bool = True
     is_superuser: bool = False
     perfil: Literal["ADMIN", "OPERADOR"] | None = None
+    pode_estornar: bool = False
+    pode_gerir_contratos: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -51,6 +56,8 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
     is_superuser: bool | None = None
     perfil: Literal["ADMIN", "OPERADOR"] | None = None
+    pode_estornar: bool | None = None
+    pode_gerir_contratos: bool | None = None
 
 
 class UserUpdateMe(BaseModel):
@@ -75,6 +82,8 @@ def _to_public(user: Usuario) -> UserPublic:
         is_superuser=is_admin(user),
         full_name=user.nome,
         perfil=(user.perfil or "").upper(),
+        pode_estornar=is_admin(user) or bool(user.pode_estornar),
+        pode_gerir_contratos=is_admin(user) or bool(user.pode_gerir_contratos),
     )
 
 
@@ -184,6 +193,8 @@ async def read_users(
 @router.post("/", response_model=UserPublic, dependencies=[Depends(require_admin)])
 async def create_user(
     user_in: UserCreate,
+    request: Request,
+    current_user: RequireAdmin,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Any:
     if await _email_em_uso(db, user_in.email):
@@ -197,8 +208,27 @@ async def create_user(
         senha_hash=get_password_hash(user_in.password),
         perfil=perfil,
         ativo=user_in.is_active,
+        pode_estornar=user_in.pode_estornar,
+        pode_gerir_contratos=user_in.pode_gerir_contratos,
     )
     db.add(user)
+    await db.flush()
+    await registrar_auditoria(
+        db,
+        usuario_id=current_user.id,
+        operacao="INSERT",
+        tabela="usuarios",
+        registro_id=str(user.id),
+        dados_novos={
+            "email": user.email,
+            "nome": user.nome,
+            "perfil": user.perfil,
+            "ativo": user.ativo,
+            "pode_estornar": user.pode_estornar,
+            "pode_gerir_contratos": user.pode_gerir_contratos,
+        },
+        ip=get_client_ip(request),
+    )
     await db.commit()
     await db.refresh(user)
     return _to_public(user)
@@ -208,11 +238,22 @@ async def create_user(
 async def update_user(
     user_id: int,
     user_in: UserUpdate,
+    request: Request,
+    current_user: RequireAdmin,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Any:
     user = await _get_usuario(db, user_id)
     if user_in.email and await _email_em_uso(db, user_in.email, exclude_id=user.id):
         raise HTTPException(status_code=409, detail="Já existe um usuário com este e-mail")
+
+    anteriores = {
+        "email": user.email,
+        "nome": user.nome,
+        "perfil": user.perfil,
+        "ativo": user.ativo,
+        "pode_estornar": user.pode_estornar,
+        "pode_gerir_contratos": user.pode_gerir_contratos,
+    }
 
     novo_perfil = _resolve_perfil(
         perfil=user_in.perfil,
@@ -240,9 +281,31 @@ async def update_user(
         user.senha_hash = get_password_hash(user_in.password)
     if user_in.is_active is not None:
         user.ativo = user_in.is_active
+    if user_in.pode_estornar is not None:
+        user.pode_estornar = user_in.pode_estornar
+    if user_in.pode_gerir_contratos is not None:
+        user.pode_gerir_contratos = user_in.pode_gerir_contratos
     user.perfil = novo_perfil
 
     db.add(user)
+    await registrar_auditoria(
+        db,
+        usuario_id=current_user.id,
+        operacao="UPDATE",
+        tabela="usuarios",
+        registro_id=str(user.id),
+        dados_anteriores=anteriores,
+        dados_novos={
+            "email": user.email,
+            "nome": user.nome,
+            "perfil": user.perfil,
+            "ativo": user.ativo,
+            "pode_estornar": user.pode_estornar,
+            "pode_gerir_contratos": user.pode_gerir_contratos,
+            "senha_alterada": bool(user_in.password),
+        },
+        ip=get_client_ip(request),
+    )
     await db.commit()
     await db.refresh(user)
     return _to_public(user)
@@ -251,6 +314,7 @@ async def update_user(
 @router.delete("/{user_id}", response_model=Message, dependencies=[Depends(require_admin)])
 async def delete_user(
     user_id: int,
+    request: Request,
     current_user: RequireAdmin,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Any:
@@ -262,6 +326,20 @@ async def delete_user(
             status_code=400,
             detail="Não é possível excluir o último administrador",
         )
+    await registrar_auditoria(
+        db,
+        usuario_id=current_user.id,
+        operacao="DELETE",
+        tabela="usuarios",
+        registro_id=str(user.id),
+        dados_anteriores={
+            "email": user.email,
+            "nome": user.nome,
+            "perfil": user.perfil,
+            "ativo": user.ativo,
+        },
+        ip=get_client_ip(request),
+    )
     db.delete(user)
     await db.commit()
     return Message(message="Usuário excluído")

@@ -1,4 +1,5 @@
 import { formatarBRL, centavosParaNumero } from "@/lib/money"
+import { cn } from "@/lib/utils"
 
 interface MoneyInputProps {
   value: number
@@ -15,7 +16,7 @@ export function MoneyInput({
 }: MoneyInputProps) {
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
         R$
       </span>
       <input
@@ -23,7 +24,10 @@ export function MoneyInput({
         required={required}
         value={formatarBRL(value)}
         onChange={(e) => onValueChange(centavosParaNumero(e.target.value))}
-        className={`w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-1.5 pl-8 text-xs text-slate-800 dark:text-slate-200 ${className}`}
+        className={cn(
+          "w-full rounded-md border border-input bg-transparent p-1.5 pl-8 text-xs text-foreground",
+          className,
+        )}
       />
     </div>
   )

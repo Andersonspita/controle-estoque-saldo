@@ -1,20 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { ChevronDown, Download, FileText, Link2, PenLine, Play, Upload } from "lucide-react"
+import {
+  ChevronDown,
+  Download,
+  FileText,
+  Link2,
+  Pencil,
+  PenLine,
+  Play,
+  RotateCcw,
+  Trash2,
+  Upload,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { ImportNFModal } from "../../components/NotasFiscais/ImportNFModal"
 import { ManualNFModal } from "../../components/NotasFiscais/ManualNFModal"
 import { BaixaModal } from "../../components/NotasFiscais/BaixaModal"
 import { ConferenciaModal } from "../../components/NotasFiscais/ConferenciaModal"
+import { AcaoNFModal, type AcaoNF } from "../../components/NotasFiscais/AcaoNFModal"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { colunasNotasFiscais, type NotaFiscalRow } from "../../components/NotasFiscais/columns"
+import { badgeStatus, colunasNotasFiscais, type NotaFiscalRow } from "../../components/NotasFiscais/columns"
 import { DataTable } from "../../components/Common/DataTable"
 import { EmptyState } from "../../components/Common/EmptyState"
 import { ListToolbar } from "../../components/Common/ListToolbar"
@@ -28,6 +40,7 @@ import { fornecedoresService, notasFiscaisService } from "../../services/api"
 import { pageTitle } from "@/lib/brand"
 import { formatarMoeda } from "@/lib/money"
 import { useIsMobile } from "@/hooks/useMobile"
+import useAuth from "@/hooks/useAuth"
 
 export const Route = createFileRoute("/_layout/notas-fiscais")({
   component: NotasFiscaisPage,
@@ -42,7 +55,12 @@ function NotasFiscaisPage() {
   const [baixaModalNF, setBaixaModalNF] = useState<any | null>(null)
   const [conferenciaNF, setConferenciaNF] = useState<any | null>(null)
   const [baixandoId, setBaixandoId] = useState<number | null>(null)
+  const [editNF, setEditNF] = useState<any | null>(null)
+  const [acaoNF, setAcaoNF] = useState<{ nf: any; acao: AcaoNF } | null>(null)
   const [status, setStatus] = useState("todas")
+  const { user } = useAuth()
+  // O campo é novo no backend; o client gerado ainda não o tipa.
+  const podeEstornar = Boolean((user as any)?.pode_estornar)
   const { query, setQuery } = useListSearch()
   const isMobile = useIsMobile()
 
@@ -110,7 +128,11 @@ function NotasFiscaisPage() {
     onConferir: (nf: NotaFiscalRow) => setConferenciaNF(nf),
     onBaixa: (nf: NotaFiscalRow) => setBaixaModalNF(nf),
     onDownload: (nf: NotaFiscalRow) => baixarArquivo(nf),
+    onEditar: (nf: NotaFiscalRow) => setEditNF(nf),
+    onEstornar: (nf: NotaFiscalRow) => setAcaoNF({ nf, acao: "estorno" }),
+    onExcluir: (nf: NotaFiscalRow) => setAcaoNF({ nf, acao: "exclusao" }),
     baixandoId,
+    podeEstornar,
   }
 
   const novaNota = (
@@ -189,36 +211,65 @@ function NotasFiscaisPage() {
                       {nf.fornecedor_nome || "Fornecedor não identificado"}
                     </p>
                   </div>
-                  <Badge variant={nf.status === "Baixada" ? "success" : "warning"}>
-                    {nf.status}
-                  </Badge>
+                  <Badge variant={badgeStatus(nf.status)}>{nf.status}</Badge>
                 </div>
                 <div className="flex items-end justify-between">
                   <p className="text-lg font-bold tabular-nums">{formatarMoeda(nf.valor_total || 0)}</p>
                   <p className="text-xs text-muted-foreground">{nf.data_emissao || "—"}</p>
                 </div>
                 {nf.status !== "Baixada" ? (
+                  <>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="h-11 flex-1"
+                        onClick={() => setConferenciaNF(nf)}
+                      >
+                        <Link2 /> Conferir
+                      </Button>
+                      <Button className="h-11 flex-1" onClick={() => setBaixaModalNF(nf)}>
+                        <Play /> Executar baixa
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="h-11 flex-1"
+                        onClick={() => setEditNF(nf)}
+                      >
+                        <Pencil /> Editar
+                      </Button>
+                      {podeEstornar && (
+                        <Button
+                          variant="outline"
+                          className="h-11 flex-1 text-destructive"
+                          onClick={() => setAcaoNF({ nf, acao: "exclusao" })}
+                        >
+                          <Trash2 /> Excluir
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       className="h-11 flex-1"
-                      onClick={() => setConferenciaNF(nf)}
+                      disabled={nf.tem_arquivo === false || baixandoId === nf.id}
+                      onClick={() => baixarArquivo(nf)}
                     >
-                      <Link2 /> Conferir
+                      <Download /> {baixandoId === nf.id ? "Baixando..." : "Baixar PDF"}
                     </Button>
-                    <Button className="h-11 flex-1" onClick={() => setBaixaModalNF(nf)}>
-                      <Play /> Executar baixa
-                    </Button>
+                    {podeEstornar && (
+                      <Button
+                        variant="outline"
+                        className="h-11 flex-1 text-destructive"
+                        onClick={() => setAcaoNF({ nf, acao: "estorno" })}
+                      >
+                        <RotateCcw /> Estornar
+                      </Button>
+                    )}
                   </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="h-11 w-full"
-                    disabled={nf.tem_arquivo === false || baixandoId === nf.id}
-                    onClick={() => baixarArquivo(nf)}
-                  >
-                    <Download /> {baixandoId === nf.id ? "Baixando..." : "Baixar PDF"}
-                  </Button>
                 )}
               </div>
             ))
@@ -242,6 +293,22 @@ function NotasFiscaisPage() {
 
       <ImportNFModal isOpen={isImportModalOpen} onOpenChange={setIsImportModalOpen} />
       <ManualNFModal isOpen={isManualModalOpen} onOpenChange={setIsManualModalOpen} />
+      {editNF && (
+        <ManualNFModal
+          key={`edit-${editNF.id}`}
+          nf={editNF}
+          isOpen={!!editNF}
+          onOpenChange={(open: boolean) => !open && setEditNF(null)}
+        />
+      )}
+      {acaoNF && (
+        <AcaoNFModal
+          nf={acaoNF.nf}
+          acao={acaoNF.acao}
+          isOpen={!!acaoNF}
+          onOpenChange={(open: boolean) => !open && setAcaoNF(null)}
+        />
+      )}
       {conferenciaNF && (
         <ConferenciaModal
           nf={conferenciaNF}

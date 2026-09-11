@@ -50,6 +50,8 @@ const formSchema = z
     confirm_password: z.string().optional(),
     perfil: z.enum(["ADMIN", "OPERADOR"]),
     is_active: z.boolean().optional(),
+    pode_estornar: z.boolean().optional(),
+    pode_gerir_contratos: z.boolean().optional(),
   })
   .refine((data) => !data.password || data.password === data.confirm_password, {
     message: "As senhas não coincidem",
@@ -83,6 +85,9 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
       full_name: user.full_name ?? undefined,
       perfil: perfilDoUsuario(user),
       is_active: user.is_active,
+      // Campos novos no backend; o client gerado ainda não os tipa.
+      pode_estornar: Boolean((user as any).pode_estornar),
+      pode_gerir_contratos: Boolean((user as any).pode_gerir_contratos),
     },
   })
 
@@ -99,6 +104,10 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
           perfil: submitData.perfil,
           is_superuser: submitData.perfil === "ADMIN",
           is_active: submitData.is_active,
+          ...({
+            pode_estornar: submitData.pode_estornar ?? false,
+            pode_gerir_contratos: submitData.pode_gerir_contratos ?? false,
+          } as Record<string, unknown>),
         },
       })
     },
@@ -225,6 +234,58 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pode_estornar"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={form.watch("perfil") === "ADMIN" || field.value}
+                          disabled={form.watch("perfil") === "ADMIN"}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Pode estornar baixas e excluir notas fiscais
+                      </FormLabel>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {form.watch("perfil") === "ADMIN"
+                        ? "Administradores já têm essa permissão."
+                        : "Sem isso, o usuário lança e edita notas, mas não desfaz baixas nem exclui."}
+                    </p>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pode_gerir_contratos"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={form.watch("perfil") === "ADMIN" || field.value}
+                          disabled={form.watch("perfil") === "ADMIN"}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Pode criar, editar e aditivar contratos
+                      </FormLabel>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {form.watch("perfil") === "ADMIN"
+                        ? "Administradores já têm essa permissão."
+                        : "Libera cadastro, edição, aditivo e PDF do contrato."}
+                    </p>
                   </FormItem>
                 )}
               />

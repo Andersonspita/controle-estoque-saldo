@@ -1,4 +1,13 @@
-import { Briefcase, Home, Users, FileText, Truck, FileSignature } from "lucide-react"
+import {
+  ClipboardList,
+  FileBarChart,
+  FileSignature,
+  FileText,
+  History,
+  Home,
+  Truck,
+  Users,
+} from "lucide-react"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
 import { Logo } from "@/components/Common/Logo"
@@ -17,14 +26,19 @@ const baseItems: Item[] = [
   { icon: Truck, title: "Fornecedores", path: "/fornecedores" },
   { icon: FileSignature, title: "Contratos", path: "/contratos" },
   { icon: FileText, title: "Notas Fiscais", path: "/notas-fiscais" },
-  { icon: Briefcase, title: "Órgãos", path: "/almoxarifados" },
+  { icon: History, title: "Estornos e exclusões", path: "/estornos" },
+  { icon: FileBarChart, title: "Relatórios", path: "/relatorios" },
 ]
 
 export function AppSidebar() {
   const { user: currentUser, isAdmin } = useAuth()
 
   const items = isAdmin
-    ? [...baseItems, { icon: Users, title: "Admin", path: "/admin" }]
+    ? [
+        ...baseItems,
+        { icon: ClipboardList, title: "Log de usuários", path: "/auditoria" },
+        { icon: Users, title: "Admin", path: "/admin" },
+      ]
     : baseItems
 
   return (

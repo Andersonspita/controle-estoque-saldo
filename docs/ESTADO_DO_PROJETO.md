@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 24/08/2026 — objeto e vigência do contrato; dados da licitação e observação; lookup de unidade de medida; backup obrigatório antes de cada alteração
+> **Última Atualização:** 11/09/2026 — correção `selectinload(Contrato.aditivos)` nas rotas de contrato + ajuste testes auth (mensagem CFG)
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -8,9 +8,9 @@ Este documento guia quem assume ou retoma o projeto. Para rodar localmente e exe
 
 ## Regra de negócio do saldo
 
-O produto chama-se **SaldoContratual**. O estoque controlado é o **saldo dos itens do contrato** (quantidade **e** valor em R$), não o órgão de destino. O contrato **não é ligado a licitação** — cadastra-se o contrato e seus itens diretamente.
+O produto chama-se **SaldoContratual**. O estoque controlado é o **saldo dos itens do contrato** (quantidade **e** valor em R$). O contrato **não é ligado a licitação** — cadastra-se o contrato e seus itens diretamente. Não há cadastro de órgão de destino físico.
 
-Exemplo: contrato de 12 meses com 1 item de 100 unidades a R$ 10,00 → entram 100 unidades e R$ 1.000,00 de saldo nesse item. Cada baixa de NF abate quantidade e, proporcionalmente, o saldo monetário (`saldo_atual × valor_unitario`). O **órgão** é apenas o **destino físico** do material após a baixa.
+Exemplo: contrato de 12 meses com 1 item de 100 unidades a R$ 10,00 → entram 100 unidades e R$ 1.000,00 de saldo nesse item. Cada baixa de NF abate quantidade e, proporcionalmente, o saldo monetário (`saldo_atual × valor_unitario`).
 
 ## 1. Fases 1–5 — Integração frontend ↔ backend
 
@@ -18,7 +18,7 @@ Mocks iniciais da interface foram removidos. O frontend consome a API real:
 
 - **Dashboard:** `GET /api/v1/contratos/`, `GET /api/v1/movimentacoes/` e `GET /api/v1/contratos/previsao-consumo`. Cards de valor contratado, saldo atual (R$) e valor baixado. Dark Mode.
 - **Notas Fiscais:** listagem em `GET /api/v1/notas-fiscais/` com download do arquivo em `GET /api/v1/notas-fiscais/{id}/arquivo`.
-- **Contratos, fornecedores e órgãos:** telas ligadas às rotas correspondentes (API de órgãos permanece em `/almoxarifados`).
+- **Contratos e fornecedores:** telas ligadas às rotas correspondentes.
 
 ## 2. Fase 6 — Infraestrutura de testes
 
@@ -46,15 +46,17 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 ## 5. Etapa 2 — Previsão, contratos e destinação
 
 - **Previsão de consumo:** `GET /api/v1/contratos/previsao-consumo`. Alertas de esgotamento (45 dias) no Dashboard.
-- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste cabeçalho e itens. **Objeto** é o objeto do contrato. Também há **número da licitação**, **modalidade** (lookup), **objeto da licitação** e **observação** — ficam no próprio contrato, sem exigir cadastro separado na tabela de licitações. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é o ano da vigência inicial. Itens: descrição, **unidade de medida** (lookup com sigla) e valores; o código do item saiu da tela.
-- **Edição de contrato (ADMIN):** `PATCH /api/v1/contratos/{id}` atualiza cabeçalho e itens. A quantidade contratada não pode ficar abaixo do já baixado. Item com movimentação não pode ser excluído. O `valor_total` é recalculado pelos itens. OPERADOR recebe **403**. A quantidade inicial do contrato (`quantidade_inicial`) não é alterada na edição.
-- **Aditivo (ADMIN):** botão **Aditivo** na linha do contrato abre um modal. O usuário marca quais itens entram no aditivo e informa a **quantidade extra** e o **valor unitário** (pré-preenchido com o atual). Endpoint: `POST /api/v1/contratos/{id}/aditivo`. Só os itens marcados mudam: `quantidade_contratada` e `saldo_atual` somam a extra; o valor unitário pode ser atualizado. A quantidade inicial permanece como snapshot da contratação original. Extra deve ser maior que zero; em unidade (`UN` e similares) a quantidade é inteira (não existe 21,5 UN). OPERADOR recebe **403**.
-- **Tela Contratos:** a linha mostra valor total e **saldo atual do contrato** em R$. Se algum item já foi aditivado, aparece “Com aditivo” e o valor inicial. Expandir a linha (botão com `aria-expanded`, Tab + Enter) mostra os itens sem tabela aninhada. ADMIN edita pelo botão na linha ou aplica aditivo pelo botão **Aditivo**.
+- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste cabeçalho e itens. **Objeto** é o objeto do contrato. Também há **número da licitação**, **modalidade** (lookup) e **observação** — o campo **objeto da licitação** permanece no banco/API por compatibilidade, mas **saiu da UI**. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é o ano da vigência inicial. Itens seguem o modelo oficial `Modelo para importação de itens.xlsx`: **Item**, **Descrição**, **Unidade**, **Quantidade**, **Marca**, **Valor_unitário**, **Observação**. Em cada linha o formulário mostra o **valor total** (qtd × unitário). Digitação no modal ou importação **somente** `.xlsx` com esses cabeçalhos (`frontend/public/modelo-itens-contrato.xlsx` — **Baixar modelo**). CSV e planilhas com cabeçalho diferente são rejeitados. Campo `observacao` do item: migração `a1c2e3f4b506`. **PDF do contrato:** anexar em cadastro/edição (`POST /contratos/{id}/arquivo`); `tem_arquivo` na listagem; **Visualizar** / **Download** (`GET /contratos/{id}/arquivo`). Migração `c4d8e2a9f701`.
+- **Edição de contrato (ADMIN ou `pode_gerir_contratos`):** `PATCH /api/v1/contratos/{id}` atualiza cabeçalho e itens. A quantidade contratada não pode ficar abaixo do já baixado. Item com movimentação não pode ser excluído. O `valor_total` é recalculado pelos itens. Sem permissão → **403**. A quantidade inicial do contrato (`quantidade_inicial`) não é alterada na edição. Create/update/aditivo/arquivo gravam `log_auditoria` com o usuário do JWT.
+- **Aditivo (ADMIN ou `pode_gerir_contratos`):** botão **Aditivo** na linha do contrato abre um modal. O usuário marca quais itens entram no aditivo, informa a **quantidade extra**, o **valor unitário** e a **vigência do aditivo** (obrigatória). Endpoint: `POST /api/v1/contratos/{id}/aditivo`. Só os itens marcados mudam: `quantidade_contratada` e `saldo_atual` somam a extra; o valor unitário pode ser atualizado. A vigência fica em `contrato_aditivos` e aparece no relatório; se a data final do aditivo for posterior à do contrato, a vigência do contrato é prorrogada. A quantidade inicial permanece como snapshot da contratação original. Extra deve ser maior que zero; em unidade (`UN` e similares) a quantidade é inteira (não existe 21,5 UN). Sem permissão → **403**.
+- **Tela Contratos:** a linha mostra valor total e **saldo atual do contrato** em R$. Se algum item já foi aditivado, aparece “Com aditivo” e o valor inicial. Botão **Visualizar** abre o painel de detalhe (PDF do contrato, se anexado). Expandir a linha (botão com `aria-expanded`, Tab + Enter) mostra os itens sem tabela aninhada. Quem tem gestão de contratos edita pelo botão na linha ou aplica aditivo pelo botão **Aditivo**.
 - **Interface (redesign):** tokens `success` / `warning` / `critical` em `index.css`. Status usa `<Badge>`. Ações usam `<Button>`. Notas fiscais, fornecedores e Admin usam `DataTable` com busca, filtro e paginação. Dashboard centra no consumo do valor contratado, gráfico mensal e alertas acionáveis. Em telas `< md` as listas viram cards. Login usa marca, tagline e painel de produto. A marca é o **selo em relevo** (`Logo.tsx` + favicon SVG/ICO); o ícone de GitHub saiu do rodapé.
+- **Dark mode / contraste:** modais de NF (importar, manual, conferência), contrato, aditivo e fornecedor usam `bg-card` / `text-foreground` / `border-input` (mesmo padrão do `BaixaModal`). Status de vínculo (`CONFIRMADO`, `PROVAVEL`, etc.) usa `<Badge>` semântico via `vinculoStatus.tsx`. `MoneyInput` não força cores claras/escuras hardcoded. Seletor de tema na sidebar: **Aparência / Claro / Escuro / Sistema**. Relatórios mantêm folha branca de impressão, com rótulo “Pré-visualização da folha A4” no dark mode. No documento impresso, **Cidade/UF** foi removida; **Valor vigente** permanece; a descrição do item **não** prefixa código; com aditivos, aparece **Vigência do(s) aditivo(s)**. Filtros de vigência e objeto ficam em seção **Filtros avançados** retrátil.
 - **Valores monetários:** campos de valor (unitário, totais, saldos) são exibidos e digitados em BRL (`R$ 1.234,56`). Quantidade permanece numérica. A API devolve `valor_contratado` e `saldo_monetario` em cada item e `saldo_atual` monetário no contrato detalhado.
-- **Órgãos:** interface usa o nome **Órgão** (API/tabelas continuam `almoxarifados`). CRUD em `/api/v1/almoxarifados/` com `POST` e `PATCH` (**ADMIN**). `GET /api/v1/almoxarifados/{id}` lista destinação física após baixas, lado a lado com o saldo do contrato.
-- **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` exige órgão de destino, bloqueia a linha da NF (`FOR UPDATE`) para evitar baixa duplicada, deduz o saldo do item do contrato, grava movimentação e atualiza `estoque_almoxarifados`. O `usuario_id` vem do token JWT, não do corpo da requisição.
-- **Fornecedor:** o campo `cnpj` aceita **CPF (11) ou CNPJ (14)** com dígitos verificadores; a UI rotula **CPF/CNPJ**. UF em select; municípios vêm da API do IBGE (`/estados/{UF}/municipios`). Unicidade compara só os dígitos. Documentos já gravados não são revalidados na listagem. **ADMIN** cria e edita (`PATCH /api/v1/fornecedores/{id}`).
+- **Baixa:** `POST /api/v1/notas-fiscais/{nf_id}/baixar` abate o saldo do item do contrato e grava movimentação (justificativa opcional). Bloqueia a linha da NF (`FOR UPDATE`) para evitar baixa duplicada. O `usuario_id` vem do token JWT. Não há destino físico. O modal de baixa tem scroll (`max-h-[90vh]`) para chegar em **Confirmar baixa** com muitos itens.
+- **Vínculo NF × contrato:** o rótulo do select usa `rotuloItemContrato` — descrição (+ marca) + **valor unitário** + **saldo**.
+- **Auditoria de usuário:** inclusões/alterações/exclusões gravam `log_auditoria` (usuário, operação, tabela, registro, dados e IP) para NF (create/import/edit/vínculos/baixa/estorno/exclusão), contratos (create/update/aditivo/arquivo), fornecedores (create/update) e usuários (create/update/delete). Baixa/estorno também mantêm `Movimentacao.usuario_id`. Tela **Log de usuários** (`/auditoria`, `GET /api/v1/auditoria/`) é **somente ADMIN**.
+- **Fornecedor:** o campo `cnpj` aceita **CPF (11) ou CNPJ (14)** com dígitos verificadores; a UI rotula **CPF/CNPJ**. UF em select; municípios vêm da API do IBGE (`/estados/{UF}/municipios`). Unicidade compara só os dígitos. Documentos já gravados não são revalidados na listagem. **ADMIN** cria e edita (`PATCH /api/v1/fornecedores/{id}`); create/update gravam auditoria.
 - **Arquivo da NF:** a importação grava o PDF/XML em disco com nome sanitizado (sem path traversal); a listagem oferece **Baixar PDF** (`GET /api/v1/notas-fiscais/{id}/arquivo`), inclusive após a baixa. A API devolve `tem_arquivo`, não o caminho interno do disco.
 - **Grids no mobile:** tabelas rolam na horizontal (`overflow-x-auto`, `min-w-0` no layout). Cabeçalhos e ações (editar, conferir, baixa) não ficam cortados.
 
@@ -65,14 +67,15 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 - CORS: em produção usa só `FRONTEND_HOST`. `http://localhost:5173` entra automaticamente apenas com `FASTAPI_ENV=development`.
 - Nginx: cabeçalhos `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e `X-Robots-Tag` (sem HSTS enquanto o site for HTTP).
 - Dependência: `src/deps.py` (`get_current_user` / `get_current_active_user` / `require_admin`). Token inválido ou ausente → **401**. Usuário inativo → **403**.
-- Rotas de contratos, NFs, fornecedores, licitações, movimentações, almoxarifados e `GET /users/me` exigem Bearer token.
+- Rotas de contratos, NFs, fornecedores, licitações, movimentações e `GET /users/me` exigem Bearer token.
 - Públicos: `GET /health` e `POST /login/access-token`. Não há cadastro público nem recuperação de senha (rotas `/signup` e `/recover-password` redirecionam ao login).
 - Frontend (`frontend/src/services/api.ts`) envia `Authorization: Bearer` a partir de `localStorage.access_token`. A origem da API ignora um `/api/v1` extra no `.env`, para o login (`/login/access-token` e `/users/me`) e o axios (`/api/v1/...`) apontarem para o mesmo backend.
 - Correção: `/users/me` deixou de usar uma SECRET_KEY dummy (que caía no primeiro usuário do banco).
 - **`GET /users/me`** devolve `perfil` (`ADMIN` ou `OPERADOR`) e `is_superuser` (`true` só para ADMIN).
-- **ADMIN:** cadastra usuários (tela Admin), fornecedores, contratos e órgãos; edita contratos, fornecedores e órgãos; aplica aditivo nos itens do contrato.
-- **OPERADOR:** consulta cadastros, importa/parseia NF, inclui NF digitada, vincula itens, baixa PDF da NF e dá baixa. POST/PATCH de cadastro (incluindo usuários, contratos, fornecedores, órgãos e aditivo) → **403**.
-- **Usuários (ADMIN):** `GET/POST /users/`, `PATCH/DELETE /users/{id}`. Perfil `ADMIN` ou `OPERADOR`; não permite excluir a própria conta nem remover o último administrador. `PATCH /users/me` e `PATCH /users/me/password` atualizam dados da conta logada.
+- **ADMIN:** cadastra usuários (tela Admin), fornecedores e contratos; edita contratos e fornecedores; aplica aditivo; consulta o **Log de usuários**; libera `pode_estornar` e `pode_gerir_contratos` por operador.
+- **OPERADOR:** consulta cadastros, importa/parseia NF, inclui NF digitada, vincula itens, baixa PDF da NF e dá baixa. Com `pode_gerir_contratos`, também cria/edita/aditiva contratos e anexa PDF. POST/PATCH de cadastro sem permissão e a tela/API de auditoria → **403**.
+- **Usuários (ADMIN):** `GET/POST /users/`, `PATCH/DELETE /users/{id}` (com auditoria). Perfil `ADMIN` ou `OPERADOR`; flags `pode_estornar` e `pode_gerir_contratos`. Não permite excluir a própria conta nem remover o último administrador. `PATCH /users/me` e `PATCH /users/me/password` atualizam dados da conta logada. Em **Configurações**, o usuário vê as permissões liberadas (somente leitura).
+- **Permissão de contratos:** `usuarios.pode_gerir_contratos` + `RequireGestaoContratos` nas rotas de create/patch/aditivo/arquivo. Migração `d5e9f1a2b803`.
 
 ## 7. E2E autenticado (Playwright)
 
@@ -84,10 +87,23 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo: objeto e vigência do contrato; **número, modalidade e objeto da licitação** e **observação** no cadastro; unidade de medida em lookup. Backup Git **antes** dos dados da licitação: tag `backup-pre-licitacao-obs-20260824` (commit `e8fdd8b`). Tag anterior (objeto/vigência): `backup-pre-objeto-vigencia-20260824`.
+Concluído neste ciclo (11/09/2026): após smoke de testes, **correção** de `selectinload(Contrato.aditivos)` em listagem/PATCH/arquivo de contratos (evita `MissingGreenlet` ao serializar `ContratoDetalhadoOut`) e alinhamento dos asserts de `test_auth` com a mensagem de `pode_gerir_contratos`. Backup: tag `backup-pre-fix-selectinload-aditivos-20260911`.
+
+Ciclo anterior: **REL-2** (relatório sem código antes da descrição), **REL-4** (vigência dos aditivos em `contrato_aditivos` + UI + relatório), **CFG** (`pode_gerir_contratos` no Admin/Settings). Backup: tag `backup-pre-rel2-rel4-cfg-20260911`. Migração `d5e9f1a2b803`.
+
+Ciclo anterior: **log de auditoria ampliado** (baixa/estorno/vínculos NF, fornecedores e usuários) + tela **Log de usuários** (`/auditoria`, só ADMIN). Backup: tag `backup-pre-auditoria-tela-admin-20260911`.
+
+Ciclo anterior: **auditoria de usuário** (NF create/import/edit + contratos create/update/aditivo/arquivo); **rótulo de vínculo** com valor unitário; **scroll no modal de baixa**; **remoção do Objeto da Licitação na UI**; **PDF do contrato** (upload/visualizar/download); **valor total por item** no formulário; relatório **sem Cidade/UF** e com **filtros avançados retráteis**. Backup: tag `backup-pre-ajustes-nf-contrato-relatorio-20260911`. Migração `c4d8e2a9f701`.
+
+Ciclo anterior: **modelo oficial de planilha de itens** (colunas Item / Descrição / Unidade / Quantidade / Marca / Valor_unitário / Observação; importação só `.xlsx` do modelo; formulários e API com `marca` e `observacao` no item). Backup: tag `backup-pre-modelo-itens-planilha-20260910`. Migração `a1c2e3f4b506`.
+
+Também no ciclo anterior: **remoção do órgão de destino** (tabelas `almoxarifados` / `estoque_almoxarifados`, API, tela, campo na baixa e seção do relatório). Backup: tag `backup-pre-remover-orgao-20260910` (commit `d63831a`). Migração Alembic `f3a7c2e9b401`.
+
+Ciclo anterior: contraste dark mode nos modais; badges de vínculo; tema em PT-BR. Tag `backup-pre-ui-contraste-20260910`.
 
 Regra permanente: **toda alteração** exige backup Git (tag `backup-pre-<resumo>-YYYYMMDD`) **antes** de editar. No deploy, dump do Postgres conforme `docs/GUIA_TECNICO.md` §6.5.
 
 1. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
 2. Preferir XML da NF-e ao OCR de PDF quando o XML existir.
 3. Trocar a senha do ADMIN em produção depois que o histórico do Git já tiver sido publicado com ela (o commit atual só remove a senha dos arquivos).
+4. Aplicar as migrações até `d5e9f1a2b803` no banco local/VPS (`alembic upgrade head`) após dump.

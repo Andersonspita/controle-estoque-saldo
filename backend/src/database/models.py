@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Date, JSON, CheckConstraint, Text
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Date, JSON, CheckConstraint, Index, Text, text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from .session import Base
@@ -15,26 +15,13 @@ class Usuario(Base):
     senha_hash = Column(String, nullable=False)
     perfil = Column(String, nullable=False)
     ativo = Column(Boolean, default=True)
+    # Concedida pelo ADMIN: libera estornar a baixa e excluir nota fiscal.
+    pode_estornar = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    # Concedida pelo ADMIN: libera criar/editar contrato, aditivo e PDF.
+    pode_gerir_contratos = Column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     criado_em = Column(DateTime(timezone=True), default=utcnow)
-
-class Almoxarifado(Base):
-    __tablename__ = "almoxarifados"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String, nullable=False)
-    localizacao = Column(String)
-    ativo = Column(Boolean, default=True)
-
-class EstoqueAlmoxarifado(Base):
-    __tablename__ = "estoque_almoxarifados"
-
-    id = Column(Integer, primary_key=True, index=True)
-    item_contrato_id = Column(Integer, ForeignKey("itens_contrato.id"), nullable=False)
-    almoxarifado_id = Column(Integer, ForeignKey("almoxarifados.id"), nullable=False)
-    quantidade = Column(Float, nullable=False, default=0)
-    
-    item_contrato = relationship("ItemContrato")
-    almoxarifado = relationship("Almoxarifado")
 
 class Fornecedor(Base):
     __tablename__ = "fornecedores"
@@ -86,10 +73,17 @@ class Contrato(Base):
     valor_total_inicial = Column(Float, nullable=False, default=0)
     percentual_aditivo = Column(Float, nullable=False, default=0)
     situacao = Column(String, nullable=False)
+    arquivo_pdf_path = Column(String)
     
     licitacao = relationship("Licitacao", back_populates="contratos")
     fornecedor = relationship("Fornecedor", back_populates="contratos")
     itens = relationship("ItemContrato", back_populates="contrato", cascade="all, delete-orphan")
+    aditivos = relationship(
+        "ContratoAditivo",
+        back_populates="contrato",
+        cascade="all, delete-orphan",
+        order_by="ContratoAditivo.criado_em",
+    )
 
 class ItemContrato(Base):
     __tablename__ = "itens_contrato"
@@ -105,6 +99,7 @@ class ItemContrato(Base):
     descricao = Column(Text, nullable=False)
     unidade = Column(String, nullable=False)
     marca = Column(String)
+    observacao = Column(Text)
     quantidade_contratada = Column(Float, nullable=False)
     quantidade_inicial = Column(Float, nullable=False)
     valor_unitario = Column(Float, nullable=False)
@@ -113,22 +108,51 @@ class ItemContrato(Base):
     
     contrato = relationship("Contrato", back_populates="itens")
 
+
+class ContratoAditivo(Base):
+    __tablename__ = "contrato_aditivos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contrato_id = Column(Integer, ForeignKey("contratos.id"), nullable=False)
+    data_inicio = Column(Date, nullable=False)
+    data_fim = Column(Date, nullable=False)
+    criado_em = Column(DateTime(timezone=True), default=utcnow)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"))
+
+    contrato = relationship("Contrato", back_populates="aditivos")
+
+
 class NotaFiscal(Base):
     __tablename__ = "notas_fiscais"
+    __table_args__ = (
+        # A chave só é única entre as notas vivas: uma nota excluída não pode
+        # impedir que a mesma NF seja importada de novo.
+        Index(
+            "uq_notas_fiscais_chave_acesso_ativa",
+            "chave_acesso",
+            unique=True,
+            postgresql_where=text("excluida_em IS NULL"),
+            sqlite_where=text("excluida_em IS NULL"),
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     contrato_id = Column(Integer, ForeignKey("contratos.id"), nullable=False)
     fornecedor_id = Column(Integer, ForeignKey("fornecedores.id"), nullable=False)
     numero = Column(String, nullable=False)
     serie = Column(String)
-    chave_acesso = Column(String, unique=True, index=True)
+    chave_acesso = Column(String, index=True)
     data_emissao = Column(Date)
     valor_total = Column(Float)
     arquivo_pdf_path = Column(String)
     status = Column(String, nullable=False)
     criado_por = Column(Integer, ForeignKey("usuarios.id"))
     criado_em = Column(DateTime(timezone=True), default=utcnow)
-    
+    # Exclusão lógica: a nota some das listas mas continua auditável.
+    excluida_em = Column(DateTime(timezone=True))
+    excluida_por = Column(Integer, ForeignKey("usuarios.id"))
+    motivo_exclusao = Column(Text)
+
     itens = relationship("ItemNotaFiscal", back_populates="nota_fiscal", cascade="all, delete-orphan")
 
 class ItemNotaFiscal(Base):
@@ -157,7 +181,6 @@ class Movimentacao(Base):
     quantidade = Column(Float, nullable=False)
     saldo_anterior = Column(Float, nullable=False)
     saldo_posterior = Column(Float, nullable=False)
-    almoxarifado_id = Column(Integer, ForeignKey("almoxarifados.id"), nullable=True) # Pode ser null para estornos ou compatibilidade
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     data_hora = Column(DateTime(timezone=True), default=utcnow)
     justificativa = Column(Text)

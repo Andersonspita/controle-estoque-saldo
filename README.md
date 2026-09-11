@@ -2,19 +2,20 @@
 
 Sistema web de **gestão de saldos e itens de contratos de licitação**. Acompanhe o saldo contratual e registre baixas a partir de Notas Fiscais Eletrônicas (NF-e).
 
-O estoque controlado **não é o órgão de destino**. Cada item do contrato entra com um saldo (a quantidade contratada e o valor correspondente). Cada baixa de NF abate esse saldo. O órgão é só o **destino físico** do material depois da baixa.
+O estoque controlado é o **saldo dos itens do contrato** (quantidade e valor). Cada baixa de NF abate esse saldo. Não há cadastro de órgão de destino físico.
 
-Exemplo: contrato de 12 meses com 1 item de 100 unidades → o item começa com 100 de saldo. Depois de baixar 10 na NF, restam 90 no contrato, mesmo que o material tenha ido para o órgão.
+Exemplo: contrato de 12 meses com 1 item de 100 unidades → o item começa com 100 de saldo. Depois de baixar 10 na NF, restam 90 no contrato.
 
 ## O que o sistema faz
 
 - Cadastro de fornecedores, contratos e itens (com saldo inicial igual à quantidade contratada)
 - Importação de NF-e em **XML** ou **PDF (DANFE)** com OCR
 - Vínculo de cada item da NF a um item do contrato (código, GTIN ou similaridade de descrição)
-- Baixa transacional: desconta o saldo do contrato, registra a movimentação e destina o material ao órgão
+- Baixa transacional: desconta o saldo do contrato e registra a movimentação
 - Previsão de consumo e alertas de esgotamento no dashboard (45 dias)
+- **Relatório de Saldo de Contrato** pronto para impressão ou PDF, com cabeçalho institucional e cada item aberto em contratado, aditivado, utilizado e saldo
 - Autenticação JWT com dois perfis:
-  - **ADMIN** — consulta, importa NF, dá baixa e cadastra/edita usuário, fornecedor, contrato e órgão
+  - **ADMIN** — consulta, importa NF, dá baixa e cadastra/edita usuário, fornecedor e contrato
   - **OPERADOR** — consulta, importa NF, vincula itens e dá baixa (não cadastra)
 
 ## Tecnologias
@@ -72,6 +73,8 @@ npm run dev
 Interface: <http://localhost:5173>
 
 A origem da API vem de `VITE_API_URL` (por padrão `http://localhost:8000`). O frontend aceita a URL com ou sem o sufixo `/api/v1`.
+
+O cabeçalho do Relatório de Saldo (nome institucional, estado e setor) vem de `ORGAO_NOME`, `ORGAO_ESTADO` e `ORGAO_SETOR` no `.env`. Sem `ORGAO_NOME`, o relatório usa `PROJECT_NAME`. Esses campos são só emitente do relatório — não há cadastro de órgãos de destino.
 
 O login de testes **não fica no repositório**. Use as credenciais no seu arquivo de acessos (fora do Git) e, para o Playwright, `frontend/.env.e2e` a partir de `frontend/.env.e2e.example`.
 

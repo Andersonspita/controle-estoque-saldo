@@ -6,38 +6,6 @@ from .services.documento import formatar_cpf_cnpj
 from .services.unidades_medida import normalizar_unidade
 from .services.modalidades_licitacao import normalizar_modalidade
 
-class AlmoxarifadoBase(BaseModel):
-    nome: str
-    localizacao: Optional[str] = None
-    ativo: bool = True
-
-class AlmoxarifadoCreate(AlmoxarifadoBase):
-    pass
-
-class AlmoxarifadoUpdate(BaseModel):
-    nome: Optional[str] = None
-    localizacao: Optional[str] = None
-    ativo: Optional[bool] = None
-
-class AlmoxarifadoOut(AlmoxarifadoBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-class DestinacaoItemOut(BaseModel):
-    item_contrato_id: int
-    codigo: Optional[str] = None
-    descricao: str
-    unidade: str
-    contrato_id: int
-    contrato_numero: str
-    contrato_ano: int
-    quantidade_destinada: float
-    saldo_contrato: float
-
-class AlmoxarifadoDetalhadoOut(AlmoxarifadoOut):
-    destinos: List[DestinacaoItemOut] = []
-
 class FornecedorBase(BaseModel):
     razao_social: str
     nome_fantasia: Optional[str] = None
@@ -158,6 +126,8 @@ class ItemContratoCreate(BaseModel):
     codigo: Optional[str] = None
     descricao: str
     unidade: str = "UN"
+    marca: Optional[str] = None
+    observacao: Optional[str] = None
     quantidade_contratada: float
     valor_unitario: float
     numero_item: Optional[int] = None
@@ -166,6 +136,14 @@ class ItemContratoCreate(BaseModel):
     @classmethod
     def _validar_unidade(cls, valor: str) -> str:
         return normalizar_unidade(valor)
+
+    @field_validator("marca", "observacao", "codigo", mode="before")
+    @classmethod
+    def _texto_opcional_item(cls, valor):
+        if valor is None:
+            return None
+        texto = str(valor).strip()
+        return texto or None
 
 class ContratoCreate(ContratoBase):
     objeto: str = Field(..., min_length=1)
@@ -187,13 +165,24 @@ class ItemContratoUpdate(BaseModel):
     codigo: Optional[str] = None
     descricao: str
     unidade: str = "UN"
+    marca: Optional[str] = None
+    observacao: Optional[str] = None
     quantidade_contratada: float
     valor_unitario: float
+    numero_item: Optional[int] = None
 
     @field_validator("unidade")
     @classmethod
     def _validar_unidade(cls, valor: str) -> str:
         return normalizar_unidade(valor)
+
+    @field_validator("marca", "observacao", "codigo", mode="before")
+    @classmethod
+    def _texto_opcional_item(cls, valor):
+        if valor is None:
+            return None
+        texto = str(valor).strip()
+        return texto or None
 
 class ContratoUpdate(BaseModel):
     fornecedor_id: Optional[int] = None
@@ -235,13 +224,36 @@ class ItemAditivoIn(BaseModel):
 
 class ContratoAditivoIn(BaseModel):
     itens: List[ItemAditivoIn]
+    data_inicio: date
+    data_fim: date
+
+    @model_validator(mode="after")
+    def _vigencia_aditivo(self):
+        if self.data_fim < self.data_inicio:
+            raise ValueError("A vigência final do aditivo deve ser igual ou posterior à inicial")
+        return self
+
+
+class ContratoAditivoOut(BaseModel):
+    id: int
+    data_inicio: date
+    data_fim: date
+    criado_em: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 class ContratoOut(ContratoBase):
     id: int
     valor_total_inicial: Optional[float] = None
     percentual_aditivo: float = 0
+    arquivo_pdf_path: Optional[str] = Field(default=None, exclude=True)
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def tem_arquivo(self) -> bool:
+        return bool(self.arquivo_pdf_path)
 
 class ItemContratoOut(BaseModel):
     id: int
@@ -250,6 +262,8 @@ class ItemContratoOut(BaseModel):
     codigo: Optional[str] = None
     descricao: str
     unidade: str
+    marca: Optional[str] = None
+    observacao: Optional[str] = None
     quantidade_contratada: float
     quantidade_inicial: Optional[float] = None
     valor_unitario: float
@@ -271,6 +285,7 @@ class ItemContratoOut(BaseModel):
 class ContratoDetalhadoOut(ContratoOut):
     fornecedor: Optional[FornecedorOut] = None
     itens: List[ItemContratoOut] = []
+    aditivos: List[ContratoAditivoOut] = []
 
     @computed_field
     @property
@@ -373,6 +388,7 @@ class NotaFiscalOut(NotaFiscalCreate):
     arquivo_pdf_path: Optional[str] = Field(default=None, exclude=True)
     status: str
     criado_em: datetime
+    criado_por: Optional[int] = None
     itens: List[ItemNotaFiscalOut] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -391,7 +407,35 @@ class AtualizarVinculosRequest(BaseModel):
 
 class BaixaRequest(BaseModel):
     justificativa: Optional[str] = None
-    almoxarifado_id: Optional[int] = None
+
+
+class EstornoRequest(BaseModel):
+    justificativa: str = Field(min_length=5, max_length=500)
+
+
+class ExclusaoRequest(BaseModel):
+    motivo: str = Field(min_length=5, max_length=500)
+
+
+class NotaFiscalHistoricoOut(BaseModel):
+    """Uma nota estornada ou excluída, com quem fez e por quê."""
+
+    id: int
+    numero: str
+    serie: Optional[str] = None
+    chave_acesso: Optional[str] = None
+    data_emissao: Optional[date] = None
+    valor_total: Optional[float] = None
+    contrato_id: int
+    fornecedor_id: int
+    status: str
+    situacao: str
+    excluida_em: Optional[datetime] = None
+    excluida_por_nome: Optional[str] = None
+    motivo_exclusao: Optional[str] = None
+    estornada_em: Optional[datetime] = None
+    estornada_por_nome: Optional[str] = None
+    justificativa_estorno: Optional[str] = None
 
 
 class MovimentacaoOut(BaseModel):
@@ -402,7 +446,6 @@ class MovimentacaoOut(BaseModel):
     quantidade: float
     saldo_anterior: float
     saldo_posterior: float
-    almoxarifado_id: Optional[int] = None
     usuario_id: int
     data_hora: datetime
     justificativa: str
@@ -421,3 +464,94 @@ class PrevisaoConsumoOut(BaseModel):
     total_baixado: float
     taxa_diaria: float
     dias_restantes: Optional[int] = None
+
+
+class RelatorioItemSaldoOut(BaseModel):
+    item_id: int
+    numero_item: int
+    codigo: Optional[str] = None
+    descricao: str
+    marca: Optional[str] = None
+    observacao: Optional[str] = None
+    unidade: str
+    valor_unitario: float
+    valor_unitario_inicial: float
+    quantidade_contratada: float
+    valor_contratado: float
+    quantidade_aditivada: float
+    valor_aditivado: float
+    quantidade_vigente: float
+    valor_vigente: float
+    quantidade_utilizada: float
+    valor_utilizado: float
+    quantidade_saldo: float
+    valor_saldo: float
+    percentual_utilizado: float
+
+
+class RelatorioTotaisOut(BaseModel):
+    quantidade_contratada: float = 0
+    valor_contratado: float = 0
+    quantidade_aditivada: float = 0
+    valor_aditivado: float = 0
+    quantidade_vigente: float = 0
+    valor_vigente: float = 0
+    quantidade_utilizada: float = 0
+    valor_utilizado: float = 0
+    quantidade_saldo: float = 0
+    valor_saldo: float = 0
+    percentual_utilizado: float = 0
+
+
+class RelatorioContratoSaldoOut(BaseModel):
+    contrato_id: int
+    numero: str
+    ano: int
+    objeto: str = ""
+    situacao: str
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
+    licitacao_numero: Optional[str] = None
+    modalidade: Optional[str] = None
+    objeto_licitacao: Optional[str] = None
+    observacao: Optional[str] = None
+    fornecedor_id: int
+    fornecedor_razao_social: str = ""
+    fornecedor_nome_fantasia: Optional[str] = None
+    fornecedor_cnpj: Optional[str] = None
+    fornecedor_cidade: Optional[str] = None
+    fornecedor_estado: Optional[str] = None
+    fornecedor_telefone: Optional[str] = None
+    fornecedor_email: Optional[str] = None
+    aditivos: List[ContratoAditivoOut] = []
+    itens: List[RelatorioItemSaldoOut] = []
+    totais: RelatorioTotaisOut
+
+
+class RelatorioEmitenteOut(BaseModel):
+    nome: str
+    estado: Optional[str] = None
+    setor: Optional[str] = None
+
+
+class RelatorioSaldoOut(BaseModel):
+    emitente: RelatorioEmitenteOut
+    gerado_em: datetime
+    contratos: List[RelatorioContratoSaldoOut] = []
+    totais: RelatorioTotaisOut
+
+
+class LogAuditoriaOut(BaseModel):
+    id: int
+    usuario_id: Optional[int] = None
+    usuario_nome: Optional[str] = None
+    usuario_email: Optional[str] = None
+    operacao: str
+    tabela: str
+    registro_id: str
+    dados_anteriores: Optional[dict] = None
+    dados_novos: Optional[dict] = None
+    data_hora: datetime
+    ip: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)

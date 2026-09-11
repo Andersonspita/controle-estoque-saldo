@@ -8,7 +8,7 @@
 - **NF-e:** `xmltodict` (XML), `pymupdf` + `rapidocr` + `onnxruntime` (DANFE em PDF).
 
 ## 2. Regra de saldo
-O saldo controlado é o do **item do contrato**: quantidade (`itens_contrato.saldo_atual`) e valor (`saldo_atual × valor_unitario`). O contrato **não depende de licitação**. O **órgão** (`almoxarifados` / `estoque_almoxarifados`) registra apenas para onde o material foi destinado após a baixa.
+O saldo controlado é o do **item do contrato**: quantidade (`itens_contrato.saldo_atual`) e valor (`saldo_atual × valor_unitario`). O contrato **não depende de licitação**. Não há cadastro de órgão de destino físico.
 
 ## 3. Como Rodar o Projeto Localmente
 
@@ -41,50 +41,50 @@ A primeira extração de PDF baixa modelos do RapidOCR e pode levar ~20 segundos
 | GET | `/unidades-medida/` | Lookup de unidades de medida (sigla, nome, grupo, se a quantidade é inteira) |
 | GET | `/modalidades-licitacao/` | Lookup de modalidades (Pregão eletrônico, Dispensa, etc.) |
 | GET | `/contratos/` | Lista contratos com itens, `valor_contratado`/`saldo_monetario` por item e `saldo_atual` monetário do contrato |
-| POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN**. Cabeçalho inclui objeto, vigência, dados da licitação e observação |
-| PATCH | `/contratos/{id}` | Edita cabeçalho e itens (**ADMIN**). Quantidade ≥ já baixado; item com baixa não pode ser removido |
-| POST | `/contratos/{id}/aditivo` | Aditivo seletivo (**ADMIN**): itens escolhidos recebem quantidade extra e, opcionalmente, novo valor unitário |
+| POST | `/contratos/` | Cria contrato **e** itens (`saldo_atual` = quantidade contratada). **ADMIN** ou `pode_gerir_contratos`. Cabeçalho: objeto, vigência, nº/modalidade da licitação, observação. Grava auditoria do usuário |
+| PATCH | `/contratos/{id}` | Edita cabeçalho e itens (**ADMIN** ou `pode_gerir_contratos`). Quantidade ≥ já baixado; item com baixa não pode ser removido. Auditoria do usuário |
+| POST | `/contratos/{id}/aditivo` | Aditivo seletivo (**ADMIN** ou `pode_gerir_contratos`): itens escolhidos + **vigência do aditivo** (`data_inicio`/`data_fim`); grava `contrato_aditivos` |
+| POST | `/contratos/{id}/arquivo` | Anexa/substitui o PDF do contrato (**ADMIN** ou `pode_gerir_contratos`) |
+| GET | `/contratos/{id}/arquivo` | Download/visualização autenticada do PDF do contrato |
 | GET | `/contratos/previsao-consumo` | Dias restantes por item (taxa diária) + saldo monetário |
-| GET | `/notas-fiscais/` | Lista NFs (`tem_arquivo` indica se o PDF/XML está disponível) |
+| GET | `/notas-fiscais/` | Lista NFs (`tem_arquivo` indica se o PDF/XML está disponível; `criado_por` quando houver) |
 | POST | `/notas-fiscais/parse-xml` | Extrai dados de XML NF-e |
 | POST | `/notas-fiscais/parse-pdf` | Extrai dados de DANFE (OCR) |
 | POST | `/notas-fiscais/vincular-itens/{contrato_id}` | Sugere vínculo item NF → item do contrato |
-| POST | `/notas-fiscais/importar` | Grava NF + itens (vínculo obrigatório) e o arquivo em disco |
-| POST | `/notas-fiscais/` | Cadastra NF **manualmente** (JSON, sem arquivo). Mesmas regras de vínculo; XML/PDF continua em `/importar` |
-| PATCH | `/notas-fiscais/{id}/vinculos` | Ajusta vínculos NF × contrato em nota ainda não baixada |
+| POST | `/notas-fiscais/importar` | Grava NF + itens (vínculo obrigatório) e o arquivo em disco; registra `criado_por` e log de auditoria |
+| POST | `/notas-fiscais/` | Cadastra NF **manualmente** (JSON, sem arquivo). Mesmas regras de vínculo; XML/PDF continua em `/importar`. Auditoria |
+| PATCH | `/notas-fiscais/{id}/vinculos` | Ajusta vínculos NF × contrato em nota ainda não baixada; auditoria |
+| PUT | `/notas-fiscais/{id}` | Edita NF ainda não baixada; auditoria do usuário |
 | GET | `/notas-fiscais/{id}/arquivo` | Download autenticado do PDF/XML importado |
-| POST | `/notas-fiscais/{id}/baixar` | Baixa saldo do contrato (usuário vem do JWT) e destina ao órgão |
-| GET | `/almoxarifados/` | Lista órgãos (tabela `almoxarifados`) |
-| GET | `/almoxarifados/{id}` | Destinação física + saldo do contrato |
-| POST | `/almoxarifados/` | Cria órgão (**ADMIN**) |
-| PATCH | `/almoxarifados/{id}` | Edita órgão (**ADMIN**) |
-| POST | `/fornecedores/` | Cria fornecedor (**ADMIN**). Campo `cnpj` aceita CPF (11 dígitos) ou CNPJ (14); grava formatado |
-| PATCH | `/fornecedores/{id}` | Edita fornecedor (**ADMIN**) |
+| POST | `/notas-fiscais/{id}/baixar` | Baixa saldo do contrato (usuário JWT + `log_auditoria` + movimentação) |
+| POST | `/notas-fiscais/{id}/estornar` | Estorna baixa (**ADMIN** ou `pode_estornar`); auditoria + movimentação |
+| DELETE | `/notas-fiscais/{id}` | Exclusão lógica (lixeira/histórico); auditoria |
+| POST | `/fornecedores/` | Cria fornecedor (**ADMIN**). Campo `cnpj` aceita CPF (11 dígitos) ou CNPJ (14); grava formatado; auditoria |
+| PATCH | `/fornecedores/{id}` | Edita fornecedor (**ADMIN**); auditoria |
+| GET | `/auditoria/` | Lista `log_auditoria` (**ADMIN**). Filtros: `tabela`, `operacao`, `usuario_id`, `skip`, `limit` |
 | POST | `/login/access-token` | Login (público). Form `username` + `password`. 5 falhas / 15 min → **429** |
 | GET | `/users/me` | Usuário logado (`perfil`, `is_superuser`) |
 | PATCH | `/users/me` | Atualiza nome/e-mail da conta logada |
 | PATCH | `/users/me/password` | Troca a senha da conta logada |
 | GET | `/users/` | Lista usuários (`ADMIN`) |
-| POST | `/users/` | Cria usuário (`ADMIN`). Corpo: `email`, `password`, `full_name`, `perfil` (`ADMIN`/`OPERADOR`), `is_active` |
-| PATCH | `/users/{id}` | Atualiza usuário e perfil (`ADMIN`) |
-| DELETE | `/users/{id}` | Exclui usuário (`ADMIN`; não exclui a própria conta nem o último ADMIN) |
+| POST | `/users/` | Cria usuário (`ADMIN`). Corpo: `email`, `password`, `full_name`, `perfil` (`ADMIN`/`OPERADOR`), `is_active`. Auditoria |
+| PATCH | `/users/{id}` | Atualiza usuário e perfil (`ADMIN`); auditoria |
+| DELETE | `/users/{id}` | Exclui usuário (`ADMIN`; não exclui a própria conta nem o último ADMIN); auditoria |
 | GET | `/health` | Health check (público) |
 
 Todas as rotas de `/api/v1/...` do domínio exigem `Authorization: Bearer <token>`, exceto login e health.
 
-**Perfis:** `OPERADOR` lista, importa NF, inclui NF manualmente, baixa o PDF, confere vínculos e dá baixa. `ADMIN` faz o mesmo e ainda cria/edita usuários, fornecedor, contrato, órgão e aplica aditivo (`require_admin` → 403 para os demais).
+**Perfis:** `OPERADOR` lista, importa NF, inclui NF manualmente, baixa o PDF, confere vínculos e dá baixa. Com `pode_gerir_contratos`, também cria/edita/aditiva contratos. `ADMIN` faz o mesmo, gerencia usuários (flags `pode_estornar` e `pode_gerir_contratos`) e consulta o **Log de usuários** (`/auditoria`). Em **Configurações**, cada usuário vê as permissões liberadas (somente leitura).
 
 Cadastro de fornecedor: UF em select e municípios pela API do IBGE (`https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome`). ADMIN edita pelo botão na linha. Valores monetários na interface usam BRL (`R$ 1.234,56`). Tabelas no mobile rolam na horizontal.
 
-Cadastro/edição de contrato: o **objeto** é o objeto do contrato. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é derivado da vigência inicial. Também há **número da licitação**, **modalidade** (select; `GET /modalidades-licitacao/`), **objeto da licitação** e **observação**, gravados no contrato. Itens: descrição, unidade de medida (select com sigla) e valores — sem campo de código na tela. Podem ser digitados ou importados de planilha. Colunas reconhecidas: descrição (obrigatória), unidade/sigla, quantidade e valor unitário. Números no formato BR (`1.234,56`) são aceitos. Há **Baixar modelo** (CSV). Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON. `GET /unidades-medida/` devolve o lookup de unidades.
+Cadastro/edição de contrato: o **objeto** é o objeto do contrato. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é derivado da vigência inicial. Também há **número da licitação**, **modalidade** (select; `GET /modalidades-licitacao/`) e **observação** (não há mais campo “objeto da licitação” na UI). Em cada item aparece o **valor total** (quantidade × unitário) para comparar com o contrato. É possível **anexar o PDF do contrato** no cadastro/edição (`POST /contratos/{id}/arquivo`), com **Visualizar** e **Download**. Botão **Visualizar** na lista abre o painel de detalhe. Itens seguem o modelo oficial de planilha: **Item**, **Descrição**, **Unidade**, **Quantidade**, **Marca**, **Valor_unitário** e **Observação**. Podem ser digitados ou importados só pelo `.xlsx` do modelo (`frontend/public/modelo-itens-contrato.xlsx` — botão **Baixar modelo**). Cabeçalhos fora do modelo são rejeitados. Números no formato BR (`1.234,56`) são aceitos. Na criação, a importação substitui linhas em branco; na edição, os itens da planilha são acrescentados. A API continua sendo `POST/PATCH /contratos/` com a lista de itens no JSON. `GET /unidades-medida/` devolve o lookup de unidades.
 
-Notas fiscais: a tela **Nova nota fiscal** oferece **Importar XML ou PDF** (`POST /notas-fiscais/importar`) e **Incluir manualmente** (`POST /notas-fiscais/`). A importação por arquivo permanece; a inclusão digitada exige contrato, número, data e ao menos um item vinculado ao contrato. XML/PDF anexo no cadastro manual é opcional.
+Notas fiscais: a tela **Nova nota fiscal** oferece **Importar XML ou PDF** (`POST /notas-fiscais/importar`) e **Incluir manualmente** (`POST /notas-fiscais/`). A importação por arquivo permanece; a inclusão digitada exige contrato, número, data e ao menos um item vinculado ao contrato. Nas listas de vínculo manual o rótulo mostra **nome + valor unitário + saldo**. O modal de baixa rola (`max-h`) até **Confirmar baixa**. Create/import/edit/vínculos/baixa/estorno/exclusão registram o usuário em `log_auditoria` (baixa/estorno também em `movimentacoes`).
 
-A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`). Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante, órgão de destino e justificativa opcional.
+A interface usa tokens de `frontend/src/index.css` (`primary`, `success`, `warning`, `critical`, `bg-card`, `text-foreground`, `border-input`). Modais de NF, contrato, aditivo e fornecedor seguem o mesmo padrão do modal de baixa (sem `bg-white` hardcoded). Status de vínculo NF→contrato usa `<Badge>` (`vinculoStatus.tsx`). Tema claro/escuro/sistema na sidebar em português (**Aparência**). Relatórios: a pré-visualização permanece em fundo branco (paridade com impressão A4), com rótulo explicativo no dark mode; **Cidade/UF** saiu do cabeçalho do documento (permanecem CNPJ/CPF e **Valor vigente**); a descrição do item **não** prefixa código; com aditivos, o relatório lista **Vigência do(s) aditivo(s)**; filtros de vigência e objeto ficam em **Filtros avançados** retráteis. Listas têm busca, filtro de status e paginação. A baixa da NF pede confirmação com preview do saldo resultante e justificativa opcional. A tela **Log de usuários** lista o `log_auditoria` (data, usuário, operação, tabela, registro, detalhe, IP) e só aparece para ADMIN.
 
-Na edição (**ADMIN**) o modal altera dados cadastrais e a quantidade/valor atuais. Para acrescentar quantidade em itens já existentes, o botão **Aditivo** abre outro modal: o usuário marca os itens, informa a quantidade extra (inteira em UN) e o valor unitário. A quantidade inicial do contrato não muda. OPERADOR recebe **403**.
-
-A tela **Órgãos** (menu; URL `/almoxarifados`) permite criar e editar (**ADMIN**). Na baixa da NF o destino é o órgão.
+Na edição (**ADMIN** ou `pode_gerir_contratos`) o modal altera dados cadastrais e a quantidade/valor atuais. Para acrescentar quantidade em itens já existentes, o botão **Aditivo** abre outro modal: o usuário marca os itens, informa a quantidade extra (inteira em UN), o valor unitário e a **vigência do aditivo**. A quantidade inicial do contrato não muda. Sem permissão → **403**.
 
 ## 5. Como Executar os Testes
 
@@ -99,7 +99,9 @@ Testes relevantes do domínio:
 - `tests/test_nfe_parser.py` / `test_parse_xml_endpoint.py`
 - `tests/test_item_matcher.py`
 - `tests/test_danfe_parser.py` (rápido; usa fixture OCR)
-- `tests/test_auth.py` (401 sem token; `/health` público; OPERADOR recebe 403 em POST de cadastro, PATCH de contrato e nas rotas de usuários)
+- `tests/test_auth.py` (401 sem token; `/health` público; OPERADOR recebe 403 em POST de cadastro, PATCH de contrato — mensagem de `pode_gerir_contratos` — e nas rotas de usuários)
+- `tests/test_aditivo.py` / `test_relatorio_saldo.py` / `test_estorno_exclusao_nf.py` (aditivo com vigência, relatório, estorno/permissões)
+- Respostas `ContratoDetalhadoOut` carregam `aditivos` via `selectinload` (listagem, GET, PATCH, aditivo e upload de arquivo)
 - `tests/test_login_throttle.py` (bloqueio após falhas de login)
 - `tests/test_arquivos.py` (nome de upload sanitizado)
 - `tests/test_documento.py` (validação e formatação de CPF/CNPJ; schema `FornecedorCreate`)
@@ -188,6 +190,7 @@ Edite `.env.production`:
 - `FRONTEND_HOST=http://SEU_IP_PUBLICO:8080` (sem barra no final)
 - `HTTP_PORT=8080` (porta pública do site; a 80 costuma estar ocupada pelo painel)
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `ADMIN_NOME`: o primeiro administrador (não reutilize a senha de teste local)
+- `ORGAO_NOME`, `ORGAO_ESTADO` e `ORGAO_SETOR`: cabeçalho impresso no Relatório de Saldo de Contrato. Opcionais — sem `ORGAO_NOME` o relatório usa `PROJECT_NAME`
 
 Não commite `.env.production`. Guarde e-mail/senha do ADMIN, SSH e a URL pública **fora do repositório**.
 
@@ -239,7 +242,7 @@ docker run --rm -v controle-estoque-saldo_uploads:/data -v "$BK":/backup alpine 
   tar czf /backup/uploads.tgz -C /data .
 ```
 
-Ponto de restauração no Git **antes** de número/modalidade/objeto da licitação e observação: tag `backup-pre-licitacao-obs-20260824` (commit `e8fdd8b`). Tags anteriores: `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos.
+Ponto de restauração no Git **antes** do CRUD de notas fiscais (estorno e exclusão): tag `backup-pre-crud-nf-20260904` (commit `942db02`). Tags anteriores: `backup-pre-leitura-danfe-pdf-20260904`, `backup-pre-relatorio-saldo-20260901`, `backup-pre-licitacao-obs-20260824`, `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos. Tag deste ciclo: `backup-pre-rel2-rel4-cfg-20260911`. Migração `d5e9f1a2b803`.
 
 Atualizar para a versão nova (depois do backup):
 

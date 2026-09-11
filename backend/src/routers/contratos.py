@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -7,8 +9,8 @@ from typing import List
 from datetime import date
 
 from ..database.session import get_db
-from ..deps import get_current_active_user, require_admin
-from ..database.models import Contrato, ItemContrato, Movimentacao
+from ..deps import get_current_active_user, require_gestao_contratos, CurrentUser
+from ..database.models import Contrato, ItemContrato, Movimentacao, ContratoAditivo
 from ..schemas import (
     ContratoCreate,
     ContratoUpdate,
@@ -19,6 +21,8 @@ from ..schemas import (
 )
 from ..http_errors import http_erro_interno
 from ..services.aditivo import aplicar_aditivo_item, valor_total_inicial_itens, valor_total_itens
+from ..services.arquivos import caminho_upload_seguro
+from ..core.audit import registrar_auditoria, get_client_ip
 
 router = APIRouter(
     prefix="/api/v1/contratos",
@@ -26,8 +30,31 @@ router = APIRouter(
     dependencies=[Depends(get_current_active_user)],
 )
 
-@router.post("/", response_model=ContratoOut, dependencies=[Depends(require_admin)])
-async def create_contrato(contrato: ContratoCreate, db: AsyncSession = Depends(get_db)):
+UPLOAD_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "contratos"
+)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _resumo_contrato(contrato: Contrato, qtd_itens: int | None = None) -> dict:
+    return {
+        "numero": contrato.numero,
+        "ano": contrato.ano,
+        "fornecedor_id": contrato.fornecedor_id,
+        "objeto": contrato.objeto,
+        "valor_total": contrato.valor_total,
+        "situacao": contrato.situacao,
+        **({"qtd_itens": qtd_itens} if qtd_itens is not None else {}),
+    }
+
+
+@router.post("/", response_model=ContratoOut, dependencies=[Depends(require_gestao_contratos)])
+async def create_contrato(
+    contrato: ContratoCreate,
+    request: Request,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
     dados_contrato = contrato.model_dump(exclude={"itens"})
     if not dados_contrato.get("licitacao_id"):
         dados_contrato.pop("licitacao_id", None)
@@ -52,6 +79,8 @@ async def create_contrato(contrato: ContratoCreate, db: AsyncSession = Depends(g
                 codigo=item.codigo,
                 descricao=item.descricao,
                 unidade=item.unidade,
+                marca=item.marca,
+                observacao=item.observacao,
                 quantidade_inicial=quantidade,
                 valor_unitario_inicial=item.valor_unitario,
                 quantidade_contratada=quantidade,
@@ -64,6 +93,16 @@ async def create_contrato(contrato: ContratoCreate, db: AsyncSession = Depends(g
         ).scalars().all()
         db_contrato.valor_total_inicial = valor_total_inicial_itens(itens_depois)
         db_contrato.valor_total = valor_total_itens(itens_depois)
+        await db.flush()
+        await registrar_auditoria(
+            db,
+            usuario_id=current_user.id,
+            operacao="INSERT",
+            tabela="contratos",
+            registro_id=str(db_contrato.id),
+            dados_novos=_resumo_contrato(db_contrato, qtd_itens=len(itens_depois)),
+            ip=get_client_ip(request),
+        )
         await db.commit()
         await db.refresh(db_contrato)
         return db_contrato
@@ -76,7 +115,11 @@ async def list_contratos(skip: int = 0, limit: int = 100, db: AsyncSession = Dep
     from sqlalchemy.orm import selectinload
     result = await db.execute(
         select(Contrato)
-        .options(selectinload(Contrato.fornecedor), selectinload(Contrato.itens))
+        .options(
+            selectinload(Contrato.fornecedor),
+            selectinload(Contrato.itens),
+            selectinload(Contrato.aditivos),
+        )
         .offset(skip).limit(limit)
     )
     return result.scalars().all()
@@ -147,21 +190,29 @@ async def previsao_consumo_contratos(db: AsyncSession = Depends(get_db)):
     return previsoes_com_dias + previsoes_sem_dias
 
 
-@router.patch("/{contrato_id}", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_admin)])
+@router.patch("/{contrato_id}", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_gestao_contratos)])
 async def update_contrato(
     contrato_id: int,
     contrato_in: ContratoUpdate,
+    request: Request,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     stmt = (
         select(Contrato)
-        .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+        .options(
+            selectinload(Contrato.itens),
+            selectinload(Contrato.fornecedor),
+            selectinload(Contrato.aditivos),
+        )
         .where(Contrato.id == contrato_id)
     )
     result = await db.execute(stmt)
     contrato = result.scalar_one_or_none()
     if not contrato:
         raise HTTPException(status_code=404, detail="Contrato não encontrado")
+
+    anteriores = _resumo_contrato(contrato, qtd_itens=len(contrato.itens or []))
 
     dados = contrato_in.model_dump(exclude_unset=True, exclude={"itens"})
     for campo, valor in dados.items():
@@ -199,6 +250,12 @@ async def update_contrato(
                     )
                 if "codigo" in item_in.model_fields_set:
                     item.codigo = item_in.codigo
+                if "marca" in item_in.model_fields_set:
+                    item.marca = item_in.marca
+                if "observacao" in item_in.model_fields_set:
+                    item.observacao = item_in.observacao
+                if item_in.numero_item is not None:
+                    item.numero_item = item_in.numero_item
                 item.descricao = item_in.descricao
                 item.unidade = item_in.unidade
                 item.quantidade_contratada = item_in.quantidade_contratada
@@ -209,10 +266,12 @@ async def update_contrato(
                 proximo_numero += 1
                 db.add(ItemContrato(
                     contrato_id=contrato.id,
-                    numero_item=proximo_numero,
+                    numero_item=item_in.numero_item or proximo_numero,
                     codigo=item_in.codigo,
                     descricao=item_in.descricao,
                     unidade=item_in.unidade,
+                    marca=item_in.marca,
+                    observacao=item_in.observacao,
                     quantidade_inicial=item_in.quantidade_contratada,
                     valor_unitario_inicial=item_in.valor_unitario,
                     quantidade_contratada=item_in.quantidade_contratada,
@@ -242,10 +301,24 @@ async def update_contrato(
     contrato.valor_total = valor_total_itens(itens_depois)
 
     try:
+        await registrar_auditoria(
+            db,
+            usuario_id=current_user.id,
+            operacao="UPDATE",
+            tabela="contratos",
+            registro_id=str(contrato.id),
+            dados_anteriores=anteriores,
+            dados_novos=_resumo_contrato(contrato, qtd_itens=len(itens_depois)),
+            ip=get_client_ip(request),
+        )
         await db.commit()
         result = await db.execute(
             select(Contrato)
-            .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+            .options(
+                selectinload(Contrato.itens),
+                selectinload(Contrato.fornecedor),
+                selectinload(Contrato.aditivos),
+            )
             .where(Contrato.id == contrato.id)
         )
         return result.scalar_one()
@@ -254,15 +327,21 @@ async def update_contrato(
         raise http_erro_interno(e)
 
 
-@router.post("/{contrato_id}/aditivo", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_admin)])
+@router.post("/{contrato_id}/aditivo", response_model=ContratoDetalhadoOut, dependencies=[Depends(require_gestao_contratos)])
 async def aditivar_contrato(
     contrato_id: int,
     body: ContratoAditivoIn,
+    request: Request,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     stmt = (
         select(Contrato)
-        .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+        .options(
+            selectinload(Contrato.itens),
+            selectinload(Contrato.fornecedor),
+            selectinload(Contrato.aditivos),
+        )
         .where(Contrato.id == contrato_id)
     )
     result = await db.execute(stmt)
@@ -274,6 +353,7 @@ async def aditivar_contrato(
 
     itens_por_id = {item.id: item for item in contrato.itens}
     ids_vistos: set[int] = set()
+    aditivos = []
     for item_in in body.itens:
         if item_in.item_id in ids_vistos:
             raise HTTPException(status_code=400, detail="Há item repetido no aditivo")
@@ -291,14 +371,52 @@ async def aditivar_contrato(
                 status_code=400,
                 detail=f"{item.descricao}: {e}",
             ) from e
+        aditivos.append({
+            "item_id": item.id,
+            "quantidade_aditivada": item_in.quantidade_aditivada,
+            "valor_unitario": item_in.valor_unitario,
+        })
+
+    registro_aditivo = ContratoAditivo(
+        contrato_id=contrato.id,
+        data_inicio=body.data_inicio,
+        data_fim=body.data_fim,
+        usuario_id=current_user.id,
+    )
+    db.add(registro_aditivo)
+
+    # Prorroga a vigência do contrato quando o aditivo termina depois.
+    if contrato.data_fim is None or body.data_fim > contrato.data_fim:
+        contrato.data_fim = body.data_fim
+    if contrato.data_inicio is None:
+        contrato.data_inicio = body.data_inicio
 
     contrato.valor_total = valor_total_itens(contrato.itens)
 
     try:
+        await registrar_auditoria(
+            db,
+            usuario_id=current_user.id,
+            operacao="UPDATE",
+            tabela="contratos",
+            registro_id=str(contrato.id),
+            dados_novos={
+                "operacao": "aditivo",
+                "itens": aditivos,
+                "valor_total": contrato.valor_total,
+                "data_inicio": str(body.data_inicio),
+                "data_fim": str(body.data_fim),
+            },
+            ip=get_client_ip(request),
+        )
         await db.commit()
         result = await db.execute(
             select(Contrato)
-            .options(selectinload(Contrato.itens), selectinload(Contrato.fornecedor))
+            .options(
+                selectinload(Contrato.itens),
+                selectinload(Contrato.fornecedor),
+                selectinload(Contrato.aditivos),
+            )
             .where(Contrato.id == contrato.id)
         )
         return result.scalar_one()
@@ -306,3 +424,98 @@ async def aditivar_contrato(
         await db.rollback()
         raise http_erro_interno(e)
 
+
+@router.post(
+    "/{contrato_id}/arquivo",
+    response_model=ContratoDetalhadoOut,
+    dependencies=[Depends(require_gestao_contratos)],
+)
+async def enviar_arquivo_contrato(
+    contrato_id: int,
+    request: Request,
+    current_user: CurrentUser,
+    arquivo: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Anexa ou substitui o PDF do contrato."""
+    nome = (arquivo.filename or "").lower()
+    if not nome.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Envie um arquivo PDF do contrato.")
+
+    stmt = (
+        select(Contrato)
+        .options(
+            selectinload(Contrato.itens),
+            selectinload(Contrato.fornecedor),
+            selectinload(Contrato.aditivos),
+        )
+        .where(Contrato.id == contrato_id)
+    )
+    contrato = (await db.execute(stmt)).scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+
+    caminho_antigo = contrato.arquivo_pdf_path
+    file_path = caminho_upload_seguro(UPLOAD_DIR, arquivo.filename)
+    with open(file_path, "wb") as buffer:
+        buffer.write(await arquivo.read())
+
+    contrato.arquivo_pdf_path = file_path
+    try:
+        await registrar_auditoria(
+            db,
+            usuario_id=current_user.id,
+            operacao="UPDATE",
+            tabela="contratos",
+            registro_id=str(contrato.id),
+            dados_novos={"arquivo_pdf": os.path.basename(file_path)},
+            ip=get_client_ip(request),
+        )
+        await db.commit()
+        if caminho_antigo and os.path.isfile(caminho_antigo) and caminho_antigo != file_path:
+            try:
+                os.remove(caminho_antigo)
+            except OSError:
+                pass
+        result = await db.execute(
+            select(Contrato)
+            .options(
+                selectinload(Contrato.itens),
+                selectinload(Contrato.fornecedor),
+                selectinload(Contrato.aditivos),
+            )
+            .where(Contrato.id == contrato.id)
+        )
+        return result.scalar_one()
+    except Exception as e:
+        await db.rollback()
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise http_erro_interno(e)
+
+
+@router.get("/{contrato_id}/arquivo")
+async def baixar_arquivo_contrato(contrato_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Contrato).where(Contrato.id == contrato_id))
+    contrato = result.scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+    if not contrato.arquivo_pdf_path:
+        raise HTTPException(status_code=404, detail="Arquivo do contrato não disponível")
+
+    caminho = os.path.abspath(contrato.arquivo_pdf_path)
+    pasta_uploads = os.path.abspath(UPLOAD_DIR)
+    try:
+        comum = os.path.commonpath([caminho, pasta_uploads])
+    except ValueError:
+        comum = ""
+    if comum != pasta_uploads or not os.path.isfile(caminho):
+        raise HTTPException(status_code=404, detail="Arquivo do contrato não encontrado")
+
+    nome = os.path.basename(caminho)
+    prefixo, _, resto = nome.partition("_")
+    if resto and prefixo.isdigit():
+        nome = resto
+    if not nome.lower().endswith(".pdf"):
+        nome = f"contrato-{contrato.numero}-{contrato.ano}.pdf"
+    return FileResponse(caminho, filename=nome, media_type="application/pdf")
