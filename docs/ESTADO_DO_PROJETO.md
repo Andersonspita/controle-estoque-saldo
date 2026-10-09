@@ -1,8 +1,8 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 09/10/2026 — descrição do fornecedor nos itens do contrato; vínculo da NF valida primeiro por ela e depois pela descrição do contrato
+> **Última Atualização:** 09/10/2026 — Manual do Usuário em PDF; documentação revisada (READMEs, desenvolvimento e deploy); descrição do fornecedor nos itens do contrato
 
-Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
+Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`. Para o uso das telas, o **Manual do Usuário** (`docs/Manual_do_Usuario_SaldoContratual.pdf`).
 
 **Usuário de testes / VPS:** senha e SSH **não** ficam neste repositório. Guarde-os fora do Git (arquivo de acessos local ou gerenciador de senhas). Playwright: `E2E_EMAIL` e `E2E_PASSWORD` em `frontend/.env.e2e` (modelo: `frontend/.env.e2e.example`). Perfil do usuário de testes: `ADMIN`.
 
@@ -90,7 +90,9 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo (09/10/2026): campo **descrição do fornecedor** nos itens do contrato (migração `e1a3f6c9d024`); o vínculo da NF valida primeiro por código/GTIN/descrição do fornecedor e depois pela descrição do contrato. Backup: tag `backup-pre-descricao-fornecedor-branch-20261009` (commit `40e01be`).
+Concluído neste ciclo (09/10/2026): **Manual do Usuário em PDF** (`docs/Manual_do_Usuario_SaldoContratual.pdf`, 11 capítulos: acesso, perfis, dashboard, fornecedores, contratos, notas fiscais, estornos, relatórios, administração e dúvidas frequentes), gerado por `docs/manual/gerar_manual_usuario.py`. Revisão da documentação: `README.md` (funcionalidades atuais e perfis com permissões extras), `backend/README.md` e `frontend/README.md` reescritos em português (eram do template), `development.md` (fluxo de trabalho, backup e branch) e `deployment-docker-compose.md` (resumo do deploy real); `GUIA_TECNICO.md` §6.5 com o alerta de `dubious ownership` ao rodar Git como root na VPS. Backup: tag `backup-pre-manual-usuario-20261009`.
+
+Também em 09/10/2026: campo **descrição do fornecedor** nos itens do contrato (migração `e1a3f6c9d024`); o vínculo da NF valida primeiro por código/GTIN/descrição do fornecedor e depois pela descrição do contrato. Backup: tag `backup-pre-descricao-fornecedor-branch-20261009` (commit `40e01be`).
 
 Ciclo anterior (11/09/2026): após smoke de testes, **correção** de `selectinload(Contrato.aditivos)` em listagem/PATCH/arquivo de contratos (evita `MissingGreenlet` ao serializar `ContratoDetalhadoOut`) e alinhamento dos asserts de `test_auth` com a mensagem de `pode_gerir_contratos`. Backup: tag `backup-pre-fix-selectinload-aditivos-20260911`.
 
@@ -111,4 +113,6 @@ Regra permanente: **toda alteração** exige backup Git (tag `backup-pre-<resumo
 1. **HTTPS:** quando houver domínio, certificado Let's Encrypt e `FRONTEND_HOST=https://...`.
 2. Preferir XML da NF-e ao OCR de PDF quando o XML existir.
 3. Trocar a senha do ADMIN em produção depois que o histórico do Git já tiver sido publicado com ela (o commit atual só remove a senha dos arquivos).
-4. Aplicar as migrações até `d5e9f1a2b803` no banco local/VPS (`alembic upgrade head`) após dump.
+4. Na VPS, confirmar que a migração `e1a3f6c9d024` (descrição do fornecedor) rodou: `docker compose ... logs backend | grep -i upgrade`. Se o deploy foi feito como root, refazer o `git pull` com `sudo -u deploy` (`GUIA_TECNICO.md` §6.5).
+5. Levar a branch `cursor/perfis-e2e-readme-pt` para o `master` por pull request (o `master` está atrás).
+6. Incluir capturas de tela no Manual do Usuário quando houver um ambiente com dados de demonstração.

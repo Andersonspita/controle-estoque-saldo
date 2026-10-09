@@ -242,7 +242,7 @@ docker run --rm -v controle-estoque-saldo_uploads:/data -v "$BK":/backup alpine 
   tar czf /backup/uploads.tgz -C /data .
 ```
 
-Ponto de restauração no Git **antes** do CRUD de notas fiscais (estorno e exclusão): tag `backup-pre-crud-nf-20260904` (commit `942db02`). Tags anteriores: `backup-pre-leitura-danfe-pdf-20260904`, `backup-pre-relatorio-saldo-20260901`, `backup-pre-licitacao-obs-20260824`, `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos. Tag deste ciclo: `backup-pre-descricao-fornecedor-branch-20261009` (commit `40e01be`). Migração `e1a3f6c9d024` (descrição do fornecedor). Ciclo anterior: `backup-pre-rel2-rel4-cfg-20260911`, migração `d5e9f1a2b803`.
+Ponto de restauração no Git **antes** do CRUD de notas fiscais (estorno e exclusão): tag `backup-pre-crud-nf-20260904` (commit `942db02`). Tags anteriores: `backup-pre-leitura-danfe-pdf-20260904`, `backup-pre-relatorio-saldo-20260901`, `backup-pre-licitacao-obs-20260824`, `backup-pre-objeto-vigencia-20260824` e `backup-pre-nf-manual-20260824`. A partir de 24/08/2026, **toda alteração** cria uma tag `backup-pre-<resumo>-YYYYMMDD` no HEAD atual **antes** de editar arquivos. Tag mais recente: `backup-pre-manual-usuario-20261009` (manual do usuário e revisão da documentação, sem mudança de código). Antes da descrição do fornecedor: `backup-pre-descricao-fornecedor-branch-20261009` (commit `40e01be`), migração `e1a3f6c9d024`. Ciclo anterior: `backup-pre-rel2-rel4-cfg-20260911`, migração `d5e9f1a2b803`.
 
 Atualizar para a versão nova (depois do backup):
 
@@ -251,21 +251,44 @@ cd /home/deploy/controle-estoque-saldo
 git fetch origin
 git checkout cursor/perfis-e2e-readme-pt
 git pull --ff-only origin cursor/perfis-e2e-readme-pt
+git log --oneline -1
 docker compose -f compose.prod.yml --env-file .env.production up -d --build
+docker compose -f compose.prod.yml --env-file .env.production logs backend --tail 50 | grep -i upgrade
 ```
+
+Confira no `git log` que o commit é o esperado **antes** do rebuild, e nos logs o `Running upgrade ...` de cada migração nova.
+
+> **Entrou como root?** A pasta pertence ao usuário `deploy`, e o Git recusa com `fatal: detected dubious ownership`. Nesse caso o `git pull` **não acontece** e o `docker compose` recompila o código antigo sem avisar. Rode os comandos Git como o dono da pasta: `sudo -u deploy git fetch origin`, `sudo -u deploy git pull --ff-only origin cursor/perfis-e2e-readme-pt`. Não use `git config --global --add safe.directory` como root: os arquivos novos ficariam do root. Se algum arquivo já estiver com dono errado: `chown -R deploy:deploy /home/deploy/controle-estoque-saldo`.
 
 Se quebrar, volte o código e o banco:
 
 ```bash
 cd /home/deploy/controle-estoque-saldo
 git fetch origin
-git checkout backup-pre-nf-manual-20260824
+git checkout backup-pre-<resumo>-AAAAMMDD   # a tag criada antes da mudança que quebrou
 docker compose -f compose.prod.yml --env-file .env.production up -d --build
 docker compose -f compose.prod.yml --env-file .env.production exec -T db \
   pg_restore -U postgres -d controle_estoque --clean --if-exists < /home/deploy/backups/STAMP/postgres.dump
 ```
 
-Troque `STAMP` pela pasta criada no backup. Restaurar o dump **apaga** dados gravados depois do dump.
+Troque `STAMP` pela pasta criada no backup e a tag pela do ciclo (a mais recente fica listada acima e em `docs/ESTADO_DO_PROJETO.md` §9). Restaurar o dump **apaga** dados gravados depois do dump.
 
 ## 7. Documentação a manter
-Qualquer mudança de comportamento deve refletir em `docs/ESTADO_DO_PROJETO.md` (estado + próximos passos) e neste guia (como rodar / rotas / testes / deploy). O `README.md` da raiz (em português do Brasil) é a porta de entrada do repositório. Senhas, chaves e dados de SSH não devem voltar para estes arquivos.
+Qualquer mudança de comportamento deve refletir em:
+
+| Arquivo | Quando atualizar |
+|---------|------------------|
+| `docs/ESTADO_DO_PROJETO.md` | Sempre: data, o que mudou, tag de backup e de onde retomar |
+| `docs/GUIA_TECNICO.md` (este) | Rotas, testes, comandos e deploy |
+| `docs/manual/gerar_manual_usuario.py` → `docs/Manual_do_Usuario_SaldoContratual.pdf` | Mudança em tela, botão, fluxo, permissão ou mensagem que o usuário vê |
+| `README.md` (raiz) | Lista de funcionalidades e porta de entrada |
+| `backend/README.md` / `frontend/README.md` | Estrutura de pastas, comandos e padrões de cada parte |
+| `development.md` / `deployment-docker-compose.md` | Fluxo de trabalho e resumo do deploy |
+
+Gerar o manual em PDF (na raiz):
+
+```bash
+uv run --no-project --with reportlab python docs/manual/gerar_manual_usuario.py
+```
+
+O texto do manual fica no próprio script, separado por capítulo. Usa Segoe UI/Arial no Windows ou DejaVu no Linux. O `release-notes.md` da raiz é o histórico do template FastAPI e não é atualizado. Senhas, chaves e dados de SSH não devem voltar para estes arquivos.

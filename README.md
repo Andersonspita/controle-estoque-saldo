@@ -8,15 +8,21 @@ Exemplo: contrato de 12 meses com 1 item de 100 unidades → o item começa com 
 
 ## O que o sistema faz
 
-- Cadastro de fornecedores, contratos e itens (com saldo inicial igual à quantidade contratada)
-- Importação de NF-e em **XML** ou **PDF (DANFE)** com OCR
-- Vínculo de cada item da NF a um item do contrato (código, GTIN ou similaridade de descrição)
-- Baixa transacional: desconta o saldo do contrato e registra a movimentação
-- Previsão de consumo e alertas de esgotamento no dashboard (45 dias)
-- **Relatório de Saldo de Contrato** pronto para impressão ou PDF, com cabeçalho institucional e cada item aberto em contratado, aditivado, utilizado e saldo
-- Autenticação JWT com dois perfis:
-  - **ADMIN** — consulta, importa NF, dá baixa e cadastra/edita usuário, fornecedor e contrato
-  - **OPERADOR** — consulta, importa NF, vincula itens e dá baixa (não cadastra)
+- Cadastro de fornecedores (CPF ou CNPJ), contratos e itens (com saldo inicial igual à quantidade contratada)
+- Itens digitados ou importados da planilha modelo `.xlsx`; cada item pode ter a **descrição do fornecedor** (como ele escreve na NF)
+- PDF do contrato anexado, **aditivo** por item com vigência própria
+- Entrada de NF-e por **XML**, **PDF (DANFE)** com OCR ou **digitação manual**
+- Vínculo automático de cada item da NF a um item do contrato: código/GTIN e descrição do fornecedor primeiro, depois a descrição do contrato
+- Baixa transacional (tudo ou nada): desconta o saldo do contrato e registra a movimentação
+- **Estorno** de baixa e **exclusão** de nota, com motivo e histórico
+- Previsão de consumo e alertas de esgotamento (45 dias) e de fim de vigência (90 dias) no dashboard
+- **Relatório de Saldo de Contrato** pronto para impressão ou PDF, com cada item aberto em contratado, aditivado, utilizado e saldo
+- **Log de usuários**: inclusões, alterações e exclusões com o usuário responsável
+- Autenticação JWT com dois perfis e permissões extras:
+  - **ADMIN** — tudo, inclusive usuários, fornecedores e log de usuários
+  - **OPERADOR** — consulta, importa/digita NF, confere vínculos e dá baixa; com `pode_gerir_contratos` também cadastra/edita contratos e aditivos; com `pode_estornar` desfaz baixas e exclui notas
+
+O passo a passo para quem usa o sistema está no **[Manual do Usuário (PDF)](docs/Manual_do_Usuario_SaldoContratual.pdf)**.
 
 ## Tecnologias
 
@@ -107,7 +113,7 @@ Relatório HTML: `npx playwright show-report`.
 
 Banco, API e frontend sobem em containers separados (`compose.prod.yml`). A porta pública padrão é **8080**. Passo a passo (firewall, Docker, `.env.production`, primeiro ADMIN): [docs/GUIA_TECNICO.md](docs/GUIA_TECNICO.md#6-deploy-na-vps-banco-api-e-frontend-separados).
 
-Resumo, no servidor (usuário não-root):
+Resumo da primeira instalação, no servidor (usuário `deploy`, não-root). Para **atualizar** uma instalação existente, siga o roteiro com backup do §6.5 do guia:
 
 ```bash
 cp .env.production.example .env.production
@@ -120,8 +126,17 @@ docker compose -f compose.prod.yml --env-file .env.production exec backend pytho
 
 | Arquivo | Conteúdo |
 |---------|----------|
+| [docs/Manual_do_Usuario_SaldoContratual.pdf](docs/Manual_do_Usuario_SaldoContratual.pdf) | Manual do usuário final: telas, fluxos, perfis e dúvidas frequentes |
 | [docs/ESTADO_DO_PROJETO.md](docs/ESTADO_DO_PROJETO.md) | O que já está pronto, o que mudou e de onde retomar |
-| [docs/GUIA_TECNICO.md](docs/GUIA_TECNICO.md) | Como rodar, testar, endpoints e perfis |
+| [docs/GUIA_TECNICO.md](docs/GUIA_TECNICO.md) | Como rodar, testar, endpoints, perfis e deploy na VPS |
+| [backend/README.md](backend/README.md) | Estrutura do backend, migrações e testes |
+| [frontend/README.md](frontend/README.md) | Estrutura do frontend, build e testes E2E |
+
+O manual é gerado a partir de `docs/manual/gerar_manual_usuario.py`. Ao mudar uma tela ou regra, atualize o texto no script e gere de novo:
+
+```bash
+uv run --no-project --with reportlab python docs/manual/gerar_manual_usuario.py
+```
 
 Rotas de domínio exigem `Authorization: Bearer <token>`, exceto `POST /login/access-token` e `GET /health`.
 
