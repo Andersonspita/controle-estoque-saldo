@@ -78,6 +78,7 @@ async def create_contrato(
                 numero_item=item.numero_item or indice,
                 codigo=item.codigo,
                 descricao=item.descricao,
+                descricao_fornecedor=item.descricao_fornecedor,
                 unidade=item.unidade,
                 marca=item.marca,
                 observacao=item.observacao,
@@ -257,6 +258,8 @@ async def update_contrato(
                 if item_in.numero_item is not None:
                     item.numero_item = item_in.numero_item
                 item.descricao = item_in.descricao
+                if "descricao_fornecedor" in item_in.model_fields_set:
+                    item.descricao_fornecedor = item_in.descricao_fornecedor
                 item.unidade = item_in.unidade
                 item.quantidade_contratada = item_in.quantidade_contratada
                 item.valor_unitario = item_in.valor_unitario
@@ -269,6 +272,7 @@ async def update_contrato(
                     numero_item=item_in.numero_item or proximo_numero,
                     codigo=item_in.codigo,
                     descricao=item_in.descricao,
+                    descricao_fornecedor=item_in.descricao_fornecedor,
                     unidade=item_in.unidade,
                     marca=item_in.marca,
                     observacao=item_in.observacao,

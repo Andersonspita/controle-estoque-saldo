@@ -125,6 +125,7 @@ class ContratoBase(BaseModel):
 class ItemContratoCreate(BaseModel):
     codigo: Optional[str] = None
     descricao: str
+    descricao_fornecedor: Optional[str] = None
     unidade: str = "UN"
     marca: Optional[str] = None
     observacao: Optional[str] = None
@@ -137,7 +138,7 @@ class ItemContratoCreate(BaseModel):
     def _validar_unidade(cls, valor: str) -> str:
         return normalizar_unidade(valor)
 
-    @field_validator("marca", "observacao", "codigo", mode="before")
+    @field_validator("marca", "observacao", "codigo", "descricao_fornecedor", mode="before")
     @classmethod
     def _texto_opcional_item(cls, valor):
         if valor is None:
@@ -164,6 +165,7 @@ class ItemContratoUpdate(BaseModel):
     id: Optional[int] = None
     codigo: Optional[str] = None
     descricao: str
+    descricao_fornecedor: Optional[str] = None
     unidade: str = "UN"
     marca: Optional[str] = None
     observacao: Optional[str] = None
@@ -176,7 +178,7 @@ class ItemContratoUpdate(BaseModel):
     def _validar_unidade(cls, valor: str) -> str:
         return normalizar_unidade(valor)
 
-    @field_validator("marca", "observacao", "codigo", mode="before")
+    @field_validator("marca", "observacao", "codigo", "descricao_fornecedor", mode="before")
     @classmethod
     def _texto_opcional_item(cls, valor):
         if valor is None:
@@ -261,6 +263,7 @@ class ItemContratoOut(BaseModel):
     numero_item: int
     codigo: Optional[str] = None
     descricao: str
+    descricao_fornecedor: Optional[str] = None
     unidade: str
     marca: Optional[str] = None
     observacao: Optional[str] = None
@@ -313,6 +316,8 @@ class ItemVinculoSugerido(BaseModel):
     item_contrato_descricao: Optional[str] = None
     percentual_confianca: float
     status_identificacao: str
+    # codigo | gtin | descricao_fornecedor | descricao_contrato
+    criterio_identificacao: Optional[str] = None
 
 class VincularItensRequest(BaseModel):
     itens: List[ItemNFEntrada]

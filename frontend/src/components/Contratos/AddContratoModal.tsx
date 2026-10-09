@@ -25,6 +25,8 @@ type ItemForm = {
   id?: number
   numero_item?: number
   descricao: string
+  /** Descrição usada pelo fornecedor na NF; prioritária no vínculo automático. */
+  descricao_fornecedor?: string
   unidade: string
   quantidade_contratada: number
   marca?: string
@@ -120,6 +122,7 @@ export function AddContratoModal({
         id: item.id,
         numero_item: item.numero_item,
         descricao: item.descricao || "",
+        descricao_fornecedor: item.descricao_fornecedor || "",
         unidade: resolverUnidade(item.unidade),
         quantidade_contratada: item.quantidade_contratada ?? 0,
         marca: item.marca || "",
@@ -253,6 +256,7 @@ export function AddContratoModal({
         id: item.id,
         numero_item: item.numero_item || index + 1,
         descricao: item.descricao,
+        descricao_fornecedor: item.descricao_fornecedor?.trim() || null,
         unidade: item.unidade,
         marca: item.marca?.trim() || null,
         observacao: item.observacao?.trim() || null,
@@ -658,6 +662,22 @@ export function AddContratoModal({
                           className={campoItem}
                         />
                       </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Descrição do fornecedor (na NF)
+                      </label>
+                      <input
+                        value={item.descricao_fornecedor || ""}
+                        placeholder="Opcional — como o fornecedor descreve o item na nota"
+                        data-testid="item-descricao-fornecedor"
+                        onChange={(e) => {
+                          const n = [...itens]
+                          n[index].descricao_fornecedor = e.target.value
+                          setItens(n)
+                        }}
+                        className={campoItem}
+                      />
                     </div>
                   </div>
                 ))}

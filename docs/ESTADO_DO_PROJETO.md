@@ -1,6 +1,6 @@
 # Estado do Projeto — SaldoContratual
 
-> **Última Atualização:** 11/09/2026 — correção `selectinload(Contrato.aditivos)` nas rotas de contrato + ajuste testes auth (mensagem CFG)
+> **Última Atualização:** 09/10/2026 — descrição do fornecedor nos itens do contrato; vínculo da NF valida primeiro por ela e depois pela descrição do contrato
 
 Este documento guia quem assume ou retoma o projeto. Para rodar localmente e executar testes, consulte o `GUIA_TECNICO.md`.
 
@@ -36,7 +36,10 @@ Mocks iniciais da interface foram removidos. O frontend consome a API real:
 
 Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo contratual).
 
-- Matching em `item_matcher.py`: código, GTIN e similaridade de descrição (`CONFIRMADO` / `PROVAVEL` / `SUGERIDO` / `NAO_IDENTIFICADO`).
+- Matching em `item_matcher.py` (`CONFIRMADO` / `PROVAVEL` / `SUGERIDO` / `NAO_IDENTIFICADO`). Ordem de validação:
+  1. código, GTIN e **descrição do fornecedor** cadastrada no item do contrato (como o fornecedor escreve na NF);
+  2. se nenhum desses chegar a `PROVAVEL` (≥ 85%), compara também com a **descrição do contrato** e fica com o melhor resultado.
+  A resposta traz `criterio_identificacao` (`codigo`, `gtin`, `descricao_fornecedor` ou `descricao_contrato`), exibido no modal de importação.
 - Endpoint: `POST /api/v1/notas-fiscais/vincular-itens/{contrato_id}`.
 - O modal mostra a tabela NF → item do contrato (com saldo) e permite ajuste manual. A importação só segue se todos os itens estiverem vinculados.
 - Notas já importadas (ainda não baixadas) podem ser conferidas de novo em **Conferir vínculos** (`PATCH /api/v1/notas-fiscais/{id}/vinculos`).
@@ -46,7 +49,7 @@ Cada item da NF precisa ser ligado a um item **do contrato selecionado** (saldo 
 ## 5. Etapa 2 — Previsão, contratos e destinação
 
 - **Previsão de consumo:** `GET /api/v1/contratos/previsao-consumo`. Alertas de esgotamento (45 dias) no Dashboard.
-- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste cabeçalho e itens. **Objeto** é o objeto do contrato. Também há **número da licitação**, **modalidade** (lookup) e **observação** — o campo **objeto da licitação** permanece no banco/API por compatibilidade, mas **saiu da UI**. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é o ano da vigência inicial. Itens seguem o modelo oficial `Modelo para importação de itens.xlsx`: **Item**, **Descrição**, **Unidade**, **Quantidade**, **Marca**, **Valor_unitário**, **Observação**. Em cada linha o formulário mostra o **valor total** (qtd × unitário). Digitação no modal ou importação **somente** `.xlsx` com esses cabeçalhos (`frontend/public/modelo-itens-contrato.xlsx` — **Baixar modelo**). CSV e planilhas com cabeçalho diferente são rejeitados. Campo `observacao` do item: migração `a1c2e3f4b506`. **PDF do contrato:** anexar em cadastro/edição (`POST /contratos/{id}/arquivo`); `tem_arquivo` na listagem; **Visualizar** / **Download** (`GET /contratos/{id}/arquivo`). Migração `c4d8e2a9f701`.
+- **Cadastro de contrato:** `POST /api/v1/contratos/` persiste cabeçalho e itens. **Objeto** é o objeto do contrato. Também há **número da licitação**, **modalidade** (lookup) e **observação** — o campo **objeto da licitação** permanece no banco/API por compatibilidade, mas **saiu da UI**. A tela pede **vigência inicial** e **vigência final** (obrigatórias); o `ano` no banco é o ano da vigência inicial. Itens seguem o modelo oficial `Modelo para importação de itens.xlsx`: **Item**, **Descrição**, **Unidade**, **Quantidade**, **Marca**, **Valor_unitário**, **Observação** — e uma 8ª coluna **opcional** `Descrição_fornecedor` (as 7 primeiras continuam obrigatórias e na mesma ordem). Cada item tem também o campo **Descrição do fornecedor (na NF)**, usado quando a nota descreve o produto de outro jeito (`itens_contrato.descricao_fornecedor`, migração `e1a3f6c9d024`). Em cada linha o formulário mostra o **valor total** (qtd × unitário). Digitação no modal ou importação **somente** `.xlsx` com esses cabeçalhos (`frontend/public/modelo-itens-contrato.xlsx` — **Baixar modelo**). CSV e planilhas com cabeçalho diferente são rejeitados. Campo `observacao` do item: migração `a1c2e3f4b506`. **PDF do contrato:** anexar em cadastro/edição (`POST /contratos/{id}/arquivo`); `tem_arquivo` na listagem; **Visualizar** / **Download** (`GET /contratos/{id}/arquivo`). Migração `c4d8e2a9f701`.
 - **Edição de contrato (ADMIN ou `pode_gerir_contratos`):** `PATCH /api/v1/contratos/{id}` atualiza cabeçalho e itens. A quantidade contratada não pode ficar abaixo do já baixado. Item com movimentação não pode ser excluído. O `valor_total` é recalculado pelos itens. Sem permissão → **403**. A quantidade inicial do contrato (`quantidade_inicial`) não é alterada na edição. Create/update/aditivo/arquivo gravam `log_auditoria` com o usuário do JWT.
 - **Aditivo (ADMIN ou `pode_gerir_contratos`):** botão **Aditivo** na linha do contrato abre um modal. O usuário marca quais itens entram no aditivo, informa a **quantidade extra**, o **valor unitário** e a **vigência do aditivo** (obrigatória). Endpoint: `POST /api/v1/contratos/{id}/aditivo`. Só os itens marcados mudam: `quantidade_contratada` e `saldo_atual` somam a extra; o valor unitário pode ser atualizado. A vigência fica em `contrato_aditivos` e aparece no relatório; se a data final do aditivo for posterior à do contrato, a vigência do contrato é prorrogada. A quantidade inicial permanece como snapshot da contratação original. Extra deve ser maior que zero; em unidade (`UN` e similares) a quantidade é inteira (não existe 21,5 UN). Sem permissão → **403**.
 - **Tela Contratos:** a linha mostra valor total e **saldo atual do contrato** em R$. Se algum item já foi aditivado, aparece “Com aditivo” e o valor inicial. Botão **Visualizar** abre o painel de detalhe (PDF do contrato, se anexado). Expandir a linha (botão com `aria-expanded`, Tab + Enter) mostra os itens sem tabela aninhada. Quem tem gestão de contratos edita pelo botão na linha ou aplica aditivo pelo botão **Aditivo**.
@@ -87,7 +90,9 @@ O `webServer` sobe o backend (`http://127.0.0.1:8000/health`) e o Vite (`http://
 
 ## 9. De Onde Retomar (Próximos Passos)
 
-Concluído neste ciclo (11/09/2026): após smoke de testes, **correção** de `selectinload(Contrato.aditivos)` em listagem/PATCH/arquivo de contratos (evita `MissingGreenlet` ao serializar `ContratoDetalhadoOut`) e alinhamento dos asserts de `test_auth` com a mensagem de `pode_gerir_contratos`. Backup: tag `backup-pre-fix-selectinload-aditivos-20260911`.
+Concluído neste ciclo (09/10/2026): campo **descrição do fornecedor** nos itens do contrato (migração `e1a3f6c9d024`); o vínculo da NF valida primeiro por código/GTIN/descrição do fornecedor e depois pela descrição do contrato. Backup: tag `backup-pre-descricao-fornecedor-branch-20261009` (commit `40e01be`).
+
+Ciclo anterior (11/09/2026): após smoke de testes, **correção** de `selectinload(Contrato.aditivos)` em listagem/PATCH/arquivo de contratos (evita `MissingGreenlet` ao serializar `ContratoDetalhadoOut`) e alinhamento dos asserts de `test_auth` com a mensagem de `pode_gerir_contratos`. Backup: tag `backup-pre-fix-selectinload-aditivos-20260911`.
 
 Ciclo anterior: **REL-2** (relatório sem código antes da descrição), **REL-4** (vigência dos aditivos em `contrato_aditivos` + UI + relatório), **CFG** (`pode_gerir_contratos` no Admin/Settings). Backup: tag `backup-pre-rel2-rel4-cfg-20260911`. Migração `d5e9f1a2b803`.
 

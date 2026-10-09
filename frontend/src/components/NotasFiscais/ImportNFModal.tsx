@@ -29,6 +29,14 @@ type VinculoItem = {
   item_contrato_descricao?: string
   percentual_confianca: number
   status_identificacao: string
+  criterio_identificacao?: string | null
+}
+
+const CRITERIO_LABELS: Record<string, string> = {
+  codigo: "pelo código",
+  gtin: "pelo GTIN",
+  descricao_fornecedor: "pela descrição do fornecedor",
+  descricao_contrato: "pela descrição do contrato",
 }
 
 const campo =
@@ -134,6 +142,7 @@ export function ImportNFModal({
           item_contrato_descricao: itemContrato?.descricao,
           percentual_confianca: 100,
           status_identificacao: "MANUAL",
+          criterio_identificacao: null,
         }
       }),
     )
@@ -397,6 +406,12 @@ export function ImportNFModal({
                                   status={v.status_identificacao}
                                   confianca={v.percentual_confianca}
                                 />
+                                {v.criterio_identificacao &&
+                                  CRITERIO_LABELS[v.criterio_identificacao] && (
+                                    <p className="mt-1 text-[10px] text-muted-foreground">
+                                      {CRITERIO_LABELS[v.criterio_identificacao]}
+                                    </p>
+                                  )}
                               </td>
                             </tr>
                           ))}

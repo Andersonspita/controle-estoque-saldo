@@ -97,6 +97,8 @@ class ItemContrato(Base):
     codigo = Column(String)
     gtin = Column(String)
     descricao = Column(Text, nullable=False)
+    # Descrição usada pelo fornecedor na NF, quando difere da do contrato
+    descricao_fornecedor = Column(Text)
     unidade = Column(String, nullable=False)
     marca = Column(String)
     observacao = Column(Text)

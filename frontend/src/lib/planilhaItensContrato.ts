@@ -16,6 +16,7 @@ export const CABECALHOS_MODELO = [
 export type ItemPlanilhaContrato = {
   numero_item?: number
   descricao: string
+  descricao_fornecedor?: string
   unidade: string
   quantidade_contratada: number
   marca?: string
@@ -42,6 +43,9 @@ const MAPA_CAMPO: Record<string, keyof ItemPlanilhaContrato> = {
   marca: "marca",
   valor_unitario: "valor_unitario",
   observacao: "observacao",
+  // Coluna opcional após as do modelo: como o fornecedor descreve o item na NF
+  descricao_fornecedor: "descricao_fornecedor",
+  descricao_do_fornecedor: "descricao_fornecedor",
 }
 
 export function parseNumeroPlanilha(valor: unknown): number {
@@ -104,10 +108,15 @@ export function mapearLinhasPlanilha(linhas: unknown[][]): ItemPlanilhaContrato[
     const marca = String(linha[indices.marca!] ?? "").trim()
     const observacao = String(linha[indices.observacao!] ?? "").trim()
     const numeroRaw = parseNumeroPlanilha(linha[indices.numero_item!])
+    const descricaoFornecedor =
+      indices.descricao_fornecedor !== undefined
+        ? String(linha[indices.descricao_fornecedor] ?? "").trim()
+        : ""
 
     itens.push({
       numero_item: numeroRaw > 0 ? Math.round(numeroRaw) : undefined,
       descricao,
+      ...(descricaoFornecedor ? { descricao_fornecedor: descricaoFornecedor } : {}),
       unidade: resolverUnidade(unidadeRaw),
       quantidade_contratada: quantidade > 0 ? quantidade : 1,
       marca: marca || undefined,
