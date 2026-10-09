@@ -6,8 +6,12 @@ DATE_RE = re.compile(r"\b(\d{2}/\d{2}/\d{4})\b")
 SERIE_RE = re.compile(r"S[ée]rie\s+(\d+)", re.IGNORECASE)
 NUMERO_RE = re.compile(r"N[ºo°.]+\s*([\d.]+)", re.IGNORECASE)
 MONEY_RE = re.compile(r"^\d{1,3}(?:\.\d{3})*,\d{2}$")
-QTD_RE = re.compile(r"^\d{1,6},\d{2}$")
+# Quantidades no DANFE vêm com até 4 casas decimais (ex.: 10,0000).
+QTD_RE = re.compile(r"^\d{1,3}(?:\.\d{3})*,\d{1,4}$")
 NCM_RE = re.compile(r"^\d{8}$")
+CFOP_RE = re.compile(r"^[1-7]\d{3}$")
+CODIGO_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9./\-]{0,19}$")
+UNIDADE_RE = re.compile(r"^[A-Za-zÀ-ÿ]{1,6}\.?$")
 
 LABELS_IGNORAR = (
     "CÓDIGO", "CODIGO", "DESCRIÇÃO", "DESCRICAO", "DADOS DOS PRODUTOS",
@@ -102,7 +106,7 @@ def _nome_emitente(blocos: list[dict]) -> str | None:
     y0 = min(ys)
     candidatos = [
         b for b in blocos
-        if y0 < b["y"] < y0 + 80 and b["x"] < 400 and len(b["text"]) > 8
+        if y0 < b["y"] < y0 + 180 and b["x"] < 400 and len(b["text"]) > 8
     ]
     ignorar = ("DOCUMENTO AUXILIAR", "FISCAL ELETR", "ENTRADA", "SAÍDA", "SAIDA")
     for cand in sorted(candidatos, key=lambda b: b["y"]):
@@ -115,86 +119,95 @@ def _nome_emitente(blocos: list[dict]) -> str | None:
     return None
 
 
-def _parse_itens(blocos: list[dict], largura: float) -> list[dict]:
+def _item_de_linha(linha: list[dict]) -> dict | None:
+    """
+    Monta um item a partir de uma linha da tabela de produtos.
+
+    O NCM (8 dígitos) é a âncora que separa código e descrição dos campos
+    numéricos, e a unidade marca o início da sequência quantidade / valor
+    unitário / valor total. Ancorar no conteúdo em vez de em posições de
+    coluna fixas mantém a leitura válida entre layouts de emissores.
+    """
+    textos = [b["text"].strip() for b in linha if b["text"].strip()]
+    idx_ncm = next((i for i, t in enumerate(textos) if NCM_RE.match(t)), None)
+    if idx_ncm is None:
+        return None
+
+    cabeca = textos[:idx_ncm]
+    ncm = textos[idx_ncm]
+    cauda = textos[idx_ncm + 1:]
+
+    codigo = None
+    if len(cabeca) > 1 and CODIGO_RE.match(cabeca[0]):
+        codigo = cabeca[0]
+        cabeca = cabeca[1:]
+    descricao = " ".join(cabeca).strip()
+    if not descricao:
+        return None
+
+    cfop = next((t for t in cauda if CFOP_RE.match(t)), None)
+
+    idx_un = next((i for i, t in enumerate(cauda) if UNIDADE_RE.match(t)), None)
+    unidade = cauda[idx_un] if idx_un is not None else None
+    # CST e CFOP não têm vírgula decimal, então caem fora sozinhos.
+    numericos = cauda[idx_un + 1:] if idx_un is not None else cauda
+    numeros = [v for v in (_numero_br(t) for t in numericos) if v is not None]
+    if not numeros:
+        return None
+
+    quantidade = numeros[0]
+    valor_unitario = numeros[1] if len(numeros) > 1 else None
+    valor_total = None
+    if valor_unitario is not None:
+        # Entre o valor unitário e o total alguns layouts inserem uma coluna
+        # de desconto, então o total é o primeiro número à direita que fecha
+        # com quantidade x unitário — e não simplesmente o próximo da linha.
+        esperado = round(quantidade * valor_unitario, 2)
+        margem = max(0.02, abs(esperado) * 0.005)
+        valor_total = next(
+            (v for v in numeros[2:] if abs(v - esperado) <= margem),
+            esperado,
+        )
+
+    return {
+        "codigo_produto": codigo,
+        "descricao": descricao,
+        "gtin": None,
+        "ncm": ncm,
+        "cfop": cfop,
+        "unidade": (unidade or "UN").upper(),
+        "quantidade": quantidade,
+        "valor_unitario": valor_unitario or 0.0,
+        "valor_total": valor_total or 0.0,
+    }
+
+
+def _parse_itens(blocos: list[dict], tolerancia_linha: float = 22.0) -> list[dict]:
     y_ini = min((b["y"] for b in blocos if "DADOS DOS PRODUTOS" in b["text"].upper()), default=None)
     y_fim = min((b["y"] for b in blocos if "DADOS ADICIONAIS" in b["text"].upper()), default=10**9)
     if y_ini is None:
         return []
 
     corpo = [b for b in blocos if y_ini < b["y"] < y_fim]
-    linhas = _agrupar_linhas(corpo, tolerancia=22.0)
     itens = []
-
-    for linha in linhas:
+    for linha in _agrupar_linhas(corpo, tolerancia=tolerancia_linha):
         linha = sorted(linha, key=lambda b: b["x"])
         textos = " ".join(b["text"] for b in linha).upper()
         if any(lab in textos for lab in LABELS_IGNORAR):
             continue
-
-        codigo = None
-        descricao_partes = []
-        unidade = None
-        ncm = None
-        cfop = None
-        quantidade = None
-        valor_unitario = None
-        valor_total = None
-
-        for bloco in linha:
-            x_rel = bloco["x"] / largura if largura else 0
-            txt = bloco["text"].strip()
-
-            if x_rel < 0.08 and codigo is None and re.match(r"^[A-Za-z0-9.\-]{1,20}$", txt):
-                codigo = txt
-                continue
-            if 0.08 <= x_rel < 0.30 and not NCM_RE.match(txt) and not MONEY_RE.match(txt):
-                descricao_partes.append(txt)
-                continue
-            if 0.30 <= x_rel < 0.38 and NCM_RE.match(txt):
-                ncm = txt
-                continue
-            if 0.38 <= x_rel < 0.47:
-                if txt.upper() in {"UNID", "UN", "KG", "CX", "PC", "MT", "M", "L"}:
-                    unidade = txt
-                elif re.fullmatch(r"\d{4}", txt):
-                    cfop = txt
-                continue
-            if 0.47 <= x_rel < 0.53 and quantidade is None:
-                quantidade = _numero_br(txt)
-                continue
-            if 0.53 <= x_rel < 0.62 and valor_unitario is None and _numero_br(txt) is not None:
-                valor_unitario = _numero_br(txt)
-                continue
-            if 0.62 <= x_rel < 0.72 and valor_total is None and MONEY_RE.match(txt):
-                valor_total = _numero_br(txt)
-
-        descricao = " ".join(descricao_partes).strip()
-        if not descricao:
-            continue
-        if quantidade is None:
-            continue
-
-        if valor_total is None and valor_unitario is not None:
-            valor_total = round(quantidade * valor_unitario, 2)
-        elif valor_unitario is None and valor_total is not None and quantidade:
-            valor_unitario = round(valor_total / quantidade, 2)
-
-        itens.append({
-            "codigo_produto": codigo,
-            "descricao": descricao,
-            "gtin": None,
-            "ncm": ncm,
-            "cfop": cfop,
-            "unidade": unidade or "UN",
-            "quantidade": quantidade,
-            "valor_unitario": valor_unitario or 0.0,
-            "valor_total": valor_total or 0.0,
-        })
+        item = _item_de_linha(linha)
+        if item:
+            itens.append(item)
 
     return itens
 
 
-def parse_danfe_blocos(blocos: list[dict], largura: float = 1488.0) -> dict:
+def parse_danfe_blocos(
+    blocos: list[dict],
+    largura: float = 1488.0,
+    tolerancia_linha: float = 22.0,
+    origem: str = "ocr",
+) -> dict:
     """Converte blocos OCR (x, y, text) de um DANFE no mesmo formato do parser XML."""
     if not blocos:
         raise ValueError("Nenhum texto reconhecido no DANFE")
@@ -247,7 +260,7 @@ def parse_danfe_blocos(blocos: list[dict], largura: float = 1488.0) -> dict:
                 if valor_total:
                     break
 
-    itens = _parse_itens(blocos, largura)
+    itens = _parse_itens(blocos, tolerancia_linha)
     if not itens:
         raise ValueError("Não foi possível identificar os itens do DANFE")
 
@@ -263,5 +276,5 @@ def parse_danfe_blocos(blocos: list[dict], largura: float = 1488.0) -> dict:
         },
         "valor_total": valor_total or 0.0,
         "itens": itens,
-        "origem": "ocr",
+        "origem": origem,
     }

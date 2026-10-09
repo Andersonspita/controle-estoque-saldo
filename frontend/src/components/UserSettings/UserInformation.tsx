@@ -137,6 +137,29 @@ const UserInformation = () => {
             }
           />
 
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+            <p className="font-medium text-foreground">Permissões da conta</p>
+            <ul className="mt-2 space-y-1 text-muted-foreground">
+              <li>
+                Estornar/excluir NF:{" "}
+                {Boolean((currentUser as any)?.pode_estornar) ||
+                currentUser?.is_superuser
+                  ? "sim"
+                  : "não"}
+              </li>
+              <li>
+                Gerir contratos:{" "}
+                {Boolean((currentUser as any)?.pode_gerir_contratos) ||
+                currentUser?.is_superuser
+                  ? "sim"
+                  : "não"}
+              </li>
+            </ul>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Só um administrador libera ou remove essas permissões na tela Admin.
+            </p>
+          </div>
+
           <div className="flex gap-3">
             {editMode ? (
               <>

@@ -1,5 +1,14 @@
 import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, Download, Link2, MoreHorizontal, Play } from "lucide-react"
+import {
+  ArrowUpDown,
+  Download,
+  Link2,
+  MoreHorizontal,
+  Pencil,
+  Play,
+  RotateCcw,
+  Trash2,
+} from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,16 +31,31 @@ export type NotaFiscalRow = {
   chave_acesso?: string | null
 }
 
+export function badgeStatus(status: string) {
+  if (status === "Baixada") return "success" as const
+  if (status === "Estornada") return "destructive" as const
+  return "warning" as const
+}
+
 export function colunasNotasFiscais({
   onConferir,
   onBaixa,
   onDownload,
+  onEditar,
+  onEstornar,
+  onExcluir,
   baixandoId,
+  podeEstornar,
 }: {
   onConferir: (nf: NotaFiscalRow) => void
   onBaixa: (nf: NotaFiscalRow) => void
   onDownload: (nf: NotaFiscalRow) => void
+  onEditar: (nf: NotaFiscalRow) => void
+  onEstornar: (nf: NotaFiscalRow) => void
+  onExcluir: (nf: NotaFiscalRow) => void
   baixandoId: number | null
+  /** Estornar e excluir dependem de liberação do administrador. */
+  podeEstornar: boolean
 }): ColumnDef<NotaFiscalRow>[] {
   return [
     {
@@ -77,9 +101,7 @@ export function colunasNotasFiscais({
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => (
-        <Badge variant={row.original.status === "Baixada" ? "success" : "warning"}>
-          {row.original.status}
-        </Badge>
+        <Badge variant={badgeStatus(row.original.status)}>{row.original.status}</Badge>
       ),
     },
     {
@@ -114,6 +136,21 @@ export function colunasNotasFiscais({
                   <Download />
                   {baixandoId === nf.id ? "Baixando..." : "Baixar PDF"}
                 </DropdownMenuItem>
+                {!baixada && (
+                  <DropdownMenuItem onClick={() => onEditar(nf)}>
+                    <Pencil /> Editar
+                  </DropdownMenuItem>
+                )}
+                {baixada && podeEstornar && (
+                  <DropdownMenuItem onClick={() => onEstornar(nf)}>
+                    <RotateCcw /> Estornar baixa
+                  </DropdownMenuItem>
+                )}
+                {!baixada && podeEstornar && (
+                  <DropdownMenuItem variant="destructive" onClick={() => onExcluir(nf)}>
+                    <Trash2 /> Excluir
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

@@ -1,123 +1,56 @@
 # SaldoContratual — Frontend
 
-The frontend is built with [Vite](https://vitejs.dev/), [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [TanStack Query](https://tanstack.com/query), [TanStack Router](https://tanstack.com/router), [Tailwind CSS](https://tailwindcss.com/), and [shadcn/ui](https://ui.shadcn.com/).
+Interface em **React + Vite + TypeScript**, com TanStack Router/Query, Tailwind CSS e componentes no padrão shadcn/ui.
 
-## Requirements
+Visão geral do produto: [README da raiz](../README.md). Uso das telas: [Manual do Usuário](../docs/Manual_do_Usuario_SaldoContratual.pdf).
 
-- [Bun](https://bun.sh/)
+## Rodar localmente
 
-## Quick Start
-
-From the project root, install the dependencies and start the frontend development server:
+Requisitos: [Node.js](https://nodejs.org/) com npm e o backend no ar (veja [../backend/README.md](../backend/README.md)).
 
 ```bash
-bun install
-bun run dev
+cd frontend
+npm install
+npm run dev
 ```
 
-Then open <http://localhost:5173/> in your browser.
+Abra <http://localhost:5173>. A origem da API vem de `VITE_API_URL` (padrão `http://localhost:8000`); o sufixo `/api/v1` é opcional (`src/lib/apiUrl.ts`).
 
-Run `uv run bash scripts/prestart.sh` and `uv run fastapi dev` from the `backend` directory, with PostgreSQL running in Docker Compose. See [../development.md](../development.md) for the complete setup.
+Outros comandos:
 
-To serve the frontend with FastAPI, run `bun run build` from the `frontend` directory and open `http://localhost:8000`.
+| Comando | Uso |
+|---------|-----|
+| `npm run build` | Checa os tipos (`tsc`) e gera o build de produção |
+| `npm run lint` | Biome (formatação e lint) |
+| `npm run generate-client` | Regera `src/client/` a partir do OpenAPI do backend |
 
-Check `frontend/package.json` to see the other available commands.
+Em produção, o `Dockerfile` compila o build e o serve com Nginx (`nginx.conf`), que também faz o proxy para a API.
 
-## Removing the Frontend
+## Estrutura
 
-If you are developing an API-only app and want to remove the frontend, you can do it easily:
+| Caminho | Conteúdo |
+|---------|----------|
+| `src/routes/_layout/` | Telas: `index` (Dashboard), `fornecedores`, `contratos`, `notas-fiscais`, `estornos`, `relatorios`, `auditoria` (Log de usuários), `admin`, `settings` |
+| `src/components/Contratos/` | Cadastro/edição de contrato e itens, aditivo, painel de detalhe |
+| `src/components/NotasFiscais/` | Importação XML/PDF, inclusão manual, conferência de vínculos, baixa, estorno/exclusão |
+| `src/components/Relatorios/` | Documento do Relatório de Saldo (pré-visualização e impressão A4) |
+| `src/components/Admin/` | Usuários, perfis e permissões |
+| `src/components/ui/` | Componentes base (Button, Badge, Dialog, Table...) |
+| `src/services/api.ts` | Cliente Axios das rotas `/api/v1` com o token Bearer |
+| `src/lib/` | Utilitários de domínio: moeda BRL, CPF/CNPJ, IBGE, unidades, planilha de itens (`planilhaItensContrato.ts`), rótulos |
+| `public/modelo-itens-contrato.xlsx` | Planilha modelo oficial dos itens do contrato (botão **Baixar modelo**) |
 
-* Remove the `./frontend` directory.
+Padrões de interface (obrigatórios): só tokens de cor de `src/index.css` (`bg-primary`, `text-foreground`, `text-success`, `text-warning`, `text-critical`...), sem cores literais do Tailwind; ações com `components/ui/button.tsx`; status com `components/ui/badge.tsx`; listas com `components/Common/DataTable.tsx`; preserve os `data-testid`.
 
-* In the `backend/app/main.py` file, remove the `app.frontend()` call.
+## Testes E2E (Playwright)
 
-* In the `backend/Dockerfile` file, remove the frontend build stage and the `COPY --from=frontend-build` instruction.
-
-* In the `compose.override.yml` file, remove the `playwright` service.
-
-* In the `.github/workflows/deploy.yml` file, remove the **Set up Bun**, **Install frontend dependencies**, and **Build frontend** steps.
-
-* In the `.fastapicloudignore` file, remove the `!backend/app/frontend/` entry.
-
-Done, you now have an API-only app. 🤓
-
-## Generate Client
-
-### Automatically
-
-* From the project root, run the script:
+Precisam do Postgres, do backend e de um usuário ADMIN de testes.
 
 ```bash
-bash ./scripts/generate-client.sh
+cp .env.e2e.example .env.e2e   # preencha E2E_EMAIL e E2E_PASSWORD; não commite
+npx playwright install chromium
+npx playwright test
+npx playwright show-report
 ```
 
-* Commit the changes.
-
-### Manually
-
-* Make sure the backend is running.
-
-* Download the OpenAPI JSON file from `http://localhost:8000/api/v1/openapi.json` and copy it to a new file `openapi.json` at the root of the `frontend` directory.
-
-* To generate the frontend client, run:
-
-```bash
-bun run generate-client
-```
-
-* Commit the changes.
-
-Regenerate the client whenever backend changes affect the OpenAPI schema.
-
-## Using a Remote API
-
-By default, the built frontend uses the same origin as the FastAPI app. If you want to use a remote API while running the Vite development server, you can set the environment variable `VITE_API_URL` to the URL of the remote API. For example, you can set it in the `frontend/.env` file:
-
-```env
-VITE_API_URL=https://my-domain.example.com
-```
-
-Then, when you run the frontend, it will use that URL as the base URL for the API.
-
-## Code Structure
-
-The frontend code is structured as follows:
-
-* `frontend/src` - The main frontend code.
-* `frontend/public` - Static assets.
-* `frontend/src/client` - The generated OpenAPI client.
-* `frontend/src/components` - The components of the frontend, including the shadcn/ui components in `frontend/src/components/ui`.
-* `frontend/src/hooks` - Custom hooks.
-* `frontend/src/lib` - Shared frontend utilities.
-* `frontend/src/routes` - The frontend routes and pages.
-
-## End-to-End Testing with Playwright
-
-The frontend includes initial end-to-end tests using Playwright. To run the tests, you need to have the Docker Compose stack running. Start the stack with the following command:
-
-```bash
-docker compose run --rm backend bash scripts/prestart.sh
-docker compose up -d --wait backend
-```
-
-Then, you can run the tests with the following command:
-
-```bash
-bunx playwright test
-```
-
-You can also run your tests in UI mode to see the browser and interact with it running:
-
-```bash
-bunx playwright test --ui
-```
-
-To stop and remove the Docker Compose stack and clean the data created in tests, use the following command:
-
-```bash
-docker compose down -v
-```
-
-To update the tests, navigate to the tests directory and modify the existing test files or add new ones as needed.
-
-For more information on writing and running Playwright tests, refer to the official [Playwright documentation](https://playwright.dev/docs/intro).
+O Playwright sobe o backend e o Vite, ou reutiliza os que já estiverem no ar. Specs e detalhes: `docs/GUIA_TECNICO.md` §5.

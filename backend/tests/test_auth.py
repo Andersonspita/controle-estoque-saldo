@@ -79,10 +79,6 @@ async def test_users_me_retorna_perfil_operador(async_client: AsyncClient, as_op
             {"razao_social": "Fornecedor Teste", "cnpj": "11444777000161"},
         ),
         (
-            "/api/v1/almoxarifados/",
-            {"nome": "Almoxarifado Central"},
-        ),
-        (
             "/api/v1/licitacoes/",
             {
                 "numero": "1",
@@ -97,26 +93,22 @@ async def test_users_me_retorna_perfil_operador(async_client: AsyncClient, as_op
 async def test_operador_nao_cria_cadastros(async_client: AsyncClient, as_operador, url, payload):
     response = await async_client.post(url, json=payload)
     assert response.status_code == 403
-    assert "administradores" in response.json()["detail"].lower()
+    detail = response.json()["detail"].lower()
+    assert "administrador" in detail  # singular (gestão contratos) ou plural
 
 
 @pytest.mark.asyncio
 async def test_operador_nao_edita_contrato(async_client: AsyncClient, as_operador):
     response = await async_client.patch("/api/v1/contratos/1", json={"situacao": "Suspenso"})
     assert response.status_code == 403
-    assert "administradores" in response.json()["detail"].lower()
+    detail = response.json()["detail"].lower()
+    assert "administrador" in detail
+    assert "gerir contratos" in detail
 
 
 @pytest.mark.asyncio
 async def test_operador_nao_edita_fornecedor(async_client: AsyncClient, as_operador):
     response = await async_client.patch("/api/v1/fornecedores/1", json={"razao_social": "X"})
-    assert response.status_code == 403
-    assert "administradores" in response.json()["detail"].lower()
-
-
-@pytest.mark.asyncio
-async def test_operador_nao_edita_orgao(async_client: AsyncClient, as_operador):
-    response = await async_client.patch("/api/v1/almoxarifados/1", json={"nome": "X"})
     assert response.status_code == 403
     assert "administradores" in response.json()["detail"].lower()
 

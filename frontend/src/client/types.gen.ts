@@ -380,17 +380,41 @@ export type ItemContratoOut = {
      */
     unidade: string;
     /**
+     * Marca
+     */
+    marca?: string | null;
+    /**
+     * Observacao
+     */
+    observacao?: string | null;
+    /**
      * Quantidade Contratada
      */
     quantidade_contratada: number;
+    /**
+     * Quantidade Inicial
+     */
+    quantidade_inicial?: number | null;
     /**
      * Valor Unitario
      */
     valor_unitario: number;
     /**
+     * Valor Unitario Inicial
+     */
+    valor_unitario_inicial?: number | null;
+    /**
      * Saldo Atual
      */
     saldo_atual: number;
+    /**
+     * Valor Contratado
+     */
+    valor_contratado?: number;
+    /**
+     * Saldo Monetario
+     */
+    saldo_monetario?: number;
 };
 
 /**

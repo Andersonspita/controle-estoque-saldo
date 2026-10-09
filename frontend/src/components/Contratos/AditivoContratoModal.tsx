@@ -4,10 +4,11 @@ import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
-import { contratosService } from "../../services/api"
-import { formatarMoeda, quantidadeInteira } from "@/lib/money"
-import { rotuloContrato } from "@/lib/contrato"
+import { Button } from "@/components/ui/button"
 import { MoneyInput } from "@/components/ui/money-input"
+import { rotuloContrato } from "@/lib/contrato"
+import { formatarMoeda, quantidadeInteira } from "@/lib/money"
+import { contratosService } from "../../services/api"
 
 type ItemLinha = {
   selecionado: boolean
@@ -16,7 +17,7 @@ type ItemLinha = {
 }
 
 const campo =
-  "w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-1.5 text-xs text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500"
+  "w-full rounded-md border border-input bg-transparent p-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
 export function AditivoContratoModal({
   isOpen,
@@ -30,6 +31,8 @@ export function AditivoContratoModal({
   const queryClient = useQueryClient()
   const itens = contrato?.itens || []
   const [linhas, setLinhas] = useState<Record<number, ItemLinha>>({})
+  const [dataInicio, setDataInicio] = useState("")
+  const [dataFim, setDataFim] = useState("")
 
   useEffect(() => {
     if (!isOpen || !contrato) return
@@ -42,6 +45,8 @@ export function AditivoContratoModal({
       }
     }
     setLinhas(inicial)
+    setDataInicio(contrato.data_inicio ? String(contrato.data_inicio).slice(0, 10) : "")
+    setDataFim(contrato.data_fim ? String(contrato.data_fim).slice(0, 10) : "")
   }, [isOpen, contrato])
 
   const selecionados = useMemo(
@@ -53,7 +58,9 @@ export function AditivoContratoModal({
     return (contrato?.itens || []).reduce((acc: number, item: any) => {
       const linha = linhas[item.id]
       const extra = linha?.selecionado ? Number(linha.quantidade_aditivada) || 0 : 0
-      const vu = linha?.selecionado ? Number(linha.valor_unitario) : Number(item.valor_unitario) || 0
+      const vu = linha?.selecionado
+        ? Number(linha.valor_unitario)
+        : Number(item.valor_unitario) || 0
       return acc + ((Number(item.quantidade_contratada) || 0) + extra) * vu
     }, 0)
   }, [contrato, linhas])
@@ -85,6 +92,14 @@ export function AditivoContratoModal({
       toast.error("Selecione ao menos um item para aditivar")
       return
     }
+    if (!dataInicio || !dataFim) {
+      toast.error("Informe a vigência do aditivo")
+      return
+    }
+    if (dataFim < dataInicio) {
+      toast.error("A vigência final deve ser igual ou posterior à inicial")
+      return
+    }
     const itensEnvio = []
     for (const item of selecionados) {
       const linha = linhas[item.id]
@@ -105,7 +120,11 @@ export function AditivoContratoModal({
         valor_unitario: Number(linha.valor_unitario),
       })
     }
-    mutation.mutate({ itens: itensEnvio })
+    mutation.mutate({
+      itens: itensEnvio,
+      data_inicio: dataInicio,
+      data_fim: dataFim,
+    })
   }
 
   if (!contrato) return null
@@ -113,25 +132,57 @@ export function AditivoContratoModal({
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-slate-900 p-6 shadow-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
-          <Dialog.Title className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+          <Dialog.Title className="text-xl font-semibold text-foreground">
             Aditivo — {rotuloContrato(contrato)}
           </Dialog.Title>
-          <Dialog.Description className="text-sm text-slate-500 dark:text-slate-400">
-            Marque os itens que entram no aditivo e informe a quantidade extra. O valor unitário
-            pode ser mantido ou atualizado. A quantidade inicial do contrato não muda; o saldo
-            atual ganha as unidades aditivadas.
+          <Dialog.Description className="text-sm text-muted-foreground">
+            Marque os itens que entram no aditivo e informe a quantidade extra. Informe
+            também a vigência do aditivo. O valor unitário pode ser mantido ou atualizado.
+            A quantidade inicial do contrato não muda; o saldo atual ganha as unidades
+            aditivadas.
           </Dialog.Description>
 
-          <form onSubmit={handleSubmit} className="space-y-4 mt-2 text-sm">
+          <form onSubmit={handleSubmit} className="mt-2 space-y-4 text-sm">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Vigência inicial do aditivo
+                </label>
+                <input
+                  required
+                  type="date"
+                  className={campo}
+                  value={dataInicio}
+                  onChange={(e) => setDataInicio(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Vigência final do aditivo
+                </label>
+                <input
+                  required
+                  type="date"
+                  className={campo}
+                  value={dataFim}
+                  onChange={(e) => setDataFim(e.target.value)}
+                />
+              </div>
+            </div>
+
             {itens.length === 0 ? (
-              <p className="text-sm text-slate-500">Este contrato ainda não possui itens.</p>
+              <p className="text-sm text-muted-foreground">
+                Este contrato ainda não possui itens.
+              </p>
             ) : (
               <div className="space-y-3">
                 {itens.map((item: any) => {
                   const linha = linhas[item.id]
-                  const extra = linha?.selecionado ? Number(linha.quantidade_aditivada) || 0 : 0
+                  const extra = linha?.selecionado
+                    ? Number(linha.quantidade_aditivada) || 0
+                    : 0
                   const vu = linha?.selecionado
                     ? Number(linha.valor_unitario)
                     : Number(item.valor_unitario) || 0
@@ -143,22 +194,27 @@ export function AditivoContratoModal({
                       key={item.id}
                       className={`rounded-lg border p-3 ${
                         linha?.selecionado
-                          ? "border-blue-300 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20"
-                          : "border-slate-200 dark:border-slate-800"
+                          ? "border-primary/40 bg-primary/5"
+                          : "border-border"
                       }`}
                     >
-                      <label className="flex items-start gap-3 cursor-pointer">
+                      <label className="flex cursor-pointer items-start gap-3">
                         <input
                           type="checkbox"
                           className="mt-1"
                           checked={Boolean(linha?.selecionado)}
-                          onChange={(e) => atualizarLinha(item.id, { selecionado: e.target.checked })}
+                          onChange={(e) =>
+                            atualizarLinha(item.id, { selecionado: e.target.checked })
+                          }
                         />
                         <span className="min-w-0 flex-1">
-                          <span className="block font-medium text-slate-800 dark:text-slate-100">
+                          <span className="block font-medium text-foreground">
+                            {item.numero_item != null ? `${item.numero_item}. ` : ""}
                             {item.descricao}
                           </span>
-                          <span className="block text-xs text-slate-500 dark:text-slate-400">
+                          <span className="block text-xs text-muted-foreground">
+                            {item.marca ? `Marca: ${item.marca} · ` : ""}
+                            {item.observacao ? `${item.observacao} · ` : ""}
                             Atual: {item.quantidade_contratada} {item.unidade}
                             {item.quantidade_inicial != null &&
                             item.quantidade_inicial !== item.quantidade_contratada
@@ -171,9 +227,9 @@ export function AditivoContratoModal({
                       </label>
 
                       {linha?.selecionado && (
-                        <div className="mt-3 ml-7 grid grid-cols-12 gap-2 items-end">
-                          <div className="col-span-12 sm:col-span-4 space-y-1">
-                            <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                        <div className="ml-7 mt-3 grid grid-cols-12 items-end gap-2">
+                          <div className="col-span-12 space-y-1 sm:col-span-4">
+                            <label className="text-xs font-medium text-muted-foreground">
                               Qtd a aditivar
                             </label>
                             <input
@@ -190,8 +246,8 @@ export function AditivoContratoModal({
                               className={campo}
                             />
                           </div>
-                          <div className="col-span-12 sm:col-span-5 space-y-1">
-                            <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                          <div className="col-span-12 space-y-1 sm:col-span-5">
+                            <label className="text-xs font-medium text-muted-foreground">
                               Valor unitário
                             </label>
                             <MoneyInput
@@ -202,7 +258,7 @@ export function AditivoContratoModal({
                               }
                             />
                           </div>
-                          <div className="col-span-12 sm:col-span-3 text-xs text-slate-500 dark:text-slate-400 pb-1.5">
+                          <div className="col-span-12 pb-1.5 text-xs text-muted-foreground sm:col-span-3">
                             Nova qtd: {novaQtd} {item.unidade}
                             <br />
                             {formatarMoeda(novaQtd * vu)}
@@ -215,34 +271,27 @@ export function AditivoContratoModal({
               </div>
             )}
 
-            <div className="text-right space-y-1 pt-2">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+            <div className="space-y-1 pt-2 text-right">
+              <p className="text-xs text-muted-foreground">
                 {selecionados.length
                   ? `${selecionados.length} ${selecionados.length === 1 ? "item selecionado" : "itens selecionados"}`
                   : "Nenhum item selecionado"}
               </p>
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              <p className="text-sm font-medium text-foreground">
                 Novo total do contrato: {formatarMoeda(novoTotal)}
               </p>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex justify-end gap-3 border-t pt-4">
               <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className="px-4 py-2 font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
-                >
+                <Button type="button" variant="outline">
                   Cancelar
-                </button>
+                </Button>
               </Dialog.Close>
-              <button
-                type="submit"
-                disabled={mutation.isPending || itens.length === 0}
-                className="px-4 py-2 font-medium text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg flex items-center gap-2"
-              >
-                {mutation.isPending && <Loader2 size={16} className="animate-spin" />}
+              <Button type="submit" disabled={mutation.isPending || itens.length === 0}>
+                {mutation.isPending && <Loader2 className="animate-spin" />}
                 Aplicar aditivo
-              </button>
+              </Button>
             </div>
           </form>
         </Dialog.Content>

@@ -16,10 +16,12 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
-import { Route as LayoutAlmoxarifadosRouteImport } from './routes/_layout/almoxarifados'
+import { Route as LayoutAuditoriaRouteImport } from './routes/_layout/auditoria'
 import { Route as LayoutContratosRouteImport } from './routes/_layout/contratos'
+import { Route as LayoutEstornosRouteImport } from './routes/_layout/estornos'
 import { Route as LayoutFornecedoresRouteImport } from './routes/_layout/fornecedores'
 import { Route as LayoutNotasFiscaisRouteImport } from './routes/_layout/notas-fiscais'
+import { Route as LayoutRelatoriosRouteImport } from './routes/_layout/relatorios'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 
 const LayoutRoute = LayoutRouteImport.update({
@@ -56,14 +58,19 @@ const LayoutAdminRoute = LayoutAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutAlmoxarifadosRoute = LayoutAlmoxarifadosRouteImport.update({
-  id: '/almoxarifados',
-  path: '/almoxarifados',
+const LayoutAuditoriaRoute = LayoutAuditoriaRouteImport.update({
+  id: '/auditoria',
+  path: '/auditoria',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutContratosRoute = LayoutContratosRouteImport.update({
   id: '/contratos',
   path: '/contratos',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutEstornosRoute = LayoutEstornosRouteImport.update({
+  id: '/estornos',
+  path: '/estornos',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutFornecedoresRoute = LayoutFornecedoresRouteImport.update({
@@ -74,6 +81,11 @@ const LayoutFornecedoresRoute = LayoutFornecedoresRouteImport.update({
 const LayoutNotasFiscaisRoute = LayoutNotasFiscaisRouteImport.update({
   id: '/notas-fiscais',
   path: '/notas-fiscais',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutRelatoriosRoute = LayoutRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
@@ -89,10 +101,12 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
-  '/almoxarifados': typeof LayoutAlmoxarifadosRoute
+  '/auditoria': typeof LayoutAuditoriaRoute
   '/contratos': typeof LayoutContratosRoute
+  '/estornos': typeof LayoutEstornosRoute
   '/fornecedores': typeof LayoutFornecedoresRoute
   '/notas-fiscais': typeof LayoutNotasFiscaisRoute
+  '/relatorios': typeof LayoutRelatoriosRoute
   '/settings': typeof LayoutSettingsRoute
 }
 export interface FileRoutesByTo {
@@ -101,10 +115,12 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
-  '/almoxarifados': typeof LayoutAlmoxarifadosRoute
+  '/auditoria': typeof LayoutAuditoriaRoute
   '/contratos': typeof LayoutContratosRoute
+  '/estornos': typeof LayoutEstornosRoute
   '/fornecedores': typeof LayoutFornecedoresRoute
   '/notas-fiscais': typeof LayoutNotasFiscaisRoute
+  '/relatorios': typeof LayoutRelatoriosRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
 }
@@ -116,10 +132,12 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/_layout/admin': typeof LayoutAdminRoute
-  '/_layout/almoxarifados': typeof LayoutAlmoxarifadosRoute
+  '/_layout/auditoria': typeof LayoutAuditoriaRoute
   '/_layout/contratos': typeof LayoutContratosRoute
+  '/_layout/estornos': typeof LayoutEstornosRoute
   '/_layout/fornecedores': typeof LayoutFornecedoresRoute
   '/_layout/notas-fiscais': typeof LayoutNotasFiscaisRoute
+  '/_layout/relatorios': typeof LayoutRelatoriosRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
 }
@@ -132,10 +150,12 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin'
-    | '/almoxarifados'
+    | '/auditoria'
     | '/contratos'
+    | '/estornos'
     | '/fornecedores'
     | '/notas-fiscais'
+    | '/relatorios'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -144,10 +164,12 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin'
-    | '/almoxarifados'
+    | '/auditoria'
     | '/contratos'
+    | '/estornos'
     | '/fornecedores'
     | '/notas-fiscais'
+    | '/relatorios'
     | '/settings'
     | '/'
   id:
@@ -158,10 +180,12 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/_layout/admin'
-    | '/_layout/almoxarifados'
+    | '/_layout/auditoria'
     | '/_layout/contratos'
+    | '/_layout/estornos'
     | '/_layout/fornecedores'
     | '/_layout/notas-fiscais'
+    | '/_layout/relatorios'
     | '/_layout/settings'
     | '/_layout/'
   fileRoutesById: FileRoutesById
@@ -225,11 +249,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/almoxarifados': {
-      id: '/_layout/almoxarifados'
-      path: '/almoxarifados'
-      fullPath: '/almoxarifados'
-      preLoaderRoute: typeof LayoutAlmoxarifadosRouteImport
+    '/_layout/auditoria': {
+      id: '/_layout/auditoria'
+      path: '/auditoria'
+      fullPath: '/auditoria'
+      preLoaderRoute: typeof LayoutAuditoriaRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/contratos': {
@@ -237,6 +261,13 @@ declare module '@tanstack/react-router' {
       path: '/contratos'
       fullPath: '/contratos'
       preLoaderRoute: typeof LayoutContratosRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/estornos': {
+      id: '/_layout/estornos'
+      path: '/estornos'
+      fullPath: '/estornos'
+      preLoaderRoute: typeof LayoutEstornosRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/fornecedores': {
@@ -253,6 +284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutNotasFiscaisRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/relatorios': {
+      id: '/_layout/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof LayoutRelatoriosRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/settings': {
       id: '/_layout/settings'
       path: '/settings'
@@ -265,20 +303,24 @@ declare module '@tanstack/react-router' {
 
 interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRoute
-  LayoutAlmoxarifadosRoute: typeof LayoutAlmoxarifadosRoute
+  LayoutAuditoriaRoute: typeof LayoutAuditoriaRoute
   LayoutContratosRoute: typeof LayoutContratosRoute
+  LayoutEstornosRoute: typeof LayoutEstornosRoute
   LayoutFornecedoresRoute: typeof LayoutFornecedoresRoute
   LayoutNotasFiscaisRoute: typeof LayoutNotasFiscaisRoute
+  LayoutRelatoriosRoute: typeof LayoutRelatoriosRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRoute,
-  LayoutAlmoxarifadosRoute: LayoutAlmoxarifadosRoute,
+  LayoutAuditoriaRoute: LayoutAuditoriaRoute,
   LayoutContratosRoute: LayoutContratosRoute,
+  LayoutEstornosRoute: LayoutEstornosRoute,
   LayoutFornecedoresRoute: LayoutFornecedoresRoute,
   LayoutNotasFiscaisRoute: LayoutNotasFiscaisRoute,
+  LayoutRelatoriosRoute: LayoutRelatoriosRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
 }
