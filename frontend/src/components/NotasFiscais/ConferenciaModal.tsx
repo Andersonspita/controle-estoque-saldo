@@ -5,7 +5,8 @@ import { AlertTriangle, Link2, Loader2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
 import { Button } from "@/components/ui/button"
-import { formatarQuantidade } from "@/lib/money"
+import { MoneyInput } from "@/components/ui/money-input"
+import { formatarMoeda, formatarQuantidade } from "@/lib/money"
 import { numeroContrato } from "@/lib/contrato"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
@@ -17,6 +18,7 @@ type VinculoLocal = {
   codigo?: string
   quantidade: number
   unidade: string
+  valor_unitario: number
   item_contrato_id: number | null
   percentual_confianca?: number | null
   status_identificacao?: string | null
@@ -51,6 +53,7 @@ export function ConferenciaModal({
         codigo: item.codigo,
         quantidade: item.quantidade,
         unidade: item.unidade,
+        valor_unitario: Number(item.valor_unitario) || 0,
         item_contrato_id: item.item_contrato_id ?? null,
         percentual_confianca: item.percentual_confianca,
         status_identificacao: item.status_identificacao,
@@ -67,6 +70,7 @@ export function ConferenciaModal({
         vinculos.map((v) => ({
           id: v.id,
           item_contrato_id: v.item_contrato_id as number,
+          valor_unitario: v.valor_unitario,
         })),
       ),
     onSuccess: () => {
@@ -102,7 +106,7 @@ export function ConferenciaModal({
             Ajuste o item do contrato correspondente a cada item da nota antes da baixa.
           </Dialog.Description>
 
-          <form onSubmit={salvar} className="mt-2 space-y-4">
+          <form onSubmit={salvar} className="mt-2 min-w-0 space-y-4">
             {pendentes > 0 && (
               <div className="flex items-start gap-2 rounded-lg border border-critical/30 bg-critical-bg p-3 text-sm text-critical">
                 <AlertTriangle size={16} className="mt-0.5 shrink-0" />
@@ -116,11 +120,13 @@ export function ConferenciaModal({
                 {contrato ? numeroContrato(contrato) : ""}
               </h4>
               <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border [-webkit-overflow-scrolling:touch]">
-                <table className="w-full min-w-[36rem] text-xs">
+                <table className="w-full min-w-[44rem] text-xs">
                   <thead className="bg-muted/50 text-muted-foreground">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">Item da NF</th>
                       <th className="px-3 py-2 text-left font-medium">Item do Contrato</th>
+                      <th className="w-32 px-3 py-2 text-left font-medium">Valor unitário</th>
+                      <th className="px-3 py-2 text-right font-medium">Total do item</th>
                       <th className="px-3 py-2 text-left font-medium">Identificação</th>
                     </tr>
                   </thead>
@@ -139,21 +145,23 @@ export function ConferenciaModal({
                         <td className="px-3 py-2">
                           <select
                             value={v.item_contrato_id ?? ""}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const id = e.target.value ? parseInt(e.target.value) : null
+                              const ic = contrato?.itens?.find((i: any) => i.id === id)
                               setVinculos((atual) =>
                                 atual.map((item) =>
                                   item.id === v.id
                                     ? {
                                         ...item,
-                                        item_contrato_id: e.target.value
-                                          ? parseInt(e.target.value)
-                                          : null,
+                                        item_contrato_id: id,
                                         status_identificacao: "MANUAL",
+                                        // Assume o preço do contrato; ainda pode ser ajustado.
+                                        ...(ic ? { valor_unitario: Number(ic.valor_unitario) || 0 } : {}),
                                       }
                                     : item,
                                 ),
                               )
-                            }
+                            }}
                             className="w-full rounded border border-input bg-transparent p-1.5 text-xs text-foreground [&>option]:bg-popover [&>option]:text-popover-foreground"
                             required
                           >
@@ -167,6 +175,21 @@ export function ConferenciaModal({
                               </option>
                             ))}
                           </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <MoneyInput
+                            value={v.valor_unitario}
+                            onValueChange={(valor) =>
+                              setVinculos((atual) =>
+                                atual.map((item) =>
+                                  item.id === v.id ? { ...item, valor_unitario: valor } : item,
+                                ),
+                              )
+                            }
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-right font-medium tabular-nums whitespace-nowrap text-foreground">
+                          {formatarMoeda((Number(v.quantidade) || 0) * (v.valor_unitario || 0))}
                         </td>
                         <td className="px-3 py-2">
                           <StatusVinculoBadge

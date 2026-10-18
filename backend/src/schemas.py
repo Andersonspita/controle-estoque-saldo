@@ -423,6 +423,8 @@ class NotaFiscalOut(NotaFiscalCreate):
 class ItemVinculoUpdate(BaseModel):
     id: int
     item_contrato_id: int
+    # Ao trocar o vínculo a tela assume o preço do item do contrato.
+    valor_unitario: Optional[float] = Field(default=None, ge=0)
 
 class AtualizarVinculosRequest(BaseModel):
     itens: List[ItemVinculoUpdate]

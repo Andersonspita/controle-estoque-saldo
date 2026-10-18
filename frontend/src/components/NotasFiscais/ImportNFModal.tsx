@@ -226,7 +226,7 @@ export function ImportNFModal({
     setVinculos((prev) =>
       prev.map((v) => {
         if (v.indice_nf !== indice) return v
-        // Linha digitada à mão assume descrição, unidade e preço do item do contrato.
+        // Todo vínculo assume o preço do item do contrato; linha digitada também a descrição e unidade.
         return {
           ...v,
           item_contrato_id: id,
@@ -235,12 +235,9 @@ export function ImportNFModal({
           percentual_confianca: 100,
           status_identificacao: "MANUAL",
           criterio_identificacao: null,
+          ...(itemContrato ? { valor_unitario: Number(itemContrato.valor_unitario) || 0 } : {}),
           ...(v.manual && itemContrato
-            ? {
-                descricao_nf: itemContrato.descricao,
-                unidade: itemContrato.unidade || v.unidade,
-                valor_unitario: Number(itemContrato.valor_unitario) || 0,
-              }
+            ? { descricao_nf: itemContrato.descricao, unidade: itemContrato.unidade || v.unidade }
             : {}),
         }
       }),

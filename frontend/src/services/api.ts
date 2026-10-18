@@ -128,7 +128,7 @@ export const notasFiscaisService = {
 
   atualizarVinculos: async (
     nfId: number,
-    itens: { id: number; item_contrato_id: number }[],
+    itens: { id: number; item_contrato_id: number; valor_unitario?: number }[],
   ) => {
     const response = await api.patch(`/notas-fiscais/${nfId}/vinculos`, { itens });
     return response.data;
