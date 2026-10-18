@@ -95,6 +95,7 @@ export function ImportNFModal({
   const [vinculos, setVinculos] = useState<VinculoItem[]>([])
   const [loadingVinculos, setLoadingVinculos] = useState(false)
   const [falhaLeitura, setFalhaLeitura] = useState("")
+  const [arrastando, setArrastando] = useState(false)
   // No preenchimento manual o total da nota acompanha a soma dos itens até o usuário digitar outro.
   const [totalAutomatico, setTotalAutomatico] = useState(false)
 
@@ -188,6 +189,24 @@ export function ImportNFModal({
   // Nota ilegível: segue com o arquivo anexado e tudo digitado pelo usuário.
   const preencherManualmente = () => {
     carregarDados({ itens: [], manual: true })
+  }
+
+  const selecionarArquivo = (arquivo: File | null) => {
+    if (arquivo && !/\.(pdf|xml)$/i.test(arquivo.name)) {
+      toast.error("Envie um arquivo XML ou PDF da nota fiscal.")
+      return
+    }
+    setFile(arquivo)
+    setParsedData(null)
+    setVinculos([])
+    setFalhaLeitura("")
+  }
+
+  // Sem isto o navegador abre o arquivo solto numa aba nova.
+  const soltarArquivo = (e: React.DragEvent) => {
+    e.preventDefault()
+    setArrastando(false)
+    selecionarArquivo(e.dataTransfer.files?.[0] || null)
   }
 
   const handleParseArquivo = () => {
@@ -310,8 +329,15 @@ export function ImportNFModal({
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+        <Dialog.Overlay
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => e.preventDefault()}
+        />
+        <Dialog.Content
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => e.preventDefault()}
+          className="fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
           <Dialog.Title className="text-xl font-semibold text-foreground">
             Importar Nota Fiscal
           </Dialog.Title>
@@ -323,10 +349,19 @@ export function ImportNFModal({
 
           <form onSubmit={handleSubmit} className="mt-4 min-w-0 space-y-6">
             <div
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.dataTransfer.dropEffect = "copy"
+                setArrastando(true)
+              }}
+              onDragLeave={() => setArrastando(false)}
+              onDrop={soltarArquivo}
               className={`rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-                file
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-muted/40 hover:border-muted-foreground/40"
+                arrastando
+                  ? "border-primary bg-primary/10"
+                  : file
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-muted/40 hover:border-muted-foreground/40"
               }`}
             >
               <input
@@ -335,10 +370,8 @@ export function ImportNFModal({
                 accept=".pdf,.xml"
                 className="hidden"
                 onChange={(e) => {
-                  setFile(e.target.files?.[0] || null)
-                  setParsedData(null)
-                  setVinculos([])
-                  setFalhaLeitura("")
+                  selecionarArquivo(e.target.files?.[0] || null)
+                  e.target.value = ""
                 }}
               />
               <label
