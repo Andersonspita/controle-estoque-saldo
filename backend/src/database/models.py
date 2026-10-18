@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Date, JSON, CheckConstraint, Index, Text, text
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Date, JSON, Index, Text, text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from .session import Base
@@ -87,9 +87,7 @@ class Contrato(Base):
 
 class ItemContrato(Base):
     __tablename__ = "itens_contrato"
-    __table_args__ = (
-        CheckConstraint('saldo_atual >= 0', name='check_saldo_positivo'),
-    )
+    # Saldo pode ficar negativo: a baixa é permitida e a tela avisa antes.
 
     id = Column(Integer, primary_key=True, index=True)
     contrato_id = Column(Integer, ForeignKey("contratos.id"), nullable=False)

@@ -40,7 +40,7 @@ from reportlab.platypus.tableofcontents import TableOfContents
 
 RAIZ = Path(__file__).resolve().parents[2]
 SAIDA = RAIZ / "docs" / "Manual_do_Usuario_SaldoContratual.pdf"
-VERSAO = "Versão 1.2"
+VERSAO = "Versão 1.3"
 DATA_REVISAO = date.today().strftime("%d/%m/%Y")
 
 # Cores da marca (tokens de frontend/src/index.css convertidos para RGB)
@@ -854,7 +854,7 @@ def conteudo() -> list:
     historia += secao("Executar baixa")
     historia.append(passos([
         "Na nota pendente, clique em <b>Executar baixa</b>.",
-        "Confira, item a item, o <b>saldo após a baixa</b>.",
+        "Confira, item a item, o <b>saldo após a baixa</b>, em quantidade e em reais.",
         "Se quiser, escreva uma <b>justificativa</b> (por exemplo, nota emitida em "
         "atraso).",
         "Clique em <b>Confirmar baixa</b>. O saldo é descontado e a nota passa a "
@@ -862,9 +862,19 @@ def conteudo() -> list:
     ]))
     historia += caixa(
         "importante",
-        "A baixa é “tudo ou nada”: se algum item não tiver saldo suficiente, nenhum item "
-        "é baixado e aparece a mensagem <b>“Operação abortada: Saldo Insuficiente”</b>. "
-        "Verifique o vínculo ou providencie um aditivo antes de tentar de novo.",
+        "O saldo pode ficar <b>negativo</b>. Quando a nota tem mais quantidade do que o "
+        "saldo de algum item, a janela de baixa mostra o aviso <b>“Atenção: o saldo ficará "
+        "negativo”</b> e destaca os itens em vermelho, com a quantidade e o valor que vão "
+        "ficar devendo. A baixa é permitida; depois dela aparece um lembrete para "
+        "providenciar o aditivo. O mesmo aviso aparece já no lançamento da nota "
+        "(importação ou inclusão manual), ao lado da quantidade.",
+        "Saldo negativo",
+    )
+    historia += caixa(
+        "atencao",
+        "Antes de confirmar com saldo negativo, confira se o vínculo está certo — uma "
+        "linha ligada ao item errado é a causa mais comum. Os itens que ficaram negativos "
+        "são registrados no Log de usuários.",
     )
     historia += secao("Baixa em contrato vencido")
     historia.append(p(
@@ -1007,7 +1017,7 @@ def conteudo() -> list:
         [
             ["Não vejo os botões Novo Contrato, Editar ou Aditivo.", "Sua conta não tem a permissão “Gerir contratos”. Peça ao administrador."],
             ["Não vejo Estornar baixa ou Excluir na nota.", "Sua conta não tem a permissão “Estornar”."],
-            ["“Operação abortada: Saldo Insuficiente” na baixa.", "Algum item da nota tem quantidade maior que o saldo do item do contrato. Confira o vínculo; se estiver certo, é preciso um aditivo."],
+            ["Aviso “o saldo ficará negativo” na baixa ou no lançamento.", "Algum item da nota tem quantidade maior que o saldo do item do contrato. Confira o vínculo; se estiver certo, a baixa é permitida e o contrato fica com saldo negativo até um aditivo."],
             ["Item da nota vem como “Não identificado”.", "Escolha o item manualmente. Para as próximas notas, cadastre a Descrição do fornecedor no item do contrato."],
             ["“Planilha fora do modelo”.", "Baixe o modelo de novo e preencha sem alterar o cabeçalho. Só .xlsx é aceito."],
             ["Não consigo reduzir a quantidade de um item.", "A quantidade não pode ficar abaixo do que já foi baixado."],
@@ -1028,7 +1038,7 @@ def conteudo() -> list:
     historia += tabela(
         ["Termo", "Significado"],
         [
-            ["Saldo", "Quantidade (e valor) ainda disponível em um item do contrato."],
+            ["Saldo", "Quantidade (e valor) ainda disponível em um item do contrato. Pode ficar negativo quando a baixa passa do contratado."],
             ["Baixa", "Desconto do saldo do contrato a partir de uma nota fiscal."],
             ["Estorno", "Desfazer uma baixa, devolvendo o saldo ao contrato."],
             ["Vínculo", "Ligação entre um item da nota fiscal e um item do contrato."],
