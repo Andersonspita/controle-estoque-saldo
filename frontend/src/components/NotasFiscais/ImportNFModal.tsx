@@ -226,7 +226,7 @@ export function ImportNFModal({
     setVinculos((prev) =>
       prev.map((v) => {
         if (v.indice_nf !== indice) return v
-        // Todo vínculo assume o preço do item do contrato; linha digitada também a descrição e unidade.
+        // Linha digitada assume a descrição e a unidade do item do contrato.
         return {
           ...v,
           item_contrato_id: id,
@@ -235,7 +235,6 @@ export function ImportNFModal({
           percentual_confianca: 100,
           status_identificacao: "MANUAL",
           criterio_identificacao: null,
-          ...(itemContrato ? { valor_unitario: Number(itemContrato.valor_unitario) || 0 } : {}),
           ...(v.manual && itemContrato
             ? { descricao_nf: itemContrato.descricao, unidade: itemContrato.unidade || v.unidade }
             : {}),
@@ -253,8 +252,12 @@ export function ImportNFModal({
   const removerLinha = (indice: number) =>
     setVinculos((prev) => prev.filter((v) => v.indice_nf !== indice))
 
+  // O valor unitário da baixa é sempre o do item do contrato (o lido na NF só aparece para conferência).
+  const itemDoContrato = (v: VinculoItem) =>
+    contratoSelecionado?.itens?.find((i: any) => i.id === v.item_contrato_id)
+  const precoDe = (v: VinculoItem) => Number(itemDoContrato(v)?.valor_unitario) || 0
   const somaItens = vinculos.reduce(
-    (acc, v) => acc + (Number(v.quantidade) || 0) * (Number(v.valor_unitario) || 0),
+    (acc, v) => acc + (Number(v.quantidade) || 0) * precoDe(v),
     0,
   )
   const saldoApos = saldoAposLancamento(contratoSelecionado?.itens, vinculos)
@@ -301,7 +304,7 @@ export function ImportNFModal({
       descricao: v.descricao_nf || v.item_contrato_descricao || "Item",
       quantidade: arredondarQuantidade(v.quantidade),
       unidade: v.unidade,
-      valor_unitario: v.valor_unitario,
+      valor_unitario: precoDe(v),
       item_contrato_id: v.item_contrato_id,
       percentual_confianca: v.percentual_confianca,
       status_identificacao: v.status_identificacao,
@@ -334,7 +337,7 @@ export function ImportNFModal({
         <Dialog.Content
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => e.preventDefault()}
-          className="fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-4xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+          className="fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-6xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
           <Dialog.Title className="text-xl font-semibold text-foreground">
             Importar Nota Fiscal
           </Dialog.Title>
@@ -590,18 +593,18 @@ export function ImportNFModal({
                     )}
                     {vinculos.length > 0 && (
                       <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border [-webkit-overflow-scrolling:touch]">
-                        <table className="w-full min-w-[50rem] text-xs">
+                        <table className="w-full min-w-[60rem] text-xs">
                           <thead className="bg-muted/50 text-muted-foreground">
                             <tr>
                               <th className="px-3 py-2 text-left font-medium">Item da NF</th>
-                              <th className="px-3 py-2 text-left font-medium">
+                              <th className="min-w-[18rem] px-3 py-2 text-left font-medium">
                                 Item do contrato
                               </th>
                               <th className="w-28 px-3 py-2 text-left font-medium">
                                 Quantidade
                               </th>
-                              <th className="w-32 px-3 py-2 text-left font-medium">
-                                Valor unitário
+                              <th className="w-28 px-3 py-2 text-left font-medium">
+                                Valor unitário (contrato)
                               </th>
                               <th className="w-28 px-3 py-2 text-right font-medium">
                                 Total do item
@@ -616,10 +619,7 @@ export function ImportNFModal({
                             {vinculos.map((v) => (
                               <tr key={v.indice_nf} className="bg-card align-top">
                                 <td className="px-3 py-2">
-                                  <p
-                                    className="max-w-[180px] truncate font-medium text-foreground"
-                                    title={v.descricao_nf}
-                                  >
+                                  <p className="max-w-[220px] font-medium text-foreground">
                                     {v.descricao_nf || (
                                       <span className="text-muted-foreground">
                                         Digitado manualmente
@@ -628,6 +628,12 @@ export function ImportNFModal({
                                   </p>
                                   {v.codigo_nf && (
                                     <p className="text-muted-foreground">Cód: {v.codigo_nf}</p>
+                                  )}
+                                  {!v.manual && (
+                                    <p className="text-muted-foreground">
+                                      Lido na NF: {formatarQuantidade(v.quantidade)} ×{" "}
+                                      {formatarMoeda(v.valor_unitario)}
+                                    </p>
                                   )}
                                 </td>
                                 <td className="px-3 py-2">
@@ -649,6 +655,11 @@ export function ImportNFModal({
                                       </option>
                                     ))}
                                   </select>
+                                  {itemDoContrato(v) && (
+                                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                                      {rotuloItemContrato(itemDoContrato(v))}
+                                    </p>
+                                  )}
                                 </td>
                                 <td className="px-3 py-2">
                                   <div className="flex items-center gap-1">
@@ -675,18 +686,11 @@ export function ImportNFModal({
                                     </p>
                                   )}
                                 </td>
-                                <td className="px-3 py-2">
-                                  <MoneyInput
-                                    value={v.valor_unitario}
-                                    onValueChange={(valor) =>
-                                      atualizarLinha(v.indice_nf, { valor_unitario: valor })
-                                    }
-                                  />
+                                <td className="px-3 py-2 tabular-nums whitespace-nowrap text-foreground">
+                                  {itemDoContrato(v) ? formatarMoeda(precoDe(v)) : "—"}
                                 </td>
                                 <td className="px-3 py-2 text-right font-medium tabular-nums whitespace-nowrap text-foreground">
-                                  {formatarMoeda(
-                                    (Number(v.quantidade) || 0) * (Number(v.valor_unitario) || 0),
-                                  )}
+                                  {formatarMoeda((Number(v.quantidade) || 0) * precoDe(v))}
                                 </td>
                                 <td className="px-3 py-2">
                                   <StatusVinculoBadge

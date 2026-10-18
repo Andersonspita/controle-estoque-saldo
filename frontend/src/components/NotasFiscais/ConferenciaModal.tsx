@@ -5,7 +5,6 @@ import { AlertTriangle, Link2, Loader2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
 import { Button } from "@/components/ui/button"
-import { MoneyInput } from "@/components/ui/money-input"
 import { formatarMoeda, formatarQuantidade } from "@/lib/money"
 import { numeroContrato } from "@/lib/contrato"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
@@ -18,7 +17,6 @@ type VinculoLocal = {
   codigo?: string
   quantidade: number
   unidade: string
-  valor_unitario: number
   item_contrato_id: number | null
   percentual_confianca?: number | null
   status_identificacao?: string | null
@@ -53,7 +51,6 @@ export function ConferenciaModal({
         codigo: item.codigo,
         quantidade: item.quantidade,
         unidade: item.unidade,
-        valor_unitario: Number(item.valor_unitario) || 0,
         item_contrato_id: item.item_contrato_id ?? null,
         percentual_confianca: item.percentual_confianca,
         status_identificacao: item.status_identificacao,
@@ -62,6 +59,10 @@ export function ConferenciaModal({
   }, [isOpen, nf])
 
   const pendentes = vinculos.filter((v) => !v.item_contrato_id).length
+  // O valor unitário é sempre o do item do contrato vinculado.
+  const itemDoContrato = (v: VinculoLocal) =>
+    contrato?.itens?.find((i: any) => i.id === v.item_contrato_id)
+  const precoDe = (v: VinculoLocal) => Number(itemDoContrato(v)?.valor_unitario) || 0
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -70,7 +71,7 @@ export function ConferenciaModal({
         vinculos.map((v) => ({
           id: v.id,
           item_contrato_id: v.item_contrato_id as number,
-          valor_unitario: v.valor_unitario,
+          valor_unitario: precoDe(v),
         })),
       ),
     onSuccess: () => {
@@ -98,7 +99,7 @@ export function ConferenciaModal({
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-5xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
           <Dialog.Title className="text-xl font-semibold text-foreground">
             Conferir vínculos da NF #{nf?.numero}
           </Dialog.Title>
@@ -120,12 +121,12 @@ export function ConferenciaModal({
                 {contrato ? numeroContrato(contrato) : ""}
               </h4>
               <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border [-webkit-overflow-scrolling:touch]">
-                <table className="w-full min-w-[44rem] text-xs">
+                <table className="w-full min-w-[52rem] text-xs">
                   <thead className="bg-muted/50 text-muted-foreground">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">Item da NF</th>
-                      <th className="px-3 py-2 text-left font-medium">Item do Contrato</th>
-                      <th className="w-32 px-3 py-2 text-left font-medium">Valor unitário</th>
+                      <th className="min-w-[18rem] px-3 py-2 text-left font-medium">Item do Contrato</th>
+                      <th className="w-28 px-3 py-2 text-left font-medium">Valor unitário (contrato)</th>
                       <th className="px-3 py-2 text-right font-medium">Total do item</th>
                       <th className="px-3 py-2 text-left font-medium">Identificação</th>
                     </tr>
@@ -147,7 +148,6 @@ export function ConferenciaModal({
                             value={v.item_contrato_id ?? ""}
                             onChange={(e) => {
                               const id = e.target.value ? parseInt(e.target.value) : null
-                              const ic = contrato?.itens?.find((i: any) => i.id === id)
                               setVinculos((atual) =>
                                 atual.map((item) =>
                                   item.id === v.id
@@ -155,8 +155,6 @@ export function ConferenciaModal({
                                         ...item,
                                         item_contrato_id: id,
                                         status_identificacao: "MANUAL",
-                                        // Assume o preço do contrato; ainda pode ser ajustado.
-                                        ...(ic ? { valor_unitario: Number(ic.valor_unitario) || 0 } : {}),
                                       }
                                     : item,
                                 ),
@@ -176,20 +174,11 @@ export function ConferenciaModal({
                             ))}
                           </select>
                         </td>
-                        <td className="px-3 py-2">
-                          <MoneyInput
-                            value={v.valor_unitario}
-                            onValueChange={(valor) =>
-                              setVinculos((atual) =>
-                                atual.map((item) =>
-                                  item.id === v.id ? { ...item, valor_unitario: valor } : item,
-                                ),
-                              )
-                            }
-                          />
+                        <td className="px-3 py-2 tabular-nums whitespace-nowrap text-foreground">
+                          {itemDoContrato(v) ? formatarMoeda(precoDe(v)) : "—"}
                         </td>
                         <td className="px-3 py-2 text-right font-medium tabular-nums whitespace-nowrap text-foreground">
-                          {formatarMoeda((Number(v.quantidade) || 0) * (v.valor_unitario || 0))}
+                          {formatarMoeda((Number(v.quantidade) || 0) * precoDe(v))}
                         </td>
                         <td className="px-3 py-2">
                           <StatusVinculoBadge

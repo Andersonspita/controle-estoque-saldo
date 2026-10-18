@@ -5,7 +5,6 @@ import { AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
 import { Button } from "@/components/ui/button"
-import { MoneyInput } from "@/components/ui/money-input"
 import { formatarMoeda, formatarQuantidade, PASSO_QUANTIDADE } from "@/lib/money"
 import { numeroContrato, saldoAposLancamento } from "@/lib/contrato"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
@@ -415,11 +414,10 @@ export function ManualNFModal({
                       <label className="text-xs font-medium text-muted-foreground">
                         Valor unitário
                       </label>
-                      <MoneyInput
-                        required
-                        value={item.valor_unitario}
-                        onValueChange={(valor) => atualizarItem(index, { valor_unitario: valor })}
-                      />
+                      {/* Vem do item do contrato; não é editável. */}
+                      <p className="flex h-9 items-center rounded-md border border-input bg-muted/40 px-3 text-sm tabular-nums">
+                        {item.item_contrato_id ? formatarMoeda(item.valor_unitario || 0) : "—"}
+                      </p>
                     </div>
                     <div className="col-span-2 pb-1 sm:col-span-1">
                       <Button
