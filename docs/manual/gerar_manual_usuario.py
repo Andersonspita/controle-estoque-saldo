@@ -40,7 +40,7 @@ from reportlab.platypus.tableofcontents import TableOfContents
 
 RAIZ = Path(__file__).resolve().parents[2]
 SAIDA = RAIZ / "docs" / "Manual_do_Usuario_SaldoContratual.pdf"
-VERSAO = "Versão 1.1"
+VERSAO = "Versão 1.2"
 DATA_REVISAO = date.today().strftime("%d/%m/%Y")
 
 # Cores da marca (tokens de frontend/src/index.css convertidos para RGB)
@@ -760,14 +760,40 @@ def conteudo() -> list:
         "Acesse <b>Notas Fiscais</b> e clique em <b>Nova nota fiscal</b>.",
         "Escolha <b>Importar XML ou PDF</b> e selecione o <b>contrato de origem do "
         "saldo</b>.",
-        "Envie o arquivo <b>XML</b> da NF-e ou o <b>PDF do DANFE</b>. O sistema lê "
-        "número, fornecedor, valor total e itens.",
-        "Confira a tabela de vínculos: cada linha mostra o item da nota, o item do "
-        "contrato sugerido e o nível de confiança.",
-        "Corrija qualquer vínculo escolhendo o item certo na lista. Todos os itens "
-        "precisam estar vinculados.",
+        "Envie o arquivo <b>XML</b> da NF-e ou o <b>PDF do DANFE</b> e clique em "
+        "<b>Extrair Dados</b>. O sistema lê número, série, data, emitente, valor total e "
+        "itens.",
+        "Confira os <b>Dados da nota</b> (número, série, data de emissão e valor total). "
+        "Todos podem ser corrigidos.",
+        "Confira a tabela de itens: cada linha mostra o item da nota, o item do contrato "
+        "sugerido, a <b>quantidade</b>, o <b>valor unitário</b> e o nível de confiança.",
+        "Corrija o que for preciso: troque o item do contrato na lista, ajuste a "
+        "quantidade (até 3 casas decimais) ou o valor unitário, use <b>Adicionar item</b> "
+        "para incluir uma linha e a lixeira para remover. Toda linha precisa de item do "
+        "contrato e de quantidade maior que zero.",
         "Clique em <b>Confirmar Importação</b>. A nota fica <b>Pendente</b>, aguardando a baixa.",
     ]))
+    historia += secao("Nota ilegível ou de outro credor")
+    historia += topicos([
+        "<b>Nota digitalizada que o sistema não consegue ler</b>: se a leitura falhar, "
+        "aparece a mensagem de erro e o botão <b>Preencher manualmente</b> (também "
+        "disponível antes de extrair). Digite número, série, data e valor da nota e "
+        "inclua os itens: escolha o item do contrato — descrição, unidade e valor "
+        "unitário vêm dele — e informe a quantidade. O arquivo continua anexado à nota.",
+        "<b>Leitura sem itens</b>: se o arquivo for lido mas nenhum item for encontrado, "
+        "a tabela começa com uma linha em branco para preencher da mesma forma.",
+        "<b>Emitente diferente do credor do contrato</b>: se o CNPJ lido na nota não for "
+        "o do fornecedor do contrato, aparece um aviso em amarelo. Confira se escolheu o "
+        "contrato certo; se seguir, a nota fica registrada no credor do contrato e os "
+        "itens são vinculados manualmente. Quando o CNPJ não pode ser lido, o sistema "
+        "pede que você confira o credor.",
+    ])
+    historia += caixa(
+        "atencao",
+        "Abaixo da tabela aparece a <b>soma dos itens</b>. Se ela não bater com o valor "
+        "total da nota, o sistema avisa — confira quantidades e valores antes de "
+        "confirmar. Deixando o valor total em branco, vale a soma dos itens.",
+    )
     historia += caixa(
         "dica",
         "Prefira o <b>XML</b> sempre que tiver. A leitura é exata. O PDF é lido por "
@@ -986,7 +1012,9 @@ def conteudo() -> list:
             ["“Planilha fora do modelo”.", "Baixe o modelo de novo e preencha sem alterar o cabeçalho. Só .xlsx é aceito."],
             ["Não consigo reduzir a quantidade de um item.", "A quantidade não pode ficar abaixo do que já foi baixado."],
             ["Não consigo remover um item do contrato.", "Itens que já tiveram baixa não podem ser removidos."],
-            ["A leitura do PDF trouxe dados errados.", "O DANFE em PDF é lido por OCR. Corrija os vínculos, use o XML se tiver, ou inclua a nota manualmente."],
+            ["A leitura do PDF trouxe dados errados.", "O DANFE em PDF é lido por OCR. Corrija os dados, itens, quantidades e valores na própria importação, ou use o XML se tiver."],
+            ["“Não foi possível ler a nota” na importação.", "A nota está ilegível. Clique em Preencher manualmente e digite os dados e os itens; o arquivo fica anexado."],
+            ["Aviso de que o CNPJ do emitente não é o do credor do contrato.", "Confira se escolheu o contrato certo. Se estiver certo, siga: a nota é registrada no credor do contrato."],
             ["Acesso bloqueado após errar a senha.", "Aguarde 15 minutos. Se esqueceu a senha, peça ao administrador uma nova."],
             ["Preciso corrigir uma nota já baixada.", "Estorne a baixa (permissão “Estornar”), corrija e baixe de novo."],
             ["Contrato aparece como “Vencido”.", "A vigência final já passou. Aplique um aditivo de Prazo ou de Valor e prazo para prorrogá-la."],
