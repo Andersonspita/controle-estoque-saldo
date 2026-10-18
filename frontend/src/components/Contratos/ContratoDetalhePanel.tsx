@@ -137,12 +137,26 @@ export function ContratoDetalhePanel({
                   {situacaoContrato(contrato).rotulo}
                 </Badge>
               </div>
-              <SheetDescription className="text-sm">
-                {contrato.fornecedor?.razao_social ||
-                  `Fornecedor ID ${contrato.fornecedor_id}`}
-                {formatarVigencia(contrato.data_inicio, contrato.data_fim)
-                  ? ` · Vigência ${formatarVigencia(contrato.data_inicio, contrato.data_fim)}`
-                  : ""}
+              <SheetDescription asChild>
+                <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[1fr_auto]">
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Fornecedor
+                    </dt>
+                    <dd className="truncate text-foreground">
+                      {contrato.fornecedor?.razao_social ||
+                        `Fornecedor ID ${contrato.fornecedor_id}`}
+                    </dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Vigência
+                    </dt>
+                    <dd className="whitespace-nowrap text-foreground">
+                      {formatarVigencia(contrato.data_inicio, contrato.data_fim) || "—"}
+                    </dd>
+                  </div>
+                </dl>
               </SheetDescription>
               {podeEditar ? (
                 <div className="mt-2 flex gap-2">
