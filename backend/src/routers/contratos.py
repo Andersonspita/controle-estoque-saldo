@@ -20,7 +20,13 @@ from ..schemas import (
     ContratoAditivoIn,
 )
 from ..http_errors import http_erro_interno
-from ..services.aditivo import aplicar_aditivo_item, valor_total_inicial_itens, valor_total_itens
+from ..services.aditivo import (
+    TIPOS_COM_QUANTIDADE,
+    aplicar_percentual_quantidade,
+    aplicar_reequilibrio,
+    valor_total_inicial_itens,
+    valor_total_itens,
+)
 from ..services.arquivos import caminho_upload_seguro
 from ..core.audit import registrar_auditoria, get_client_ip
 
@@ -352,37 +358,26 @@ async def aditivar_contrato(
     contrato = result.scalar_one_or_none()
     if not contrato:
         raise HTTPException(status_code=404, detail="Contrato não encontrado")
-    if not body.itens:
-        raise HTTPException(status_code=400, detail="Selecione ao menos um item para aditivar")
+    if any((a.numero or "").strip().lower() == body.numero.lower() for a in contrato.aditivos):
+        raise HTTPException(status_code=400, detail=f"Já existe o aditivo nº {body.numero} neste contrato")
+    if body.tipo != "PRAZO" and not contrato.itens:
+        raise HTTPException(status_code=400, detail="Este contrato não possui itens para aditivar")
 
-    itens_por_id = {item.id: item for item in contrato.itens}
-    ids_vistos: set[int] = set()
     aditivos = []
-    for item_in in body.itens:
-        if item_in.item_id in ids_vistos:
-            raise HTTPException(status_code=400, detail="Há item repetido no aditivo")
-        ids_vistos.add(item_in.item_id)
-        item = itens_por_id.get(item_in.item_id)
-        if not item:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Item {item_in.item_id} não pertence a este contrato",
-            )
-        try:
-            aplicar_aditivo_item(item, item_in.quantidade_aditivada, item_in.valor_unitario)
-        except ValueError as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"{item.descricao}: {e}",
-            ) from e
-        aditivos.append({
-            "item_id": item.id,
-            "quantidade_aditivada": item_in.quantidade_aditivada,
-            "valor_unitario": item_in.valor_unitario,
-        })
+    for item in contrato.itens:
+        if body.tipo in TIPOS_COM_QUANTIDADE:
+            extra = aplicar_percentual_quantidade(item, body.percentual)
+            aditivos.append({"item_id": item.id, "quantidade_aditivada": extra})
+        elif body.tipo == "REEQUILIBRIO":
+            aditivos.append({"item_id": item.id, "valor_unitario": aplicar_reequilibrio(item, body.percentual)})
+    if body.tipo in TIPOS_COM_QUANTIDADE:
+        contrato.percentual_aditivo = round(float(contrato.percentual_aditivo or 0) + body.percentual, 4)
 
     registro_aditivo = ContratoAditivo(
         contrato_id=contrato.id,
+        numero=body.numero,
+        tipo=body.tipo,
+        percentual=body.percentual,
         data_inicio=body.data_inicio,
         data_fim=body.data_fim,
         usuario_id=current_user.id,
@@ -390,9 +385,9 @@ async def aditivar_contrato(
     db.add(registro_aditivo)
 
     # Prorroga a vigência do contrato quando o aditivo termina depois.
-    if contrato.data_fim is None or body.data_fim > contrato.data_fim:
+    if body.data_fim and (contrato.data_fim is None or body.data_fim > contrato.data_fim):
         contrato.data_fim = body.data_fim
-    if contrato.data_inicio is None:
+    if body.data_inicio and contrato.data_inicio is None:
         contrato.data_inicio = body.data_inicio
 
     contrato.valor_total = valor_total_itens(contrato.itens)
@@ -406,10 +401,13 @@ async def aditivar_contrato(
             registro_id=str(contrato.id),
             dados_novos={
                 "operacao": "aditivo",
+                "numero": body.numero,
+                "tipo": body.tipo,
+                "percentual": body.percentual,
                 "itens": aditivos,
                 "valor_total": contrato.valor_total,
-                "data_inicio": str(body.data_inicio),
-                "data_fim": str(body.data_fim),
+                "data_inicio": str(body.data_inicio) if body.data_inicio else None,
+                "data_fim": str(body.data_fim) if body.data_fim else None,
             },
             ip=get_client_ip(request),
         )

@@ -28,3 +28,28 @@ export function rotuloContrato(contrato: {
   if (contrato.ano) return `${contrato.numero}/${contrato.ano}`
   return String(contrato.numero || "")
 }
+
+export const TIPOS_ADITIVO: Record<string, string> = {
+  PRAZO: "Prazo",
+  VALOR: "Valor (acréscimo)",
+  VALOR_PRAZO: "Valor e prazo",
+  REEQUILIBRIO: "Reequilíbrio econômico-financeiro",
+}
+
+export function descreverAditivo(aditivo: {
+  numero?: string | null
+  tipo?: string | null
+  percentual?: number | null
+  data_inicio?: string | null
+  data_fim?: string | null
+}) {
+  const partes = [
+    aditivo.numero ? `Nº ${aditivo.numero}` : "",
+    TIPOS_ADITIVO[aditivo.tipo || ""] || aditivo.tipo || "",
+    aditivo.percentual != null
+      ? `${aditivo.percentual > 0 ? "+" : ""}${String(aditivo.percentual).replace(".", ",")}%`
+      : "",
+    formatarVigencia(aditivo.data_inicio, aditivo.data_fim),
+  ]
+  return partes.filter(Boolean).join(" · ")
+}

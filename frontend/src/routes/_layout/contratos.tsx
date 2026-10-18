@@ -43,7 +43,7 @@ function itemTemAditivo(item: any) {
 }
 
 function contratoTemAditivo(contrato: any) {
-  return (contrato.itens || []).some(itemTemAditivo)
+  return (contrato.aditivos || []).length > 0 || (contrato.itens || []).some(itemTemAditivo)
 }
 
 function ContratosPage() {

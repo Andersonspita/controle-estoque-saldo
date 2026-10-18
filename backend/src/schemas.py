@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, ConfigDict, Field, computed_field, field_validator, model_validator
-from typing import Optional, List
+from typing import Literal, Optional, List
 from datetime import date, datetime
 
 from .services.documento import formatar_cpf_cnpj
@@ -219,27 +219,43 @@ class ContratoUpdate(BaseModel):
             raise ValueError("A data de vigência final deve ser igual ou posterior à inicial")
         return self
 
-class ItemAditivoIn(BaseModel):
-    item_id: int
-    quantidade_aditivada: float
-    valor_unitario: Optional[float] = None
-
 class ContratoAditivoIn(BaseModel):
-    itens: List[ItemAditivoIn]
-    data_inicio: date
-    data_fim: date
+    numero: str = Field(min_length=1, max_length=50)
+    tipo: Literal["PRAZO", "VALOR", "VALOR_PRAZO", "REEQUILIBRIO"]
+    percentual: Optional[float] = None
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
 
     @model_validator(mode="after")
-    def _vigencia_aditivo(self):
-        if self.data_fim < self.data_inicio:
-            raise ValueError("A vigência final do aditivo deve ser igual ou posterior à inicial")
+    def _campos_por_tipo(self):
+        self.numero = self.numero.strip()
+        if not self.numero:
+            raise ValueError("Informe o número do aditivo")
+        if self.tipo in ("PRAZO", "VALOR_PRAZO"):
+            if not self.data_inicio or not self.data_fim:
+                raise ValueError("Informe a vigência do aditivo de prazo")
+            if self.data_fim < self.data_inicio:
+                raise ValueError("A vigência final do aditivo deve ser igual ou posterior à inicial")
+        else:
+            self.data_inicio = self.data_fim = None
+        if self.tipo in ("VALOR", "VALOR_PRAZO"):
+            if not self.percentual or self.percentual <= 0:
+                raise ValueError("Informe o percentual de acréscimo (maior que zero)")
+        elif self.tipo == "REEQUILIBRIO":
+            if not self.percentual or self.percentual <= -100:
+                raise ValueError("Informe o percentual do reequilíbrio (diferente de zero)")
+        else:
+            self.percentual = None
         return self
 
 
 class ContratoAditivoOut(BaseModel):
     id: int
-    data_inicio: date
-    data_fim: date
+    numero: Optional[str] = None
+    tipo: str = "VALOR_PRAZO"
+    percentual: Optional[float] = None
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
     criado_em: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

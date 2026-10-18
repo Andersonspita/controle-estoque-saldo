@@ -1,4 +1,4 @@
-import { formatarDataBR } from "@/lib/contrato"
+import { descreverAditivo, formatarDataBR } from "@/lib/contrato"
 import {
   dataHoraExtenso,
   numeroBR,
@@ -65,8 +65,11 @@ export type RelatorioContrato = {
   fornecedor_email?: string | null
   aditivos?: {
     id: number
-    data_inicio: string
-    data_fim: string
+    numero?: string | null
+    tipo?: string | null
+    percentual?: number | null
+    data_inicio?: string | null
+    data_fim?: string | null
     criado_em?: string | null
   }[]
   itens: RelatorioItem[]
@@ -306,13 +309,10 @@ function FolhaContrato({
         {(contrato.aditivos || []).length > 0 ? (
           <div className="rel-grade">
             <Campo
-              rotulo="Vigência do(s) aditivo(s)"
+              rotulo="Aditivo(s)"
               valor={(contrato.aditivos || [])
-                .map(
-                  (aditivo, indice) =>
-                    `${indice + 1}º: ${formatarDataBR(aditivo.data_inicio)} a ${formatarDataBR(aditivo.data_fim)}`,
-                )
-                .join(" · ")}
+                .map((aditivo, indice) => `${indice + 1}º: ${descreverAditivo(aditivo)}`)
+                .join(" | ")}
               className="rel-campo--largo"
             />
           </div>
