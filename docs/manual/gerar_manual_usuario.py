@@ -40,7 +40,7 @@ from reportlab.platypus.tableofcontents import TableOfContents
 
 RAIZ = Path(__file__).resolve().parents[2]
 SAIDA = RAIZ / "docs" / "Manual_do_Usuario_SaldoContratual.pdf"
-VERSAO = "Versão 1.0"
+VERSAO = "Versão 1.1"
 DATA_REVISAO = date.today().strftime("%d/%m/%Y")
 
 # Cores da marca (tokens de frontend/src/index.css convertidos para RGB)
@@ -444,6 +444,7 @@ def conteudo() -> list:
         ["Menu", "Para que serve"],
         [
             ["Dashboard", "Visão geral: valor contratado, saldo disponível, baixas do mês, alertas de esgotamento e de fim de vigência."],
+            ["Notificações", "Sino no rodapé do menu lateral: avisa, contrato a contrato, quais estão vencidos ou vencem em até 30 dias."],
             ["Fornecedores", "Cadastro dos credores (CPF ou CNPJ) usados nos contratos."],
             ["Contratos", "Cadastro de contratos e itens, PDF do contrato, edição e aditivos."],
             ["Notas Fiscais", "Importação (XML/PDF) ou digitação de notas, conferência de vínculos, baixa, edição, estorno e exclusão."],
@@ -487,8 +488,12 @@ def conteudo() -> list:
         "<b>Senha</b>: informe a senha atual, a nova senha (mínimo de 8 caracteres) e a "
         "confirmação.",
     ])
-    historia += secao("Aparência e saída")
+    historia += secao("Notificações, aparência e saída")
     historia += topicos([
+        "O sino <b>Notificações</b>, no rodapé do menu lateral, mostra um contador e a "
+        "lista dos contratos ativos <b>vencidos</b> (em vermelho) ou que <b>vencem em até "
+        "30 dias</b> (em amarelo), um por linha, com fornecedor e data. Clique em um aviso "
+        "para abrir a tela de Contratos.",
         "Em <b>Aparência</b>, no menu lateral, escolha <b>Claro</b>, <b>Escuro</b> ou "
         "<b>Sistema</b> (segue o tema do computador).",
         "Para sair, clique no seu nome no rodapé do menu e escolha <b>Sair</b>. Em "
@@ -511,6 +516,7 @@ def conteudo() -> list:
             ["Editar nota fiscal ainda não baixada", "Sim", "Sim", "Sim"],
             ["Cadastrar e editar contratos, aplicar aditivo, anexar PDF", "Não", "Com “Gerir contratos”", "Sim"],
             ["Estornar baixa e excluir nota fiscal", "Não", "Com “Estornar”", "Sim"],
+            ["Baixar nota em contrato vencido (com termo de responsabilidade)", "Não", "Não", "Sim"],
             ["Cadastrar e editar fornecedores", "Não", "Não", "Sim"],
             ["Cadastrar usuários e liberar permissões", "Não", "Não", "Sim"],
             ["Consultar o Log de usuários", "Não", "Não", "Sim"],
@@ -537,7 +543,7 @@ def conteudo() -> list:
             ["Valor contratado", "Soma do valor dos contratos ativos."],
             ["Saldo disponível", "Quanto ainda pode ser consumido, em reais, nos contratos ativos."],
             ["Baixas neste mês", "Valor baixado a partir de notas fiscais no mês corrente."],
-            ["Contratos ativos", "Quantidade de contratos ativos e quantos encerram em até 90 dias."],
+            ["Contratos ativos", "Contratos ativos dentro da vigência, quantos encerram em até 90 dias e quantos estão vencidos."],
         ],
         [45, 125],
     )
@@ -547,8 +553,10 @@ def conteudo() -> list:
         "<b>Risco de esgotamento (45 dias)</b>: itens cujo saldo deve acabar em até 45 "
         "dias, calculado pelo ritmo de consumo. Itens com 15 dias ou menos aparecem em "
         "vermelho.",
-        "<b>Vigências a encerrar em até 90 dias</b>: contratos ativos próximos do fim da "
-        "vigência — hora de providenciar aditivo ou nova contratação.",
+        "<b>Vigências a encerrar em até 90 dias</b>: contratos ainda vigentes próximos do "
+        "fim — hora de providenciar aditivo ou nova contratação. Contratos já vencidos não "
+        "entram aqui: aparecem nas <b>Notificações</b> e no filtro <b>Vencidos</b> da tela "
+        "de Contratos.",
     ])
 
     # 5 -------------------------------------------------------------------
@@ -601,6 +609,14 @@ def conteudo() -> list:
         "Opcionalmente, anexe o <b>PDF do contrato</b>.",
         "Inclua os itens (veja abaixo) e clique em <b>Salvar Contrato</b>.",
     ]))
+    historia += caixa(
+        "atencao",
+        "Se a <b>vigência final já passou</b>, o sistema avisa que o contrato será salvo "
+        "como vencido, mas permite salvar — por exemplo, para lançar o contrato e em "
+        "seguida aplicar o aditivo de prazo. Enquanto estiver vencido, só o administrador "
+        "consegue baixar notas nele (capítulo 7).",
+        "Contrato vencido",
+    )
     historia += secao("Itens do contrato")
     historia.append(p("Cada item tem os campos abaixo. O sistema mostra o <b>valor total</b> do item "
                       "(quantidade × valor unitário) e o <b>total do contrato</b>."))
@@ -609,8 +625,8 @@ def conteudo() -> list:
         [
             ["Item", "Número do item no contrato (preenchido em sequência; pode ser ajustado)."],
             ["Descrição *", "Descrição do item como está no contrato."],
-            ["Unidade *", "Unidade de medida (UN, CX, KG, L...). Em unidades inteiras, como UN, não se aceita quantidade fracionada."],
-            ["Quantidade *", "Quantidade contratada. É o saldo inicial do item."],
+            ["Unidade *", "Unidade de medida (UN, CX, KG, L...)."],
+            ["Quantidade *", "Quantidade contratada, com até 3 casas decimais em qualquer unidade (ex.: 10, 2,5 ou 0,125). É o saldo inicial do item."],
             ["Marca", "Marca ofertada, se houver."],
             ["Valor unitário *", "Valor por unidade, em reais."],
             ["Observação", "Informação livre sobre o item."],
@@ -649,8 +665,10 @@ def conteudo() -> list:
     historia += topicos([
         "A lista mostra fornecedor, valor total, <b>saldo atual</b> em reais, barra de "
         "consumo e situação. Contratos com aditivo exibem a marca “Com aditivo”.",
-        "Busque por número, objeto, licitação ou fornecedor e filtre por <b>Ativos</b>, "
-        "<b>Encerrados</b> ou <b>Todos</b>.",
+        "A situação aparece como <b>Ativo</b> (verde), <b>Vencido</b> (vermelho — ativo, "
+        "mas com a vigência final já passada) ou <b>Encerrado</b>.",
+        "Busque por número, objeto, licitação ou fornecedor e filtre por <b>Ativos</b> "
+        "(só os vigentes), <b>Vencidos</b>, <b>Encerrados</b> ou <b>Todos</b>.",
         "Clique na seta da linha para ver os itens, ou em <b>Visualizar</b> para abrir o "
         "painel de detalhe com dados do contrato, itens (com filtro) e o PDF anexado "
         "(visualizar ou baixar).",
@@ -666,24 +684,51 @@ def conteudo() -> list:
     ])
     historia += caixa(
         "dica",
-        "Para acrescentar quantidade a itens existentes por termo aditivo, use o botão "
-        "<b>Aditivo</b>, e não a edição. Assim o sistema guarda o histórico e a vigência "
-        "do aditivo e o relatório mostra o valor aditivado separado do original.",
+        "Para prorrogar o prazo, acrescentar quantidade ou reequilibrar preços por termo "
+        "aditivo, use o botão <b>Aditivo</b>, e não a edição. Assim o sistema guarda o "
+        "histórico de cada aditivo e o relatório mostra o valor aditivado separado do "
+        "original.",
     )
     historia += secao("Aplicar aditivo")
     historia.append(passos([
-        "Na linha do contrato, clique em <b>Aditivo</b>.",
-        "Marque os itens que entram no aditivo.",
-        "Para cada item marcado, informe a <b>quantidade extra</b> (maior que zero) e o "
-        "<b>valor unitário</b>.",
-        "Informe a <b>vigência do aditivo</b> (data inicial e final — obrigatória).",
-        "Confirme. A quantidade extra é somada ao contratado e ao saldo do item.",
+        "Na linha do contrato, clique em <b>Aditivo</b>. A janela mostra os aditivos já "
+        "aplicados.",
+        "Informe o <b>Número do aditivo</b> (o sistema sugere o próximo; não pode repetir "
+        "um número já usado no contrato).",
+        "Escolha o <b>Tipo de aditivo</b>. Os campos seguintes dependem do tipo (tabela "
+        "abaixo).",
+        "Confira a <b>prévia</b>: quantidade e valor unitário de cada item antes → depois, "
+        "e o novo total do contrato.",
+        "Clique em <b>Aplicar aditivo</b>.",
     ]))
+    historia += tabela(
+        ["Tipo", "Campos", "O que acontece"],
+        [
+            ["Prazo", "Vigência inicial e final", "Prorroga a vigência do contrato. Itens e valores não mudam."],
+            ["Valor (acréscimo)", "Percentual", "Soma o percentual à quantidade de <b>todos</b> os itens, calculado sobre a quantidade inicial de cada um. O saldo cresce na mesma quantidade."],
+            ["Valor e prazo", "Vigência e percentual", "Faz as duas coisas: prorroga a vigência e acrescenta o percentual às quantidades."],
+            ["Reequilíbrio econômico-financeiro", "Percentual (pode ser negativo)", "Aplica o percentual ao <b>valor unitário</b> de todos os itens. Quantidades não mudam."],
+        ],
+        [38, 40, 92],
+    )
     historia += caixa(
         "exemplo",
-        "Se a data final do aditivo for posterior à do contrato, a vigência do contrato "
-        "é prorrogada automaticamente. A quantidade inicial do contrato fica guardada "
-        "para comparação no relatório.",
+        "Item com quantidade inicial de 10 UN e aditivo de valor de 25%: a quantidade "
+        "passa a 12,5 UN. O acréscimo é calculado com até 3 casas decimais e truncado — "
+        "nunca passa do percentual aprovado (12,345% de 10 UN dá 1,234, não 1,235).",
+        "Acréscimo por percentual",
+    )
+    historia += caixa(
+        "atencao",
+        "A janela mostra o percentual <b>acumulado</b> dos acréscimos no contrato e avisa "
+        "quando passa de 25% (limite da Lei 14.133, art. 125; 50% só em reforma). O aviso "
+        "não impede o aditivo — confira antes de aplicar.",
+    )
+    historia += caixa(
+        "exemplo",
+        "Nos tipos com prazo, se a data final do aditivo for posterior à do contrato, a "
+        "vigência do contrato é prorrogada automaticamente e ele deixa de aparecer como "
+        "vencido. A quantidade inicial fica guardada para comparação no relatório.",
         "Prorrogação",
     )
 
@@ -770,8 +815,8 @@ def conteudo() -> list:
         "Selecione o contrato. O fornecedor é preenchido a partir dele.",
         "Informe número, série, data de emissão e, se tiver, a chave de acesso (44 "
         "dígitos).",
-        "Inclua os itens: descrição, quantidade, unidade, valor unitário e o item do "
-        "contrato vinculado.",
+        "Inclua os itens: descrição, quantidade (até 3 casas decimais), unidade, valor "
+        "unitário e o item do contrato vinculado.",
         "Clique em <b>Salvar nota fiscal</b>. Ela fica <b>Pendente</b>.",
     ]))
     historia += secao("Conferir vínculos")
@@ -795,14 +840,44 @@ def conteudo() -> list:
         "é baixado e aparece a mensagem <b>“Operação abortada: Saldo Insuficiente”</b>. "
         "Verifique o vínculo ou providencie um aditivo antes de tentar de novo.",
     )
+    historia += secao("Baixa em contrato vencido")
+    historia.append(p(
+        "Se o contrato da nota já passou da vigência final, a janela de baixa avisa em "
+        "vermelho. Para operadores, o botão <b>Confirmar baixa</b> fica desabilitado: só "
+        "o <b>administrador</b> pode baixar nota em contrato vencido."
+    ))
+    historia.append(passos([
+        "O administrador abre <b>Executar baixa</b> normalmente.",
+        "Preenche <b>Quem solicitou a baixa</b> (nome da pessoa que pediu).",
+        "Preenche o <b>Motivo da baixa em contrato vencido</b> (mínimo de 10 caracteres) — "
+        "por exemplo, entrega feita dentro da vigência ou aditivo de prazo em tramitação.",
+        "Clica em <b>Confirmar baixa</b>. O saldo é descontado e o navegador baixa o "
+        "<b>Termo de responsabilidade</b> em PDF.",
+        "Imprime o termo e colhe as assinaturas do <b>administrador</b> e do "
+        "<b>solicitante</b>.",
+    ]))
+    historia += caixa(
+        "importante",
+        "O termo traz a nota, o valor, o fornecedor, o contrato, a data em que a vigência "
+        "terminou, a data da baixa, o motivo e as linhas de assinatura. O motivo e o "
+        "solicitante também ficam gravados no <b>Log de usuários</b>. Para emitir o termo de "
+        "novo, use <b>Mais ações › Termo de contrato vencido</b> na nota baixada.",
+        "Termo de responsabilidade",
+    )
+    historia += caixa(
+        "dica",
+        "Sempre que possível, aplique antes o <b>aditivo de prazo</b> (capítulo 6): com a "
+        "vigência prorrogada, a baixa volta a ser normal para todos os usuários.",
+    )
     historia += secao("Editar, estornar, excluir e baixar o PDF")
-    historia.append(p("Use o botão <b>⋯ (Mais ações)</b> na linha da nota."))
+    historia.append(p("Use o botão <b>Mais ações</b> (três pontinhos) na linha da nota."))
     historia += tabela(
         ["Ação", "Quando", "Efeito"],
         [
             ["Baixar PDF", "Sempre que a nota foi importada com arquivo.", "Baixa o PDF/XML original, mesmo depois da baixa."],
             ["Editar", "Nota não baixada.", "Regrava cabeçalho e itens por inteiro."],
             ["Estornar baixa", "Nota baixada. Requer permissão “Estornar”.", "Devolve o saldo ao contrato e registra uma movimentação de estorno. Exige justificativa."],
+            ["Termo de contrato vencido", "Nota baixada em contrato vencido. Somente administrador.", "Baixa de novo o PDF do termo de responsabilidade."],
             ["Excluir", "Nota não baixada. Requer permissão “Estornar”.", "Tira a nota das listagens. Exige motivo. Fica registrada em Estornos e exclusões."],
         ],
         [30, 55, 85],
@@ -846,8 +921,8 @@ def conteudo() -> list:
     historia += secao("Conteúdo do relatório")
     historia += topicos([
         "Cabeçalho com o órgão emitente, número do contrato, CNPJ/CPF do contratado, "
-        "licitação, modalidade, objeto, vigência e, quando houver, a <b>vigência do(s) "
-        "aditivo(s)</b>.",
+        "licitação, modalidade, objeto, vigência e, quando houver, a lista dos "
+        "<b>aditivos</b> (número, tipo, percentual e vigência).",
         "Valores do contrato: contratado, aditivado, <b>vigente</b>, utilizado e saldo "
         "disponível.",
         "Tabela dos itens com percentual de utilização e um <b>resumo consolidado</b> "
@@ -914,6 +989,9 @@ def conteudo() -> list:
             ["A leitura do PDF trouxe dados errados.", "O DANFE em PDF é lido por OCR. Corrija os vínculos, use o XML se tiver, ou inclua a nota manualmente."],
             ["Acesso bloqueado após errar a senha.", "Aguarde 15 minutos. Se esqueceu a senha, peça ao administrador uma nova."],
             ["Preciso corrigir uma nota já baixada.", "Estorne a baixa (permissão “Estornar”), corrija e baixe de novo."],
+            ["Contrato aparece como “Vencido”.", "A vigência final já passou. Aplique um aditivo de Prazo ou de Valor e prazo para prorrogá-la."],
+            ["“Somente um administrador pode baixar nota em contrato vencido”.", "Peça a baixa ao administrador, que informará o motivo e o solicitante e emitirá o termo de responsabilidade — ou aplique antes o aditivo de prazo."],
+            ["“Já existe o aditivo nº X neste contrato”.", "Cada aditivo precisa de um número diferente dentro do mesmo contrato."],
         ],
         [62, 108],
     )
@@ -926,7 +1004,10 @@ def conteudo() -> list:
             ["Baixa", "Desconto do saldo do contrato a partir de uma nota fiscal."],
             ["Estorno", "Desfazer uma baixa, devolvendo o saldo ao contrato."],
             ["Vínculo", "Ligação entre um item da nota fiscal e um item do contrato."],
-            ["Aditivo", "Acréscimo de quantidade e/ou prorrogação de vigência de itens do contrato."],
+            ["Aditivo", "Alteração do contrato por termo aditivo: prazo, valor (acréscimo de quantidade), valor e prazo, ou reequilíbrio."],
+            ["Reequilíbrio", "Aditivo que corrige o valor unitário dos itens por um percentual, para cima ou para baixo."],
+            ["Vencido", "Contrato ativo cuja vigência final já passou."],
+            ["Termo de responsabilidade", "PDF gerado na baixa de nota em contrato vencido, assinado pelo administrador e pelo solicitante."],
             ["DANFE", "Documento auxiliar (PDF impresso) da NF-e."],
             ["XML da NF-e", "Arquivo eletrônico oficial da nota fiscal; leitura mais confiável."],
             ["GTIN", "Código de barras do produto, quando informado na nota."],
