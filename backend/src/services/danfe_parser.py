@@ -13,13 +13,6 @@ CFOP_RE = re.compile(r"^[1-7]\d{3}$")
 CODIGO_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9./\-]{0,19}$")
 UNIDADE_RE = re.compile(r"^[A-Za-zÀ-ÿ]{1,6}\.?$")
 
-LABELS_IGNORAR = (
-    "CÓDIGO", "CODIGO", "DESCRIÇÃO", "DESCRICAO", "DADOS DOS PRODUTOS",
-    "DADOS ADICIONAIS", "INFORMAÇÕES", "INFORMACOES", "PROD. /SERV",
-    "NCM / SH", "VALOR", "UNID.", "QUANT.", "CST", "CFOP",
-)
-
-
 def _so_digitos(texto: str) -> str:
     return re.sub(r"\D", "", texto or "")
 
@@ -39,25 +32,6 @@ def _data_iso(texto: str) -> str | None:
         return datetime.strptime(match.group(1), "%d/%m/%Y").strftime("%Y-%m-%d")
     except ValueError:
         return None
-
-
-def _agrupar_linhas(blocos: list[dict], tolerancia: float = 18.0) -> list[list[dict]]:
-    ordenados = sorted(blocos, key=lambda b: (b["y"], b["x"]))
-    linhas: list[list[dict]] = []
-    atual: list[dict] = []
-    y_ref: float | None = None
-    for bloco in ordenados:
-        if y_ref is None or abs(bloco["y"] - y_ref) <= tolerancia:
-            atual.append(bloco)
-            if y_ref is None:
-                y_ref = bloco["y"]
-        else:
-            linhas.append(atual)
-            atual = [bloco]
-            y_ref = bloco["y"]
-    if atual:
-        linhas.append(atual)
-    return linhas
 
 
 def _extrair_chave(blocos: list[dict]) -> str | None:
@@ -190,16 +164,35 @@ def _parse_itens(blocos: list[dict], tolerancia_linha: float = 22.0) -> list[dic
 
     corpo = [b for b in blocos if y_ini < b["y"] < y_fim]
     itens = []
-    for linha in _agrupar_linhas(corpo, tolerancia=tolerancia_linha):
-        linha = sorted(linha, key=lambda b: b["x"])
-        textos = " ".join(b["text"] for b in linha).upper()
-        if any(lab in textos for lab in LABELS_IGNORAR):
-            continue
-        item = _item_de_linha(linha)
+    for linha in _linhas_por_ncm(corpo, tolerancia_linha):
+        item = _item_de_linha(sorted(linha, key=lambda b: b["x"]))
         if item:
             itens.append(item)
 
     return itens
+
+
+def _linhas_por_ncm(corpo: list[dict], tolerancia: float) -> list[list[dict]]:
+    """
+    Agrupa os blocos da tabela pelo NCM mais próximo na vertical.
+
+    Cada item tem exatamente um NCM; ancorar nele evita que a quantidade ou o
+    valor de um item, impressos alguns pixels acima ou abaixo da linha, caiam
+    no item vizinho (o agrupamento por tolerância fixa perdia esses números).
+    """
+    ancoras = sorted(b["y"] for b in corpo if NCM_RE.match(b["text"].strip()))
+    if not ancoras:
+        return []
+    passos = [b - a for a, b in zip(ancoras, ancoras[1:])]
+    meio_passo = (sorted(passos)[len(passos) // 2] / 2) if passos else tolerancia
+    linhas: list[list[dict]] = [[] for _ in ancoras]
+    for bloco in corpo:
+        # Acima do primeiro item fica o cabeçalho das colunas.
+        if bloco["y"] < ancoras[0] - meio_passo or bloco["y"] > ancoras[-1] + meio_passo:
+            continue
+        i = min(range(len(ancoras)), key=lambda k: abs(ancoras[k] - bloco["y"]))
+        linhas[i].append(bloco)
+    return linhas
 
 
 def parse_danfe_blocos(

@@ -106,3 +106,31 @@ def test_linha_sem_ncm_nao_vira_item():
 
     with pytest.raises(ValueError, match="itens do DANFE"):
         parse_danfe_blocos(blocos)
+
+
+def test_numeros_desalinhados_ficam_no_item_do_ncm_mais_proximo():
+    """No PDF real a quantidade e os valores saem alguns pixels fora da linha do NCM."""
+    blocos = [
+        {"text": "DADOS DOS PRODUTOS / SERVIÇOS", "x": 10.0, "y": 100.0},
+        {"text": "QUANT.", "x": 706.0, "y": 130.0},
+        {"text": "DADOS ADICIONAIS", "x": 10.0, "y": 400.0},
+    ]
+    for y, codigo, desc, ncm, qtd, unit, total in (
+        (200.0, "0254", "MOTOR BOMBA 7.5 TRIFASICO", "85014019", "1,00", "6.120,00", "6.120,00"),
+        (240.0, "0034", "TUBO PVC 50MM", "39172300", "575,00", "23,00", "13.225,00"),
+    ):
+        blocos += [
+            {"text": codigo, "x": 35.0, "y": y - 7},
+            {"text": desc, "x": 135.0, "y": y - 3},
+            {"text": ncm, "x": 470.0, "y": y},
+            {"text": "5102", "x": 595.0, "y": y - 1},
+            {"text": "UNID", "x": 651.0, "y": y + 1},
+            {"text": qtd, "x": 726.0, "y": y + 12},
+            {"text": unit, "x": 798.0, "y": y - 11},
+            {"text": total, "x": 973.0, "y": y + 13},
+        ]
+
+    motor, tubo = parse_danfe_blocos(blocos)["itens"]
+
+    assert (motor["quantidade"], motor["valor_unitario"], motor["valor_total"]) == (1.0, 6120.0, 6120.0)
+    assert (tubo["quantidade"], tubo["valor_unitario"], tubo["valor_total"]) == (575.0, 23.0, 13225.0)
