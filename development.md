@@ -1,138 +1,47 @@
-# FastAPI Project - Development
+# SaldoContratual — Desenvolvimento
 
-## Local Development
+Guia rápido para quem vai mexer no código. O roteiro completo (rotas, testes, deploy) está em [docs/GUIA_TECNICO.md](docs/GUIA_TECNICO.md).
 
-For local development, run PostgreSQL and Mailcatcher with Docker Compose, and run the FastAPI and Vite development servers locally.
+## Ambiente local
 
-Start the supporting services:
+1. Banco: `docker compose up -d db` (na raiz).
+2. Backend: veja [backend/README.md](backend/README.md) — `uv sync`, `uv run alembic upgrade head`, `uv run fastapi dev` (porta 8000).
+3. Frontend: veja [frontend/README.md](frontend/README.md) — `npm install`, `npm run dev` (porta 5173).
+
+O `.env` fica na raiz do repositório e **não** vai para o Git. Em produção as variáveis ficam em `.env.production` na VPS (modelo: `.env.production.example`).
+
+## Antes de alterar qualquer coisa
+
+Regra do projeto desde 24/08/2026: toda alteração de código ou regra de negócio começa com uma **tag de backup** no commit atual.
 
 ```bash
-docker compose up -d db mailcatcher
+git rev-parse --short HEAD
+git tag -a backup-pre-<resumo>-AAAAMMDD -m "Backup antes de <mudança>"
+git push origin backup-pre-<resumo>-AAAAMMDD
 ```
 
-Then, from the `backend` directory, install the dependencies and prepare the database:
+Para voltar o código: `git checkout <tag>`. Não apague tags de backup.
+
+## Branch de trabalho
+
+A VPS usa a branch `cursor/perfis-e2e-readme-pt`. O `master` recebe essa branch por pull request. Faça o trabalho a partir dela, não do `master`, para não reaplicar mudanças sobre código desatualizado.
+
+## Ao concluir
+
+- Atualize `docs/ESTADO_DO_PROJETO.md` (data, o que mudou, de onde retomar) e `docs/GUIA_TECNICO.md` (rotas, testes, deploy).
+- Se a mudança afetar o que o usuário vê, atualize `docs/manual/gerar_manual_usuario.py` e gere o PDF de novo:
+
+  ```bash
+  uv run --no-project --with reportlab python docs/manual/gerar_manual_usuario.py
+  ```
+
+- Frontend: use apenas os tokens de cor de `frontend/src/index.css` e os componentes de `components/ui/`.
+
+## Lint e formatação
+
+O projeto usa [prek](https://prek.j178.dev/) (alternativa ao pre-commit) com a configuração em `.pre-commit-config.yaml`.
 
 ```bash
-uv sync
-uv run bash scripts/prestart.sh
-```
-
-Start the FastAPI development server:
-
-```bash
-uv run fastapi dev
-```
-
-In another terminal, from the project root, install the frontend dependencies and start the Vite development server:
-
-```bash
-bun install
-bun run dev
-```
-
-Now you can open these URLs:
-
-Frontend development server: <http://localhost:5173>
-
-Backend API: <http://localhost:8000>
-
-Automatic interactive API documentation with Swagger UI: <http://localhost:8000/docs>
-
-Mailcatcher: <http://localhost:1080>
-
-The frontend development server uses the backend at `http://localhost:8000`, as configured in `frontend/.env`.
-
-### Frontend Served by FastAPI
-
-Build the frontend from the `frontend` directory:
-
-```bash
-bun run build
-```
-
-The build is written to `backend/app/frontend` and served by FastAPI at <http://localhost:8000>. Rebuild the frontend after making frontend changes.
-
-## Full Stack with Docker Compose
-
-To run the backend and built frontend in Docker Compose:
-
-```bash
-docker compose run --rm backend bash scripts/prestart.sh
-docker compose watch
-```
-
-Now you can open these URLs:
-
-Application, with the frontend and API served by FastAPI: <http://localhost:8000>
-
-Automatic interactive API documentation with Swagger UI: <http://localhost:8000/docs>
-
-Adminer, database web administration: <http://localhost:8080>
-
-Traefik UI, to see how the routes are being handled by the proxy: <http://localhost:8090>
-
-Mailcatcher: <http://localhost:1080>
-
-Stop a locally running FastAPI server before starting the Compose backend because both use port `8000`.
-
-**Note**: The first time you start the stack, it might take a minute for all the services to be ready. To monitor it, use `docker compose logs`, or `docker compose logs backend` for the backend service.
-
-## Mailcatcher
-
-Mailcatcher captures emails sent during local development instead of delivering them. The local backend connects to it at `localhost:1025`, and the Compose backend connects to the `mailcatcher` service. Captured emails are available at <http://localhost:1080>.
-
-## Docker Compose Files and Environment Variables
-
-The main `compose.yml` file contains the configuration shared by the whole stack. Docker Compose loads it automatically.
-
-The `compose.override.yml` file adds local development settings, such as mounting the source code as a volume. Docker Compose also loads it automatically and applies it on top of `compose.yml`.
-
-The `compose.deploy.yml` file contains the deployment-specific settings, including HTTPS and automatic certificate handling. It is explicitly combined with `compose.yml` when deploying the application.
-
-The backend reads local settings from the `.env` file. Docker Compose also uses it for variable interpolation and passes the settings each container needs.
-
-After changing variables, make sure you restart the stack:
-
-```bash
-docker compose watch
-```
-
-## The `.env` File
-
-The tracked `.env` file contains local development defaults, passwords, and other configuration. Its hostnames use `localhost` for processes running on your machine. Docker Compose overrides hostnames such as the database and SMTP server with their Compose service names.
-
-Do not store deployment secrets in `.env`. Configure them as described in the [FastAPI Cloud deployment guide](./deployment.md) or the [Docker Compose deployment guide](./deployment-docker-compose.md).
-
-## Pre-commit Hooks and Code Linting
-
-The project uses [prek](https://prek.j178.dev/), a modern alternative to [pre-commit](https://pre-commit.com/), for code linting and formatting.
-
-You can find a file `.pre-commit-config.yaml` with configurations at the root of the project.
-
-### Install `prek` to Run Automatically
-
-`prek` is already part of the dependencies of the project.
-
-From the project root, install the Git hook so that `prek` runs automatically before each commit:
-
-```bash
-uv run prek install -f
-```
-
-The `-f` flag forces the installation, in case there was already a `pre-commit` hook previously installed.
-
-Now whenever you try to commit, for example with:
-
-```bash
-git commit
-```
-
-`prek` will check and format the code you are about to commit. If it modifies any files, add those files to Git again before committing.
-
-### Run `prek` Manually
-
-You can also run `prek` manually on all files from the project root:
-
-```bash
-uv run prek run --all-files
+uv run prek install -f        # instala o hook para rodar a cada commit
+uv run prek run --all-files   # roda manualmente em todo o projeto
 ```

@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List
 
+from ..core.audit import get_client_ip, registrar_auditoria
 from ..database.session import get_db
-from ..deps import get_current_active_user, require_admin
+from ..deps import CurrentUser, get_current_active_user, require_admin
 from ..database.models import Fornecedor
 from ..schemas import FornecedorCreate, FornecedorUpdate, FornecedorOut
 from ..http_errors import http_erro_interno
@@ -15,6 +16,16 @@ router = APIRouter(
     tags=["Fornecedores"],
     dependencies=[Depends(get_current_active_user)],
 )
+
+
+def _resumo_fornecedor(forn: Fornecedor) -> dict:
+    return {
+        "razao_social": forn.razao_social,
+        "cnpj": forn.cnpj,
+        "cidade": forn.cidade,
+        "estado": forn.estado,
+        "ativo": forn.ativo,
+    }
 
 
 async def _cnpj_em_uso(
@@ -31,12 +42,27 @@ async def _cnpj_em_uso(
 
 
 @router.post("/", response_model=FornecedorOut, dependencies=[Depends(require_admin)])
-async def create_fornecedor(fornecedor: FornecedorCreate, db: AsyncSession = Depends(get_db)):
+async def create_fornecedor(
+    fornecedor: FornecedorCreate,
+    request: Request,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
     if await _cnpj_em_uso(db, fornecedor.cnpj):
         raise HTTPException(status_code=400, detail="Já existe um fornecedor com este CPF/CNPJ")
     db_forn = Fornecedor(**fornecedor.model_dump())
     db.add(db_forn)
     try:
+        await db.flush()
+        await registrar_auditoria(
+            db,
+            usuario_id=current_user.id,
+            operacao="INSERT",
+            tabela="fornecedores",
+            registro_id=str(db_forn.id),
+            dados_novos=_resumo_fornecedor(db_forn),
+            ip=get_client_ip(request),
+        )
         await db.commit()
         await db.refresh(db_forn)
         return db_forn
@@ -62,6 +88,8 @@ async def get_fornecedor(fornecedor_id: int, db: AsyncSession = Depends(get_db))
 async def update_fornecedor(
     fornecedor_id: int,
     fornecedor_in: FornecedorUpdate,
+    request: Request,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Fornecedor).where(Fornecedor.id == fornecedor_id))
@@ -69,6 +97,7 @@ async def update_fornecedor(
     if not forn:
         raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
 
+    anteriores = _resumo_fornecedor(forn)
     dados = fornecedor_in.model_dump(exclude_unset=True)
     if "cnpj" in dados and dados["cnpj"]:
         if await _cnpj_em_uso(db, dados["cnpj"], exclude_id=fornecedor_id):
@@ -78,6 +107,16 @@ async def update_fornecedor(
         setattr(forn, campo, valor)
 
     try:
+        await registrar_auditoria(
+            db,
+            usuario_id=current_user.id,
+            operacao="UPDATE",
+            tabela="fornecedores",
+            registro_id=str(forn.id),
+            dados_anteriores=anteriores,
+            dados_novos=_resumo_fornecedor(forn),
+            ip=get_client_ip(request),
+        )
         await db.commit()
         await db.refresh(forn)
         return forn

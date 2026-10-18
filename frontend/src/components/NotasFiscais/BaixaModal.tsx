@@ -6,7 +6,9 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { almoxarifadosService, contratosService, notasFiscaisService } from "../../services/api"
+import useAuth from "@/hooks/useAuth"
+import { formatarDataBR } from "@/lib/contrato"
+import { contratosService, notasFiscaisService } from "../../services/api"
 
 export function BaixaModal({
   nf,
@@ -18,20 +20,23 @@ export function BaixaModal({
   onOpenChange: (open: boolean) => void
 }) {
   const queryClient = useQueryClient()
+  const { isAdmin } = useAuth()
   const [justificativa, setJustificativa] = useState("")
-  const [almoxarifadoId, setAlmoxarifadoId] = useState<string>("")
+  const [motivoVencido, setMotivoVencido] = useState("")
+  const [solicitante, setSolicitante] = useState("")
 
-  const { data: almoxarifados = [], isLoading: isLoadingAlmoxarifados } = useQuery({
-    queryKey: ["almoxarifados"],
-    queryFn: () => almoxarifadosService.listar(),
-  })
   const { data: contratos = [] } = useQuery({
     queryKey: ["contratos"],
     queryFn: () => contratosService.listar(),
   })
 
+  const contrato = contratos.find((c: any) => c.id === nf?.contrato_id)
+  // Mesma regra do backend: vence no dia seguinte ao data_fim.
+  const hoje = new Date().toLocaleDateString("sv-SE")
+  const vencido = Boolean(contrato?.data_fim && String(contrato.data_fim).slice(0, 10) < hoje)
+
   const previsao = useMemo(() => {
-    const itensContrato = (contratos.find((c: any) => c.id === nf?.contrato_id)?.itens || []) as any[]
+    const itensContrato = (contrato?.itens || []) as any[]
     return (nf?.itens || []).map((item: any) => {
       const contratoItem = itensContrato.find((it) => it.id === item.item_contrato_id)
       const atual = Number(contratoItem?.saldo_atual ?? 0)
@@ -47,19 +52,23 @@ export function BaixaModal({
         unidade: contratoItem?.unidade || item.unidade || "UN",
       }
     })
-  }, [contratos, nf])
+  }, [contrato, nf])
 
   const mutation = useMutation({
-    mutationFn: (data: { justificativa?: string; almoxarifado_id?: number }) =>
+    mutationFn: (data: Parameters<typeof notasFiscaisService.baixar>[1]) =>
       notasFiscaisService.baixar(nf.id, data),
     onSuccess: (data) => {
+      if (vencido) {
+        notasFiscaisService.downloadTermoContratoVencido(nf).catch(() =>
+          toast.error("Baixa feita, mas o termo não foi gerado. Tente baixá-lo novamente."),
+        )
+      }
       toast.success("Baixa realizada com sucesso!", {
         description: `Foram geradas ${data.length} movimentações no histórico.`,
       })
       queryClient.invalidateQueries({ queryKey: ["notas-fiscais"] })
       queryClient.invalidateQueries({ queryKey: ["contratos"] })
       queryClient.invalidateQueries({ queryKey: ["movimentacoes"] })
-      queryClient.invalidateQueries({ queryKey: ["almoxarifados"] })
       queryClient.invalidateQueries({ queryKey: ["previsao-consumo"] })
       onOpenChange(false)
     },
@@ -79,13 +88,12 @@ export function BaixaModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!almoxarifadoId) {
-      toast.error("Selecione um órgão para destinar o material.")
-      return
-    }
     mutation.mutate({
       justificativa: justificativa.trim() || undefined,
-      almoxarifado_id: parseInt(almoxarifadoId),
+      ...(vencido && {
+        motivo_contrato_vencido: motivoVencido.trim(),
+        solicitante: solicitante.trim(),
+      }),
     })
   }
 
@@ -93,7 +101,7 @@ export function BaixaModal({
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border bg-card p-6 shadow-xl">
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
           <Dialog.Title className="text-xl font-semibold text-foreground">
             Executar baixa da NF {nf?.numero}?
           </Dialog.Title>
@@ -108,10 +116,22 @@ export function BaixaModal({
             </p>
           </div>
 
+          {vencido && (
+            <div className="flex items-start gap-3 rounded-lg border border-critical/30 bg-critical-bg p-4">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-critical" />
+              <p className="text-sm text-critical">
+                O contrato {contrato?.numero} venceu em {formatarDataBR(contrato?.data_fim)}.{" "}
+                {isAdmin
+                  ? "A baixa gera um termo de responsabilidade em PDF, que deve ser assinado por você e por quem solicitou."
+                  : "Somente um administrador pode baixar nota em contrato vencido."}
+              </p>
+            </div>
+          )}
+
           {previsao.length > 0 && (
-            <div className="overflow-hidden rounded-lg border">
+            <div className="max-h-[40vh] overflow-y-auto rounded-lg border">
               <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs text-muted-foreground">
+                <thead className="sticky top-0 bg-muted/95 text-xs text-muted-foreground backdrop-blur">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium">Item</th>
                     <th className="px-3 py-2 text-right font-medium">Saldo após a baixa</th>
@@ -135,29 +155,6 @@ export function BaixaModal({
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="almoxarifado" className="text-sm font-medium">
-                Órgão de destino <span className="text-critical">*</span>
-              </label>
-              <select
-                id="almoxarifado"
-                value={almoxarifadoId}
-                onChange={(e) => setAlmoxarifadoId(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent p-2 text-sm"
-                required
-                disabled={isLoadingAlmoxarifados}
-              >
-                <option value="" disabled>
-                  {isLoadingAlmoxarifados ? "Carregando..." : "Selecione o órgão"}
-                </option>
-                {almoxarifados.map((al: any) => (
-                  <option key={al.id} value={al.id}>
-                    {al.nome} {al.localizacao ? `- ${al.localizacao}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
               <label className="text-sm font-medium">Justificativa (opcional)</label>
               <textarea
                 value={justificativa}
@@ -167,13 +164,39 @@ export function BaixaModal({
               />
             </div>
 
-            <div className="flex justify-end gap-3 border-t pt-4">
+            {vencido && isAdmin && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Quem solicitou a baixa *</label>
+                  <input
+                    required
+                    value={solicitante}
+                    onChange={(e) => setSolicitante(e.target.value)}
+                    placeholder="Nome do solicitante"
+                    className="h-10 w-full rounded-lg border border-input px-3 text-sm outline-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Motivo da baixa em contrato vencido *</label>
+                  <textarea
+                    required
+                    minLength={10}
+                    value={motivoVencido}
+                    onChange={(e) => setMotivoVencido(e.target.value)}
+                    placeholder="Ex: Entrega feita dentro da vigência; aditivo de prazo em tramitação..."
+                    className="min-h-[88px] w-full rounded-lg border border-input p-3 text-sm outline-none"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="sticky bottom-0 flex justify-end gap-3 border-t bg-card pt-4">
               <Dialog.Close asChild>
                 <Button type="button" variant="outline">
                   Cancelar
                 </Button>
               </Dialog.Close>
-              <Button type="submit" disabled={mutation.isPending || isLoadingAlmoxarifados}>
+              <Button type="submit" disabled={mutation.isPending || (vencido && !isAdmin)}>
                 {mutation.isPending && <Loader2 className="animate-spin" />}
                 Confirmar baixa
               </Button>

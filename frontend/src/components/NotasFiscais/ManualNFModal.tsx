@@ -4,9 +4,11 @@ import { toast } from "sonner"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
-import { contratosService, notasFiscaisService } from "../../services/api"
-import { formatarMoeda, quantidadeInteira } from "@/lib/money"
+import { Button } from "@/components/ui/button"
 import { MoneyInput } from "@/components/ui/money-input"
+import { formatarMoeda, quantidadeInteira } from "@/lib/money"
+import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
+import { contratosService, notasFiscaisService } from "../../services/api"
 
 type ItemManual = {
   item_contrato_id: string
@@ -18,7 +20,10 @@ type ItemManual = {
 }
 
 const campo =
-  "w-full border border-slate-300 dark:border-slate-700 bg-transparent rounded-md p-2 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 [&>option]:text-slate-900 [&>option]:dark:bg-slate-900"
+  "w-full rounded-lg border border-input bg-transparent p-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>option]:bg-popover [&>option]:text-popover-foreground"
+
+const campoItem =
+  "w-full rounded-md border border-input bg-transparent p-1.5 text-xs text-foreground [&>option]:bg-popover [&>option]:text-popover-foreground"
 
 const itemVazio = (): ItemManual => ({
   item_contrato_id: "",
@@ -43,10 +48,14 @@ function apenasDigitos(texto: string) {
 export function ManualNFModal({
   isOpen,
   onOpenChange,
+  nf,
 }: {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
+  /** Quando informada, o modal edita esta nota em vez de criar uma nova. */
+  nf?: any
 }) {
+  const editando = Boolean(nf)
   const queryClient = useQueryClient()
   const [contratoId, setContratoId] = useState("")
   const [numero, setNumero] = useState("")
@@ -66,14 +75,32 @@ export function ManualNFModal({
 
   useEffect(() => {
     if (!isOpen) return
+    setArquivo(null)
+    if (nf) {
+      setContratoId(String(nf.contrato_id ?? ""))
+      setNumero(nf.numero ?? "")
+      setSerie(nf.serie ?? "1")
+      setDataEmissao(nf.data_emissao ?? dataLocalISO())
+      setChaveAcesso(nf.chave_acesso ?? "")
+      setItens(
+        (nf.itens ?? []).map((item: any) => ({
+          item_contrato_id: String(item.item_contrato_id ?? ""),
+          codigo: item.codigo ?? "",
+          descricao: item.descricao ?? "",
+          unidade: item.unidade ?? "UN",
+          quantidade: Number(item.quantidade) || 0,
+          valor_unitario: Number(item.valor_unitario) || 0,
+        })),
+      )
+      return
+    }
     setContratoId("")
     setNumero("")
     setSerie("1")
     setDataEmissao(dataLocalISO())
     setChaveAcesso("")
-    setArquivo(null)
     setItens([itemVazio()])
-  }, [isOpen])
+  }, [isOpen, nf])
 
   const total = itens.reduce(
     (acc, item) => acc + (Number(item.quantidade) || 0) * (item.valor_unitario || 0),
@@ -131,6 +158,9 @@ export function ManualNFModal({
         })),
       }
 
+      if (editando) {
+        return notasFiscaisService.atualizar(nf.id, payload)
+      }
       if (arquivo) {
         const formData = new FormData()
         formData.append("arquivo_pdf", arquivo)
@@ -140,16 +170,24 @@ export function ManualNFModal({
       return notasFiscaisService.criar(payload)
     },
     onSuccess: () => {
-      toast.success("Nota fiscal incluída com sucesso!", {
-        description: "Os itens foram vinculados ao contrato e aguardam conferência.",
-      })
+      toast.success(
+        editando ? "Nota fiscal atualizada!" : "Nota fiscal incluída com sucesso!",
+        {
+          description: editando
+            ? "Os dados e os vínculos com o contrato foram regravados."
+            : "Os itens foram vinculados ao contrato e aguardam conferência.",
+        },
+      )
       queryClient.invalidateQueries({ queryKey: ["notas-fiscais"] })
       onOpenChange(false)
     },
     onError: (error: any) => {
-      toast.error("Não foi possível incluir a nota fiscal", {
-        description: error.response?.data?.detail || error.message,
-      })
+      toast.error(
+        editando
+          ? "Não foi possível salvar a nota fiscal"
+          : "Não foi possível incluir a nota fiscal",
+        { description: error.response?.data?.detail || error.message },
+      )
     },
   })
 
@@ -178,20 +216,24 @@ export function ManualNFModal({
     )
   }
 
-  const atualizarItem = (indice: number, campo: Partial<ItemManual>) => {
-    setItens((atual) => atual.map((item, i) => (i === indice ? { ...item, ...campo } : item)))
+  const atualizarItem = (indice: number, campoPatch: Partial<ItemManual>) => {
+    setItens((atual) =>
+      atual.map((item, i) => (i === indice ? { ...item, ...campoPatch } : item)),
+    )
   }
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto border bg-white p-6 shadow-xl duration-200 sm:rounded-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
-          <Dialog.Title className="text-xl font-semibold text-slate-800">
-            Incluir nota fiscal manualmente
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+          <Dialog.Title className="text-xl font-semibold text-foreground">
+            {editando ? `Editar nota fiscal #${nf?.numero ?? ""}` : "Incluir nota fiscal manualmente"}
           </Dialog.Title>
-          <Dialog.Description className="text-sm text-slate-500">
-            Use esta opção quando não houver XML ou PDF. A importação por arquivo continua disponível no outro botão.
+          <Dialog.Description className="text-sm text-muted-foreground">
+            {editando
+              ? "Cabeçalho e itens são regravados por inteiro. Notas já baixadas precisam ser estornadas antes."
+              : "Use esta opção quando não houver XML ou PDF. A importação por arquivo continua disponível no outro botão."}
           </Dialog.Description>
 
           <form
@@ -202,7 +244,7 @@ export function ManualNFModal({
             }}
           >
             <div className="space-y-1">
-              <label htmlFor="nf-manual-contrato" className="text-sm font-medium text-slate-700">
+              <label htmlFor="nf-manual-contrato" className="text-sm font-medium">
                 Contrato (controle de saldo)
               </label>
               <select
@@ -230,7 +272,7 @@ export function ManualNFModal({
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
               <div className="space-y-1 sm:col-span-2">
-                <label htmlFor="nf-manual-numero" className="text-sm font-medium text-slate-700">
+                <label htmlFor="nf-manual-numero" className="text-sm font-medium">
                   Número *
                 </label>
                 <input
@@ -243,7 +285,7 @@ export function ManualNFModal({
                 />
               </div>
               <div className="space-y-1">
-                <label htmlFor="nf-manual-serie" className="text-sm font-medium text-slate-700">
+                <label htmlFor="nf-manual-serie" className="text-sm font-medium">
                   Série
                 </label>
                 <input
@@ -254,7 +296,7 @@ export function ManualNFModal({
                 />
               </div>
               <div className="space-y-1">
-                <label htmlFor="nf-manual-data" className="text-sm font-medium text-slate-700">
+                <label htmlFor="nf-manual-data" className="text-sm font-medium">
                   Emissão *
                 </label>
                 <input
@@ -269,7 +311,7 @@ export function ManualNFModal({
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="nf-manual-chave" className="text-sm font-medium text-slate-700">
+              <label htmlFor="nf-manual-chave" className="text-sm font-medium">
                 Chave de acesso (opcional)
               </label>
               <input
@@ -283,48 +325,54 @@ export function ManualNFModal({
               />
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="nf-manual-arquivo" className="text-sm font-medium text-slate-700">
-                XML ou PDF (opcional)
-              </label>
-              <input
-                id="nf-manual-arquivo"
-                type="file"
-                accept=".pdf,.xml"
-                onChange={(e) => setArquivo(e.target.files?.[0] || null)}
-                className={`${campo} file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs`}
-              />
-              <p className="text-xs text-slate-500">
-                Se anexar o arquivo, ele fica disponível para download. Os dados digitados é que entram no sistema.
-              </p>
-            </div>
+            {!editando && (
+              <div className="space-y-1">
+                <label htmlFor="nf-manual-arquivo" className="text-sm font-medium">
+                  XML ou PDF (opcional)
+                </label>
+                <input
+                  id="nf-manual-arquivo"
+                  type="file"
+                  accept=".pdf,.xml"
+                  onChange={(e) => setArquivo(e.target.files?.[0] || null)}
+                  className={`${campo} file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs`}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se anexar o arquivo, ele fica disponível para download. Os dados digitados é que entram no sistema.
+                </p>
+              </div>
+            )}
 
-            <div className="space-y-3 border-t border-slate-100 pt-4">
+            <div className="space-y-3 border-t pt-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-slate-800">Itens da nota</h3>
-                <button
+                <h3 className="text-sm font-semibold text-foreground">Itens da nota</h3>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setItens((atual) => [...atual, itemVazio()])}
                   disabled={!contratoId}
-                  className="flex shrink-0 items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                  className="h-auto gap-1 px-2 py-1 text-xs text-primary"
                 >
                   <Plus size={14} /> Adicionar item
-                </button>
+                </Button>
               </div>
 
               <div className="space-y-3">
                 {itens.map((item, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-12 items-end gap-2 rounded-lg border border-slate-100 p-3"
+                    className="grid grid-cols-12 items-end gap-2 rounded-lg border p-3"
                   >
                     <div className="col-span-12 space-y-1 sm:col-span-5">
-                      <label className="text-xs font-medium text-slate-600">Item do contrato *</label>
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Item do contrato *
+                      </label>
                       <select
                         required
                         value={item.item_contrato_id}
                         onChange={(e) => aplicarItemContrato(index, e.target.value)}
-                        className="w-full rounded-md border border-slate-300 p-1.5 text-xs"
+                        className={campoItem}
                       >
                         <option value="" disabled>
                           Selecione...
@@ -332,13 +380,13 @@ export function ManualNFModal({
                         {contratoSelecionado?.itens?.map((ic: any) => (
                           <option key={ic.id} value={ic.id}>
                             {ic.codigo ? `${ic.codigo} — ` : ""}
-                            {ic.descricao} (saldo: {ic.saldo_atual})
+                            {rotuloItemContrato(ic)}
                           </option>
                         ))}
                       </select>
                     </div>
                     <div className="col-span-6 space-y-1 sm:col-span-2">
-                      <label className="text-xs font-medium text-slate-600">Qtd *</label>
+                      <label className="text-xs font-medium text-muted-foreground">Qtd *</label>
                       <input
                         required
                         type="number"
@@ -348,19 +396,21 @@ export function ManualNFModal({
                         onChange={(e) =>
                           atualizarItem(index, { quantidade: Number(e.target.value) })
                         }
-                        className="w-full rounded-md border border-slate-300 p-1.5 text-xs"
+                        className={campoItem}
                       />
                     </div>
                     <div className="col-span-6 space-y-1 sm:col-span-2">
-                      <label className="text-xs font-medium text-slate-600">Unidade</label>
+                      <label className="text-xs font-medium text-muted-foreground">Unidade</label>
                       <input
                         value={item.unidade}
                         onChange={(e) => atualizarItem(index, { unidade: e.target.value })}
-                        className="w-full rounded-md border border-slate-300 p-1.5 text-xs"
+                        className={campoItem}
                       />
                     </div>
                     <div className="col-span-10 space-y-1 sm:col-span-2">
-                      <label className="text-xs font-medium text-slate-600">Valor unitário</label>
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Valor unitário
+                      </label>
                       <MoneyInput
                         required
                         value={item.valor_unitario}
@@ -368,46 +418,43 @@ export function ManualNFModal({
                       />
                     </div>
                     <div className="col-span-2 pb-1 sm:col-span-1">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         onClick={() =>
-                          setItens((atual) => (atual.length === 1 ? atual : atual.filter((_, i) => i !== index)))
+                          setItens((atual) =>
+                            atual.length === 1 ? atual : atual.filter((_, i) => i !== index),
+                          )
                         }
                         disabled={itens.length === 1}
-                        className="p-1 text-rose-500 hover:text-rose-700 disabled:opacity-30"
+                        className="text-critical hover:text-critical"
                         aria-label="Remover item"
                       >
                         <Trash2 size={16} />
-                      </button>
+                      </Button>
                     </div>
                     {item.descricao ? (
-                      <p className="col-span-12 text-xs text-slate-500">{item.descricao}</p>
+                      <p className="col-span-12 text-xs text-muted-foreground">{item.descricao}</p>
                     ) : null}
                   </div>
                 ))}
               </div>
-              <p className="text-right text-sm font-medium text-slate-700">
+              <p className="text-right text-sm font-medium text-foreground">
                 Total da nota: {formatarMoeda(total)}
               </p>
             </div>
 
             <div className="flex justify-end gap-3 border-t pt-4">
               <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className="rounded-md px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
-                >
+                <Button type="button" variant="outline">
                   Cancelar
-                </button>
+                </Button>
               </Dialog.Close>
-              <button
-                type="submit"
-                disabled={mutation.isPending || !contratoId}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {mutation.isPending && <Loader2 size={16} className="animate-spin" />}
-                Salvar nota fiscal
-              </button>
+              <Button type="submit" disabled={mutation.isPending || !contratoId}>
+                {mutation.isPending && <Loader2 className="animate-spin" />}
+                {editando ? "Salvar alterações" : "Salvar nota fiscal"}
+              </Button>
             </div>
           </form>
         </Dialog.Content>

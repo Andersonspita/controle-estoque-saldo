@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     FASTAPI_ENV: Literal["development"] | None = None
 
     PROJECT_NAME: str
+
+    # Cabeçalho impresso nos relatórios (ex.: "Prefeitura Municipal de ...")
+    ORGAO_NOME: str | None = None
+    ORGAO_ESTADO: str | None = None
+    ORGAO_SETOR: str | None = "Setor de Licitações"
+
     SENTRY_DSN: HttpUrl | None = None
     DATABASE_URL: PostgresDsn
 
