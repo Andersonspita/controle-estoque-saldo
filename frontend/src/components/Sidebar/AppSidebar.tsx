@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/sidebar"
 import useAuth from "@/hooks/useAuth"
 import { type Item, Main } from "./Main"
+import { Notificacoes } from "./Notificacoes"
 import { User } from "./User"
 
 const baseItems: Item[] = [
@@ -50,6 +51,7 @@ export function AppSidebar() {
         <Main items={items} />
       </SidebarContent>
       <SidebarFooter>
+        <Notificacoes />
         <SidebarAppearance />
         <User user={currentUser} />
       </SidebarFooter>
