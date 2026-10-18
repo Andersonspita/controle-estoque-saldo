@@ -16,9 +16,14 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MoneyInput } from "@/components/ui/money-input"
-import { numeroContrato } from "@/lib/contrato"
+import { numeroContrato, saldoAposLancamento } from "@/lib/contrato"
 import { apenasDigitos, formatarCpfCnpj } from "@/lib/documento"
-import { arredondarQuantidade, formatarMoeda, PASSO_QUANTIDADE } from "@/lib/money"
+import {
+  arredondarQuantidade,
+  formatarMoeda,
+  formatarQuantidade,
+  PASSO_QUANTIDADE,
+} from "@/lib/money"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 import { StatusVinculoBadge } from "./vinculoStatus"
@@ -236,6 +241,8 @@ export function ImportNFModal({
     (acc, v) => acc + (Number(v.quantidade) || 0) * (Number(v.valor_unitario) || 0),
     0,
   )
+  const saldoApos = saldoAposLancamento(contratoSelecionado?.itens, vinculos)
+  const itensNegativos = [...saldoApos.values()].filter((saldo) => saldo < 0).length
   const valorTotalNota = totalAutomatico
     ? Math.round(somaItens * 100) / 100
     : cabecalho.valor_total
@@ -533,6 +540,15 @@ export function ImportNFModal({
                   </div>
                 ) : (
                   <>
+                    {itensNegativos > 0 && (
+                    <div className="flex items-start gap-2 rounded-lg border border-critical/30 bg-critical-bg p-3 text-sm text-critical">
+                      <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                      <span>
+                        <strong>Atenção: o saldo ficará negativo</strong> em {itensNegativos} item(ns)
+                        do contrato ao efetuar a baixa desta nota. O lançamento é permitido.
+                      </span>
+                    </div>
+              )}
                     {itensPendentes > 0 && (
                       <div className="flex items-start gap-2 rounded-lg border border-critical/30 bg-critical-bg p-3 text-sm text-critical">
                         <AlertTriangle size={16} className="mt-0.5 shrink-0" />
@@ -622,6 +638,12 @@ export function ImportNFModal({
                                     />
                                     <span className="text-muted-foreground">{v.unidade}</span>
                                   </div>
+                                  {(saldoApos.get(Number(v.item_contrato_id)) ?? 0) < 0 && (
+                                    <p className="mt-1 text-[10px] font-medium text-critical">
+                                      Saldo ficará{" "}
+                                      {formatarQuantidade(saldoApos.get(Number(v.item_contrato_id)))}
+                                    </p>
+                                  )}
                                 </td>
                                 <td className="px-3 py-2">
                                   <MoneyInput

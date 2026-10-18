@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
 import { Button } from "@/components/ui/button"
 import { MoneyInput } from "@/components/ui/money-input"
-import { formatarMoeda, PASSO_QUANTIDADE } from "@/lib/money"
-import { numeroContrato } from "@/lib/contrato"
+import { formatarMoeda, formatarQuantidade, PASSO_QUANTIDADE } from "@/lib/money"
+import { numeroContrato, saldoAposLancamento } from "@/lib/contrato"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 
@@ -107,6 +107,9 @@ export function ManualNFModal({
     (acc, item) => acc + (Number(item.quantidade) || 0) * (item.valor_unitario || 0),
     0,
   )
+
+  const saldoApos = saldoAposLancamento(contratoSelecionado?.itens, itens)
+  const itensNegativos = [...saldoApos.values()].filter((saldo) => saldo < 0).length
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -394,6 +397,11 @@ export function ManualNFModal({
                         }
                         className={campoItem}
                       />
+                      {(saldoApos.get(Number(item.item_contrato_id)) ?? 0) < 0 && (
+                        <p className="text-[10px] font-medium text-critical">
+                          Saldo ficará {formatarQuantidade(saldoApos.get(Number(item.item_contrato_id)))}
+                        </p>
+                      )}
                     </div>
                     <div className="col-span-6 space-y-1 sm:col-span-2">
                       <label className="text-xs font-medium text-muted-foreground">Unidade</label>
@@ -442,6 +450,15 @@ export function ManualNFModal({
                   </div>
                 ))}
               </div>
+              {itensNegativos > 0 && (
+                <div className="flex items-start gap-2 rounded-lg border border-critical/30 bg-critical-bg p-3 text-sm text-critical">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <span>
+                    <strong>Atenção: o saldo ficará negativo</strong> em {itensNegativos} item(ns)
+                    do contrato ao efetuar a baixa desta nota. O lançamento é permitido.
+                  </span>
+                </div>
+              )}
               <p className="text-right text-sm font-medium text-foreground">
                 Total da nota: {formatarMoeda(total)}
               </p>

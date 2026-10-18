@@ -74,6 +74,7 @@ async def efetuar_baixa_nf(
         }
 
     movimentacoes_geradas = []
+    itens_saldo_negativo = []
     justificativa = baixa_req.justificativa or f"Baixa automática referente à NF {nf.numero}/{nf.serie}"
 
     # 2. Iterar sobre os Itens da Nota e atualizar os Saldos do Contrato
@@ -92,8 +93,10 @@ async def efetuar_baixa_nf(
         saldo_anterior = item_contrato.saldo_atual
         novo_saldo = arredondar_quantidade(saldo_anterior - item_nf.quantidade)
 
-        # Atualiza o saldo no banco (se ficar < 0, o banco dará rollback ao final no commit)
+        # Saldo negativo é permitido; fica registrado na auditoria.
         item_contrato.saldo_atual = novo_saldo
+        if novo_saldo < 0:
+            itens_saldo_negativo.append({"item_contrato_id": item_contrato.id, "saldo": novo_saldo})
 
         # Registra a Movimentação
         movimentacao = Movimentacao(
@@ -125,6 +128,7 @@ async def efetuar_baixa_nf(
             "status": nf.status,
             "qtd_itens": len(movimentacoes_geradas),
             "justificativa": justificativa,
+            **({"itens_saldo_negativo": itens_saldo_negativo} if itens_saldo_negativo else {}),
             **dados_vencido,
         },
         ip=ip,
@@ -137,12 +141,7 @@ async def efetuar_baixa_nf(
             await db.refresh(mov)
             
         return movimentacoes_geradas
-    except Exception as e:
+    except Exception:
         await db.rollback()
-        if 'ck_itens_contrato_saldo' in str(e) or 'IntegrityError' in str(e):
-             raise HTTPException(
-                 status_code=422, 
-                 detail="A quantidade total de um ou mais itens excede o saldo disponível no contrato. Operação abortada e desfeita integralmente."
-             )
         logger.exception("Falha ao efetuar baixa da NF")
         raise HTTPException(status_code=400, detail=MENSAGEM_GENERICA)

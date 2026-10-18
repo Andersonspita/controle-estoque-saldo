@@ -81,3 +81,19 @@ export function descreverAditivo(aditivo: {
   ]
   return partes.filter(Boolean).join(" · ")
 }
+
+/** Saldo de cada item do contrato depois de lançar estas linhas (negativo = saldo estoura). */
+export function saldoAposLancamento(
+  itensContrato: { id: number; saldo_atual?: number | null }[] = [],
+  linhas: { item_contrato_id?: number | string | null; quantidade?: number | null }[],
+) {
+  const saldo = new Map<number, number>()
+  for (const linha of linhas) {
+    const id = Number(linha.item_contrato_id)
+    const item = itensContrato.find((i) => i.id === id)
+    if (!item) continue
+    const atual = saldo.get(id) ?? Number(item.saldo_atual || 0)
+    saldo.set(id, Math.round((atual - (Number(linha.quantidade) || 0)) * 1000) / 1000)
+  }
+  return saldo
+}

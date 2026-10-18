@@ -8,7 +8,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import useAuth from "@/hooks/useAuth"
 import { diasAteVencimento, formatarDataBR } from "@/lib/contrato"
-import { formatarQuantidade } from "@/lib/money"
+import { arredondarQuantidade, formatarMoeda, formatarQuantidade } from "@/lib/money"
 import { contratosService, notasFiscaisService } from "../../services/api"
 
 export function BaixaModal({
@@ -35,24 +35,34 @@ export function BaixaModal({
   // Mesma regra do backend: vence no dia seguinte ao data_fim, qualquer que seja a situação.
   const vencido = (diasAteVencimento(contrato?.data_fim) ?? 0) < 0
 
+  // Uma linha por item do contrato: duas linhas da nota no mesmo item somam.
   const previsao = useMemo(() => {
     const itensContrato = (contrato?.itens || []) as any[]
-    return (nf?.itens || []).map((item: any) => {
-      const contratoItem = itensContrato.find((it) => it.id === item.item_contrato_id)
+    const porItem = new Map<number, number>()
+    for (const item of nf?.itens || []) {
+      const id = item.item_contrato_id
+      porItem.set(id, (porItem.get(id) || 0) + Number(item.quantidade || 0))
+    }
+    return [...porItem].map(([id, quantidade]) => {
+      const contratoItem = itensContrato.find((it) => it.id === id)
       const atual = Number(contratoItem?.saldo_atual ?? 0)
       const contratada = Number(contratoItem?.quantidade_contratada ?? 0)
-      const resultante = atual - Number(item.quantidade || 0)
-      const critico = contratada > 0 && resultante / contratada < 0.15
+      const vu = Number(contratoItem?.valor_unitario ?? 0)
+      const resultante = arredondarQuantidade(atual - quantidade)
       return {
-        id: item.id,
-        descricao: contratoItem?.descricao || item.descricao,
+        id,
+        descricao:
+          contratoItem?.descricao || nf.itens.find((i: any) => i.item_contrato_id === id)?.descricao,
         atual,
         resultante,
-        critico,
-        unidade: contratoItem?.unidade || item.unidade || "UN",
+        valorResultante: resultante * vu,
+        negativo: resultante < 0,
+        critico: contratada > 0 && resultante / contratada < 0.15,
+        unidade: contratoItem?.unidade || "UN",
       }
     })
   }, [contrato, nf])
+  const negativos = previsao.filter((item) => item.negativo)
 
   const mutation = useMutation({
     mutationFn: (data: Parameters<typeof notasFiscaisService.baixar>[1]) =>
@@ -66,6 +76,14 @@ export function BaixaModal({
       toast.success("Baixa realizada com sucesso!", {
         description: `Foram geradas ${data.length} movimentações no histórico.`,
       })
+      if (negativos.length) {
+        toast.warning("Saldo negativo no contrato", {
+          description: `${negativos.length} item(ns) ficaram com saldo negativo: ${negativos
+            .map((item) => item.descricao)
+            .join(", ")}. Providencie o aditivo.`,
+          duration: 10000,
+        })
+      }
       queryClient.invalidateQueries({ queryKey: ["notas-fiscais"] })
       queryClient.invalidateQueries({ queryKey: ["contratos"] })
       queryClient.invalidateQueries({ queryKey: ["movimentacoes"] })
@@ -73,16 +91,9 @@ export function BaixaModal({
       onOpenChange(false)
     },
     onError: (error: any) => {
-      if (error.response?.status === 422) {
-        toast.error("Operação abortada: Saldo Insuficiente", {
-          description: error.response?.data?.detail,
-          duration: 8000,
-        })
-      } else {
-        toast.error("Erro ao efetuar baixa", {
-          description: error.response?.data?.detail || error.message,
-        })
-      }
+      toast.error("Erro ao efetuar baixa", {
+        description: error.response?.data?.detail || error.message,
+      })
     },
   })
 
@@ -109,12 +120,16 @@ export function BaixaModal({
             A operação abate o saldo dos itens do contrato e não pode ser desfeita.
           </Dialog.Description>
 
-          <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning-bg p-4">
-            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning" />
-            <p className="text-sm text-warning">
-              Se a quantidade desta nota exceder o saldo disponível, a operação será inteiramente desfeita.
-            </p>
-          </div>
+          {negativos.length > 0 && (
+            <div className="flex items-start gap-3 rounded-lg border border-critical/30 bg-critical-bg p-4">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-critical" />
+              <p className="text-sm text-critical">
+                <strong>Atenção: o saldo ficará negativo</strong> em {negativos.length} item(ns)
+                ao efetuar esta baixa (em vermelho abaixo). A baixa é permitida, mas o contrato
+                passa a dever quantidade e valor até um aditivo.
+              </p>
+            </div>
+          )}
 
           {vencido && (
             <div className="flex items-start gap-3 rounded-lg border border-critical/30 bg-critical-bg p-4">
@@ -138,13 +153,14 @@ export function BaixaModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {previsao.map((item: any) => (
-                    <tr key={item.id} className="border-t">
+                  {previsao.map((item) => (
+                    <tr key={item.id} className={`border-t ${item.negativo ? "bg-critical-bg" : ""}`}>
                       <td className="px-3 py-2">{item.descricao}</td>
                       <td
                         className={`px-3 py-2 text-right tabular-nums ${item.critico ? "text-critical font-semibold" : ""}`}
                       >
                         {formatarQuantidade(item.atual)} → {formatarQuantidade(item.resultante)} {item.unidade}
+                        <span className="block text-xs">{formatarMoeda(item.valorResultante)}</span>
                       </td>
                     </tr>
                   ))}
