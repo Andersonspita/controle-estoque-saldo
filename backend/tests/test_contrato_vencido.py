@@ -48,3 +48,13 @@ def test_termo_pdf_traz_motivo_e_assinaturas():
 async def test_termo_negado_para_operador(async_client: AsyncClient, as_operador):
     response = await async_client.get("/api/v1/notas-fiscais/1/termo-contrato-vencido")
     assert response.status_code == 403
+
+
+def test_termo_nao_repete_ano_do_contrato():
+    pdf = gerar_termo_contrato_vencido(
+        nf_numero="1", nf_serie=None, nf_valor=1, fornecedor="F", contrato_numero="012/2024",
+        contrato_ano=2024, contrato_data_fim="2025-03-08", motivo="Motivo de teste longo",
+        solicitante="S", admin_nome="A", data_baixa=datetime(2026, 10, 18, 9, 30),
+    )
+    texto = pymupdf.open(stream=pdf, filetype="pdf")[0].get_text()
+    assert "012/2024" in texto and "012/2024/2024" not in texto

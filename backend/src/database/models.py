@@ -116,8 +116,12 @@ class ContratoAditivo(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     contrato_id = Column(Integer, ForeignKey("contratos.id"), nullable=False)
-    data_inicio = Column(Date, nullable=False)
-    data_fim = Column(Date, nullable=False)
+    numero = Column(String)
+    # PRAZO, VALOR, VALOR_PRAZO ou REEQUILIBRIO; aditivos antigos eram de valor e prazo.
+    tipo = Column(String, nullable=False, default="VALOR_PRAZO", server_default="VALOR_PRAZO")
+    percentual = Column(Float)
+    data_inicio = Column(Date)
+    data_fim = Column(Date)
     criado_em = Column(DateTime(timezone=True), default=utcnow)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"))
 

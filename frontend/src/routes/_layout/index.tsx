@@ -22,8 +22,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { pageTitle } from "@/lib/brand"
-import { formatarDataBR } from "@/lib/contrato"
-import { formatarMoeda, totaisContrato } from "@/lib/money"
+import {
+  contratoVencido,
+  diasAteVencimento,
+  formatarDataBR,
+  numeroContrato,
+} from "@/lib/contrato"
+import { formatarMoeda, formatarQuantidade, totaisContrato } from "@/lib/money"
 import useAuth from "../../hooks/useAuth"
 import {
   contratosService,
@@ -75,15 +80,6 @@ function consumoMensal(movimentacoes: any[]) {
     if (mapa[chave]) mapa[chave].valor += Number(mov.quantidade || 0)
   }
   return meses
-}
-
-function diasAte(dataFim?: string | null) {
-  if (!dataFim) return null
-  const fim = new Date(dataFim)
-  if (Number.isNaN(fim.getTime())) return null
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
-  return Math.ceil((fim.getTime() - hoje.getTime()) / 86_400_000)
 }
 
 /** Cartão de indicador: rótulo institucional em caixa alta, número em destaque
@@ -208,15 +204,15 @@ function Dashboard() {
     ? Math.min(100, (totais.consumido / totais.valorContratado) * 100)
     : 0
 
+  const vencidos = contratosAtivos.filter(contratoVencido).length
+  // Vencido não está "a encerrar": aparece no sino de notificações e no filtro Vencidos.
   const aEncerrar: { contrato: any; dias: number }[] = contratosAtivos
-    .map((c: any) => ({ contrato: c, dias: diasAte(c.data_fim) }))
+    .map((c: any) => ({ contrato: c, dias: diasAteVencimento(c.data_fim) }))
     .filter(
       (linha: { dias: number | null }) =>
-        linha.dias !== null && linha.dias <= 90,
+        linha.dias !== null && linha.dias >= 0 && linha.dias <= 90,
     )
     .sort((a: { dias: number }, b: { dias: number }) => a.dias - b.dias)
-
-  const vencidos = aEncerrar.filter((linha) => linha.dias < 0)
 
   const notasPendentes = notas.filter(
     (nf: any) => nf.status !== "Baixada",
@@ -269,23 +265,6 @@ function Dashboard() {
         </div>
       </header>
 
-      {vencidos.length > 0 && (
-        <Alert variant="destructive">
-          <AlertTriangle />
-          <AlertTitle>
-            {vencidos.length === 1
-              ? "1 contrato ativo está com a vigência vencida"
-              : `${vencidos.length} contratos ativos estão com a vigência vencida`}
-          </AlertTitle>
-          <AlertDescription>
-            {vencidos
-              .map(({ contrato }) => `${contrato.numero}${contrato.ano ? `/${contrato.ano}` : ""}`)
-              .join(", ")}
-            . Faça o aditivo de prazo; até lá, só um administrador pode baixar notas nesses contratos.
-          </AlertDescription>
-        </Alert>
-      )}
-
       {isError && (
         <Alert variant="destructive">
           <AlertCircle />
@@ -325,8 +304,8 @@ function Dashboard() {
         />
         <Indicador
           rotulo="Contratos ativos"
-          valor={String(contratosAtivos.length)}
-          contexto={`${aEncerrar.length} encerram em até 90 dias`}
+          valor={String(contratosAtivos.length - vencidos)}
+          contexto={`${aEncerrar.length} encerram em até 90 dias${vencidos ? ` · ${vencidos} vencido${vencidos > 1 ? "s" : ""}` : ""}`}
           icone={FileSignature}
           carregando={loading}
         />
@@ -502,7 +481,7 @@ function Dashboard() {
                       <TooltipContent>{prev.item_descricao}</TooltipContent>
                     </Tooltip>
                     <p className="text-xs text-muted-foreground">
-                      Contrato {prev.contrato_numero} · saldo {prev.saldo_atual}{" "}
+                      Contrato {prev.contrato_numero} · saldo {formatarQuantidade(prev.saldo_atual)}{" "}
                       un
                     </p>
                   </div>
@@ -562,8 +541,7 @@ function Dashboard() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">
                         <span className="font-mono">
-                          {contrato.numero}
-                          {contrato.ano ? `/${contrato.ano}` : ""}
+                          {numeroContrato(contrato)}
                         </span>
                         {contrato.objeto ? ` · ${contrato.objeto}` : ""}
                       </p>
@@ -579,9 +557,7 @@ function Dashboard() {
                       </span>
                       <Badge variant={dias <= 30 ? "critical" : "warning"}>
                         <AlertTriangle />
-                        {dias < 0
-                          ? "vencido"
-                          : dias === 0
+                        {dias === 0
                           ? "vence hoje"
                           : `${dias} ${dias === 1 ? "dia" : "dias"}`}
                       </Badge>

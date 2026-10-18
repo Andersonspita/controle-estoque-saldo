@@ -1,9 +1,11 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, Field, computed_field, field_validator, model_validator
-from typing import Optional, List
+from pydantic import AfterValidator, BaseModel, EmailStr, ConfigDict, Field, computed_field, field_validator, model_validator
+from typing import Annotated, Literal, Optional, List
 from datetime import date, datetime
 
 from .services.documento import formatar_cpf_cnpj
-from .services.unidades_medida import normalizar_unidade
+from .services.unidades_medida import arredondar_quantidade, normalizar_unidade
+
+Quantidade = Annotated[float, AfterValidator(arredondar_quantidade)]
 from .services.modalidades_licitacao import normalizar_modalidade
 
 class FornecedorBase(BaseModel):
@@ -92,7 +94,6 @@ class UnidadeMedidaOut(BaseModel):
     sigla: str
     nome: str
     grupo: str
-    inteira: bool
 
 class ContratoBase(BaseModel):
     licitacao_id: Optional[int] = None
@@ -129,7 +130,7 @@ class ItemContratoCreate(BaseModel):
     unidade: str = "UN"
     marca: Optional[str] = None
     observacao: Optional[str] = None
-    quantidade_contratada: float
+    quantidade_contratada: Quantidade
     valor_unitario: float
     numero_item: Optional[int] = None
 
@@ -169,7 +170,7 @@ class ItemContratoUpdate(BaseModel):
     unidade: str = "UN"
     marca: Optional[str] = None
     observacao: Optional[str] = None
-    quantidade_contratada: float
+    quantidade_contratada: Quantidade
     valor_unitario: float
     numero_item: Optional[int] = None
 
@@ -219,27 +220,43 @@ class ContratoUpdate(BaseModel):
             raise ValueError("A data de vigência final deve ser igual ou posterior à inicial")
         return self
 
-class ItemAditivoIn(BaseModel):
-    item_id: int
-    quantidade_aditivada: float
-    valor_unitario: Optional[float] = None
-
 class ContratoAditivoIn(BaseModel):
-    itens: List[ItemAditivoIn]
-    data_inicio: date
-    data_fim: date
+    numero: str = Field(min_length=1, max_length=50)
+    tipo: Literal["PRAZO", "VALOR", "VALOR_PRAZO", "REEQUILIBRIO"]
+    percentual: Optional[float] = None
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
 
     @model_validator(mode="after")
-    def _vigencia_aditivo(self):
-        if self.data_fim < self.data_inicio:
-            raise ValueError("A vigência final do aditivo deve ser igual ou posterior à inicial")
+    def _campos_por_tipo(self):
+        self.numero = self.numero.strip()
+        if not self.numero:
+            raise ValueError("Informe o número do aditivo")
+        if self.tipo in ("PRAZO", "VALOR_PRAZO"):
+            if not self.data_inicio or not self.data_fim:
+                raise ValueError("Informe a vigência do aditivo de prazo")
+            if self.data_fim < self.data_inicio:
+                raise ValueError("A vigência final do aditivo deve ser igual ou posterior à inicial")
+        else:
+            self.data_inicio = self.data_fim = None
+        if self.tipo in ("VALOR", "VALOR_PRAZO"):
+            if not self.percentual or self.percentual <= 0:
+                raise ValueError("Informe o percentual de acréscimo (maior que zero)")
+        elif self.tipo == "REEQUILIBRIO":
+            if not self.percentual or self.percentual <= -100:
+                raise ValueError("Informe o percentual do reequilíbrio (diferente de zero)")
+        else:
+            self.percentual = None
         return self
 
 
 class ContratoAditivoOut(BaseModel):
     id: int
-    data_inicio: date
-    data_fim: date
+    numero: Optional[str] = None
+    tipo: str = "VALOR_PRAZO"
+    percentual: Optional[float] = None
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
     criado_em: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -299,7 +316,7 @@ class ItemNFEntrada(BaseModel):
     codigo: Optional[str] = None
     codigo_produto: Optional[str] = None
     descricao: str
-    quantidade: float
+    quantidade: Quantidade
     unidade: str
     valor_unitario: float
     gtin: Optional[str] = None
@@ -329,7 +346,7 @@ class VincularItensResponse(BaseModel):
 class ItemNotaFiscalCreate(BaseModel):
     codigo: Optional[str] = None
     descricao: str
-    quantidade: float
+    quantidade: Quantidade
     unidade: str
     valor_unitario: float
     item_contrato_id: Optional[int] = None

@@ -1,4 +1,3 @@
-import { unidadeEhInteira } from "@/lib/unidadesMedida"
 
 export function formatarMoeda(valor: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -68,7 +67,17 @@ export function totaisContrato(contrato: {
   }
 }
 
-export function quantidadeInteira(unidade?: string | null) {
-  return unidadeEhInteira(unidade)
+/** Quantidades têm até 3 casas decimais em todo o sistema (mesma regra do backend). */
+export const CASAS_QUANTIDADE = 3
+export const PASSO_QUANTIDADE = "0.001"
+
+export function arredondarQuantidade(valor: number) {
+  return Math.round((Number(valor) || 0) * 1000) / 1000
+}
+
+export function formatarQuantidade(valor: number | null | undefined) {
+  return (Number(valor) || 0).toLocaleString("pt-BR", {
+    maximumFractionDigits: CASAS_QUANTIDADE,
+  })
 }
 

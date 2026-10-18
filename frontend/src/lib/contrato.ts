@@ -25,6 +25,59 @@ export function rotuloContrato(contrato: {
 }) {
   const vigencia = formatarVigencia(contrato.data_inicio, contrato.data_fim)
   if (vigencia) return `${contrato.numero} · ${vigencia}`
-  if (contrato.ano) return `${contrato.numero}/${contrato.ano}`
-  return String(contrato.numero || "")
+  return numeroContrato(contrato)
+}
+
+/** "012/2024" — o número muitas vezes já traz o ano; não repete ("012/2024/2024"). */
+export function numeroContrato(contrato: { numero?: string | null; ano?: number | null }) {
+  const numero = String(contrato.numero || "")
+  if (!contrato.ano || numero.includes("/")) return numero
+  return `${numero}/${contrato.ano}`
+}
+
+/** Dias até o fim da vigência (negativo = vencido), em data local. */
+export function diasAteVencimento(dataFim?: string | null) {
+  const iso = dataISO(dataFim)
+  if (!iso) return null
+  const fim = new Date(`${iso}T00:00:00`)
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  return Math.round((fim.getTime() - hoje.getTime()) / 86_400_000)
+}
+
+/** Ativo com vigência final já passada (vence no dia seguinte ao fim, como no backend). */
+export function contratoVencido(contrato: { situacao?: string; data_fim?: string | null }) {
+  const dias = diasAteVencimento(contrato.data_fim)
+  return contrato.situacao === "Ativo" && dias !== null && dias < 0
+}
+
+export function situacaoContrato(contrato: { situacao?: string; data_fim?: string | null }) {
+  if (contratoVencido(contrato)) return { rotulo: "Vencido", variant: "critical" as const }
+  if (contrato.situacao === "Ativo") return { rotulo: "Ativo", variant: "success" as const }
+  return { rotulo: contrato.situacao || "", variant: "secondary" as const }
+}
+
+export const TIPOS_ADITIVO: Record<string, string> = {
+  PRAZO: "Prazo",
+  VALOR: "Valor (acréscimo)",
+  VALOR_PRAZO: "Valor e prazo",
+  REEQUILIBRIO: "Reequilíbrio econômico-financeiro",
+}
+
+export function descreverAditivo(aditivo: {
+  numero?: string | null
+  tipo?: string | null
+  percentual?: number | null
+  data_inicio?: string | null
+  data_fim?: string | null
+}) {
+  const partes = [
+    aditivo.numero ? `Nº ${aditivo.numero}` : "",
+    TIPOS_ADITIVO[aditivo.tipo || ""] || aditivo.tipo || "",
+    aditivo.percentual != null
+      ? `${aditivo.percentual > 0 ? "+" : ""}${String(aditivo.percentual).replace(".", ",")}%`
+      : "",
+    formatarVigencia(aditivo.data_inicio, aditivo.data_fim),
+  ]
+  return partes.filter(Boolean).join(" · ")
 }

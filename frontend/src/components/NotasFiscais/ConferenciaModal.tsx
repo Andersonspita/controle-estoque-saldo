@@ -5,6 +5,8 @@ import { AlertTriangle, Link2, Loader2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
 import { Button } from "@/components/ui/button"
+import { formatarQuantidade } from "@/lib/money"
+import { numeroContrato } from "@/lib/contrato"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 import { StatusVinculoBadge } from "./vinculoStatus"
@@ -111,7 +113,7 @@ export function ConferenciaModal({
             <div className="space-y-3">
               <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Link2 size={16} /> NF → itens do contrato{" "}
-                {contrato ? `${contrato.numero}/${contrato.ano}` : ""}
+                {contrato ? numeroContrato(contrato) : ""}
               </h4>
               <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border [-webkit-overflow-scrolling:touch]">
                 <table className="w-full min-w-[36rem] text-xs">
@@ -131,7 +133,7 @@ export function ConferenciaModal({
                             <p className="text-muted-foreground">Cód: {v.codigo}</p>
                           )}
                           <p className="text-muted-foreground">
-                            {v.quantidade} {v.unidade}
+                            {formatarQuantidade(v.quantidade)} {v.unidade}
                           </p>
                         </td>
                         <td className="px-3 py-2">

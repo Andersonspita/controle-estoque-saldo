@@ -13,6 +13,7 @@ from ..database.models import (
     NotaFiscal,
 )
 from ..http_errors import MENSAGEM_GENERICA, logger
+from .unidades_medida import arredondar_quantidade
 
 STATUS_BAIXADA = "Baixada"
 STATUS_ESTORNADA = "Estornada"
@@ -95,7 +96,7 @@ async def estornar_baixa_nf(
             )
 
         saldo_anterior = item_contrato.saldo_atual
-        saldo_posterior = saldo_anterior + baixa.quantidade
+        saldo_posterior = arredondar_quantidade(saldo_anterior + baixa.quantidade)
         item_contrato.saldo_atual = saldo_posterior
 
         estorno = Movimentacao(

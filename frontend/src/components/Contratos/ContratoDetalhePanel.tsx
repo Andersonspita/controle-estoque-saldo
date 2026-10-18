@@ -11,7 +11,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { formatarVigencia } from "@/lib/contrato"
+import {
+  descreverAditivo,
+  formatarVigencia,
+  numeroContrato,
+  situacaoContrato,
+} from "@/lib/contrato"
 import {
   formatarMoeda,
   saldoMonetarioItem,
@@ -126,15 +131,10 @@ export function ContratoDetalhePanel({
             <SheetHeader className="border-b p-5 pr-12">
               <div className="flex flex-wrap items-center gap-2">
                 <SheetTitle className="font-mono text-lg">
-                  Contrato {contrato.numero}
-                  {contrato.ano ? `/${contrato.ano}` : ""}
+                  Contrato {numeroContrato(contrato)}
                 </SheetTitle>
-                <Badge
-                  variant={
-                    contrato.situacao === "Ativo" ? "success" : "secondary"
-                  }
-                >
-                  {contrato.situacao}
+                <Badge variant={situacaoContrato(contrato).variant}>
+                  {situacaoContrato(contrato).rotulo}
                 </Badge>
               </div>
               <SheetDescription className="text-sm">
@@ -165,6 +165,18 @@ export function ContratoDetalhePanel({
             </SheetHeader>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              {(contrato.aditivos || []).length > 0 && (
+                <div className="mb-4 rounded-lg border bg-muted/30 px-3 py-2.5 text-xs">
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Aditivos
+                  </p>
+                  <ul className="space-y-0.5">
+                    {contrato.aditivos.map((aditivo: any) => (
+                      <li key={aditivo.id}>{descreverAditivo(aditivo)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="grid gap-3 sm:grid-cols-3">
                 <Resumo
                   rotulo="Valor contratado"

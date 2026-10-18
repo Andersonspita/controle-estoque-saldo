@@ -189,9 +189,11 @@ export const contratosService = {
   aditivar: async (
     id: number,
     dados: {
-      itens: { item_id: number; quantidade_aditivada: number; valor_unitario?: number }[];
-      data_inicio: string;
-      data_fim: string;
+      numero: string;
+      tipo: "PRAZO" | "VALOR" | "VALOR_PRAZO" | "REEQUILIBRIO";
+      percentual?: number;
+      data_inicio?: string;
+      data_fim?: string;
     },
   ) => {
     const response = await api.post(`/contratos/${id}/aditivo`, dados);

@@ -7,7 +7,8 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import useAuth from "@/hooks/useAuth"
-import { formatarDataBR } from "@/lib/contrato"
+import { diasAteVencimento, formatarDataBR } from "@/lib/contrato"
+import { formatarQuantidade } from "@/lib/money"
 import { contratosService, notasFiscaisService } from "../../services/api"
 
 export function BaixaModal({
@@ -31,9 +32,8 @@ export function BaixaModal({
   })
 
   const contrato = contratos.find((c: any) => c.id === nf?.contrato_id)
-  // Mesma regra do backend: vence no dia seguinte ao data_fim.
-  const hoje = new Date().toLocaleDateString("sv-SE")
-  const vencido = Boolean(contrato?.data_fim && String(contrato.data_fim).slice(0, 10) < hoje)
+  // Mesma regra do backend: vence no dia seguinte ao data_fim, qualquer que seja a situação.
+  const vencido = (diasAteVencimento(contrato?.data_fim) ?? 0) < 0
 
   const previsao = useMemo(() => {
     const itensContrato = (contrato?.itens || []) as any[]
@@ -144,7 +144,7 @@ export function BaixaModal({
                       <td
                         className={`px-3 py-2 text-right tabular-nums ${item.critico ? "text-critical font-semibold" : ""}`}
                       >
-                        {item.atual} → {item.resultante} {item.unidade}
+                        {formatarQuantidade(item.atual)} → {formatarQuantidade(item.resultante)} {item.unidade}
                       </td>
                     </tr>
                   ))}

@@ -1,12 +1,10 @@
-import { formatarDataBR } from "@/lib/contrato"
+import { descreverAditivo, formatarDataBR, numeroContrato } from "@/lib/contrato"
 import {
   dataHoraExtenso,
   numeroBR,
   percentualBR,
   quantidadeBR,
-  quantidadeTotalBR,
 } from "@/lib/relatorio"
-import { unidadeEhInteira } from "@/lib/unidadesMedida"
 
 import "./relatorio.css"
 
@@ -65,8 +63,11 @@ export type RelatorioContrato = {
   fornecedor_email?: string | null
   aditivos?: {
     id: number
-    data_inicio: string
-    data_fim: string
+    numero?: string | null
+    tipo?: string | null
+    percentual?: number | null
+    data_inicio?: string | null
+    data_fim?: string | null
     criado_em?: string | null
   }[]
   itens: RelatorioItem[]
@@ -181,7 +182,6 @@ function TabelaItens({ contrato }: { contrato: RelatorioContrato }) {
             </tr>
           ) : (
             itens.map((item) => {
-              const inteira = unidadeEhInteira(item.unidade)
               const esgotado = item.quantidade_saldo <= 0
               return (
                 <tr
@@ -201,19 +201,19 @@ function TabelaItens({ contrato }: { contrato: RelatorioContrato }) {
                   <td className="rel-centro">{item.unidade}</td>
                   <td className="rel-num">{numeroBR(item.valor_unitario)}</td>
                   <td className="rel-num rel-grupo">
-                    {quantidadeBR(item.quantidade_contratada, inteira)}
+                    {quantidadeBR(item.quantidade_contratada)}
                   </td>
                   <td className="rel-num">{numeroBR(item.valor_contratado)}</td>
                   <td className="rel-num rel-grupo">
-                    {quantidadeBR(item.quantidade_aditivada, inteira)}
+                    {quantidadeBR(item.quantidade_aditivada)}
                   </td>
                   <td className="rel-num">{numeroBR(item.valor_aditivado)}</td>
                   <td className="rel-num rel-grupo">
-                    {quantidadeBR(item.quantidade_utilizada, inteira)}
+                    {quantidadeBR(item.quantidade_utilizada)}
                   </td>
                   <td className="rel-num">{numeroBR(item.valor_utilizado)}</td>
                   <td className="rel-num rel-grupo">
-                    {quantidadeBR(item.quantidade_saldo, inteira)}
+                    {quantidadeBR(item.quantidade_saldo)}
                   </td>
                   <td className="rel-num">{numeroBR(item.valor_saldo)}</td>
                   <td className="rel-num rel-grupo">
@@ -230,19 +230,19 @@ function TabelaItens({ contrato }: { contrato: RelatorioContrato }) {
               Totais
             </td>
             <td className="rel-num rel-grupo">
-              {quantidadeTotalBR(totais.quantidade_contratada)}
+              {quantidadeBR(totais.quantidade_contratada)}
             </td>
             <td className="rel-num">{numeroBR(totais.valor_contratado)}</td>
             <td className="rel-num rel-grupo">
-              {quantidadeTotalBR(totais.quantidade_aditivada)}
+              {quantidadeBR(totais.quantidade_aditivada)}
             </td>
             <td className="rel-num">{numeroBR(totais.valor_aditivado)}</td>
             <td className="rel-num rel-grupo">
-              {quantidadeTotalBR(totais.quantidade_utilizada)}
+              {quantidadeBR(totais.quantidade_utilizada)}
             </td>
             <td className="rel-num">{numeroBR(totais.valor_utilizado)}</td>
             <td className="rel-num rel-grupo">
-              {quantidadeTotalBR(totais.quantidade_saldo)}
+              {quantidadeBR(totais.quantidade_saldo)}
             </td>
             <td className="rel-num">{numeroBR(totais.valor_saldo)}</td>
             <td className="rel-num rel-grupo">
@@ -290,7 +290,7 @@ function FolhaContrato({
         <div className="rel-grade">
           <Campo
             rotulo="Contrato nº"
-            valor={`${contrato.numero}/${contrato.ano}`}
+            valor={numeroContrato(contrato)}
             forte
           />
           <Campo rotulo="Situação" valor={contrato.situacao} />
@@ -306,13 +306,10 @@ function FolhaContrato({
         {(contrato.aditivos || []).length > 0 ? (
           <div className="rel-grade">
             <Campo
-              rotulo="Vigência do(s) aditivo(s)"
+              rotulo="Aditivo(s)"
               valor={(contrato.aditivos || [])
-                .map(
-                  (aditivo, indice) =>
-                    `${indice + 1}º: ${formatarDataBR(aditivo.data_inicio)} a ${formatarDataBR(aditivo.data_fim)}`,
-                )
-                .join(" · ")}
+                .map((aditivo, indice) => `${indice + 1}º: ${descreverAditivo(aditivo)}`)
+                .join(" | ")}
               className="rel-campo--largo"
             />
           </div>
@@ -368,7 +365,7 @@ function FolhaContrato({
       <div className="rel-rodape">
         <span>{dataHoraExtenso(geradoEm)}</span>
         <span>
-          Contrato {contrato.numero}/{contrato.ano} · {contrato.itens.length}{" "}
+          Contrato {numeroContrato(contrato)} · {contrato.itens.length}{" "}
           {contrato.itens.length === 1 ? "item" : "itens"}
         </span>
       </div>
@@ -406,7 +403,7 @@ function FolhaConsolidada({ relatorio }: { relatorio: RelatorioSaldo }) {
             {contratos.map((contrato) => (
               <tr key={contrato.contrato_id}>
                 <td className="rel-centro">
-                  {contrato.numero}/{contrato.ano}
+                  {numeroContrato(contrato)}
                 </td>
                 <td>{contrato.fornecedor_razao_social}</td>
                 <td className="rel-centro">
