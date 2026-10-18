@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/tooltip"
 import { pageTitle } from "@/lib/brand"
 import { formatarDataBR } from "@/lib/contrato"
-import { formatarMoeda, totaisContrato } from "@/lib/money"
+import { formatarMoeda, formatarQuantidade, totaisContrato } from "@/lib/money"
 import useAuth from "../../hooks/useAuth"
 import {
   contratosService,
@@ -483,7 +483,7 @@ function Dashboard() {
                       <TooltipContent>{prev.item_descricao}</TooltipContent>
                     </Tooltip>
                     <p className="text-xs text-muted-foreground">
-                      Contrato {prev.contrato_numero} · saldo {prev.saldo_atual}{" "}
+                      Contrato {prev.contrato_numero} · saldo {formatarQuantidade(prev.saldo_atual)}{" "}
                       un
                     </p>
                   </div>

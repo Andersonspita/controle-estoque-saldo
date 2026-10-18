@@ -10,60 +10,59 @@ class UnidadeMedida(TypedDict):
     sigla: str
     nome: str
     grupo: str
-    inteira: bool
 
 
 UNIDADES_MEDIDA: list[UnidadeMedida] = [
-    {"sigla": "UN", "nome": "Unidade", "grupo": "Quantidade", "inteira": True},
-    {"sigla": "PC", "nome": "Peça", "grupo": "Quantidade", "inteira": True},
-    {"sigla": "PR", "nome": "Par", "grupo": "Quantidade", "inteira": True},
-    {"sigla": "JG", "nome": "Jogo", "grupo": "Quantidade", "inteira": True},
-    {"sigla": "CJ", "nome": "Conjunto", "grupo": "Quantidade", "inteira": True},
-    {"sigla": "KIT", "nome": "Kit", "grupo": "Quantidade", "inteira": True},
-    {"sigla": "DZ", "nome": "Dúzia", "grupo": "Quantidade", "inteira": True},
-    {"sigla": "CT", "nome": "Cento", "grupo": "Quantidade", "inteira": True},
-    {"sigla": "MIL", "nome": "Milheiro", "grupo": "Quantidade", "inteira": True},
-    {"sigla": "FOL", "nome": "Folha", "grupo": "Quantidade", "inteira": True},
-    {"sigla": "CX", "nome": "Caixa", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "PCT", "nome": "Pacote", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "FD", "nome": "Fardo", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "SC", "nome": "Saco", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "RL", "nome": "Rolo", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "BD", "nome": "Balde", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "TMB", "nome": "Tambor", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "GL", "nome": "Galão", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "LT", "nome": "Lata", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "FR", "nome": "Frasco", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "AMP", "nome": "Ampola", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "VD", "nome": "Vidro", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "GF", "nome": "Garrafa", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "TB", "nome": "Tubo", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "BL", "nome": "Blister", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "CART", "nome": "Cartela", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "RES", "nome": "Resma", "grupo": "Embalagem", "inteira": True},
-    {"sigla": "M", "nome": "Metro", "grupo": "Comprimento", "inteira": False},
-    {"sigla": "CM", "nome": "Centímetro", "grupo": "Comprimento", "inteira": False},
-    {"sigla": "MM", "nome": "Milímetro", "grupo": "Comprimento", "inteira": False},
-    {"sigla": "KM", "nome": "Quilômetro", "grupo": "Comprimento", "inteira": False},
-    {"sigla": "M2", "nome": "Metro quadrado", "grupo": "Área", "inteira": False},
-    {"sigla": "CM2", "nome": "Centímetro quadrado", "grupo": "Área", "inteira": False},
-    {"sigla": "HA", "nome": "Hectare", "grupo": "Área", "inteira": False},
-    {"sigla": "L", "nome": "Litro", "grupo": "Volume", "inteira": False},
-    {"sigla": "ML", "nome": "Mililitro", "grupo": "Volume", "inteira": False},
-    {"sigla": "M3", "nome": "Metro cúbico", "grupo": "Volume", "inteira": False},
-    {"sigla": "CM3", "nome": "Centímetro cúbico", "grupo": "Volume", "inteira": False},
-    {"sigla": "KG", "nome": "Quilograma", "grupo": "Massa", "inteira": False},
-    {"sigla": "G", "nome": "Grama", "grupo": "Massa", "inteira": False},
-    {"sigla": "MG", "nome": "Miligrama", "grupo": "Massa", "inteira": False},
-    {"sigla": "T", "nome": "Tonelada", "grupo": "Massa", "inteira": False},
-    {"sigla": "H", "nome": "Hora", "grupo": "Tempo e serviço", "inteira": False},
-    {"sigla": "D", "nome": "Dia", "grupo": "Tempo e serviço", "inteira": True},
-    {"sigla": "MES", "nome": "Mês", "grupo": "Tempo e serviço", "inteira": True},
-    {"sigla": "ANO", "nome": "Ano", "grupo": "Tempo e serviço", "inteira": True},
-    {"sigla": "HH", "nome": "Homem-hora", "grupo": "Tempo e serviço", "inteira": False},
-    {"sigla": "SV", "nome": "Serviço", "grupo": "Tempo e serviço", "inteira": True},
-    {"sigla": "US", "nome": "Unidade de serviço", "grupo": "Tempo e serviço", "inteira": True},
-    {"sigla": "VB", "nome": "Verba", "grupo": "Tempo e serviço", "inteira": True},
+    {"sigla": "UN", "nome": "Unidade", "grupo": "Quantidade"},
+    {"sigla": "PC", "nome": "Peça", "grupo": "Quantidade"},
+    {"sigla": "PR", "nome": "Par", "grupo": "Quantidade"},
+    {"sigla": "JG", "nome": "Jogo", "grupo": "Quantidade"},
+    {"sigla": "CJ", "nome": "Conjunto", "grupo": "Quantidade"},
+    {"sigla": "KIT", "nome": "Kit", "grupo": "Quantidade"},
+    {"sigla": "DZ", "nome": "Dúzia", "grupo": "Quantidade"},
+    {"sigla": "CT", "nome": "Cento", "grupo": "Quantidade"},
+    {"sigla": "MIL", "nome": "Milheiro", "grupo": "Quantidade"},
+    {"sigla": "FOL", "nome": "Folha", "grupo": "Quantidade"},
+    {"sigla": "CX", "nome": "Caixa", "grupo": "Embalagem"},
+    {"sigla": "PCT", "nome": "Pacote", "grupo": "Embalagem"},
+    {"sigla": "FD", "nome": "Fardo", "grupo": "Embalagem"},
+    {"sigla": "SC", "nome": "Saco", "grupo": "Embalagem"},
+    {"sigla": "RL", "nome": "Rolo", "grupo": "Embalagem"},
+    {"sigla": "BD", "nome": "Balde", "grupo": "Embalagem"},
+    {"sigla": "TMB", "nome": "Tambor", "grupo": "Embalagem"},
+    {"sigla": "GL", "nome": "Galão", "grupo": "Embalagem"},
+    {"sigla": "LT", "nome": "Lata", "grupo": "Embalagem"},
+    {"sigla": "FR", "nome": "Frasco", "grupo": "Embalagem"},
+    {"sigla": "AMP", "nome": "Ampola", "grupo": "Embalagem"},
+    {"sigla": "VD", "nome": "Vidro", "grupo": "Embalagem"},
+    {"sigla": "GF", "nome": "Garrafa", "grupo": "Embalagem"},
+    {"sigla": "TB", "nome": "Tubo", "grupo": "Embalagem"},
+    {"sigla": "BL", "nome": "Blister", "grupo": "Embalagem"},
+    {"sigla": "CART", "nome": "Cartela", "grupo": "Embalagem"},
+    {"sigla": "RES", "nome": "Resma", "grupo": "Embalagem"},
+    {"sigla": "M", "nome": "Metro", "grupo": "Comprimento"},
+    {"sigla": "CM", "nome": "Centímetro", "grupo": "Comprimento"},
+    {"sigla": "MM", "nome": "Milímetro", "grupo": "Comprimento"},
+    {"sigla": "KM", "nome": "Quilômetro", "grupo": "Comprimento"},
+    {"sigla": "M2", "nome": "Metro quadrado", "grupo": "Área"},
+    {"sigla": "CM2", "nome": "Centímetro quadrado", "grupo": "Área"},
+    {"sigla": "HA", "nome": "Hectare", "grupo": "Área"},
+    {"sigla": "L", "nome": "Litro", "grupo": "Volume"},
+    {"sigla": "ML", "nome": "Mililitro", "grupo": "Volume"},
+    {"sigla": "M3", "nome": "Metro cúbico", "grupo": "Volume"},
+    {"sigla": "CM3", "nome": "Centímetro cúbico", "grupo": "Volume"},
+    {"sigla": "KG", "nome": "Quilograma", "grupo": "Massa"},
+    {"sigla": "G", "nome": "Grama", "grupo": "Massa"},
+    {"sigla": "MG", "nome": "Miligrama", "grupo": "Massa"},
+    {"sigla": "T", "nome": "Tonelada", "grupo": "Massa"},
+    {"sigla": "H", "nome": "Hora", "grupo": "Tempo e serviço"},
+    {"sigla": "D", "nome": "Dia", "grupo": "Tempo e serviço"},
+    {"sigla": "MES", "nome": "Mês", "grupo": "Tempo e serviço"},
+    {"sigla": "ANO", "nome": "Ano", "grupo": "Tempo e serviço"},
+    {"sigla": "HH", "nome": "Homem-hora", "grupo": "Tempo e serviço"},
+    {"sigla": "SV", "nome": "Serviço", "grupo": "Tempo e serviço"},
+    {"sigla": "US", "nome": "Unidade de serviço", "grupo": "Tempo e serviço"},
+    {"sigla": "VB", "nome": "Verba", "grupo": "Tempo e serviço"},
 ]
 
 _ALIAS = {
@@ -165,11 +164,9 @@ def normalizar_unidade(valor: str | None, *, padrao: str = "UN") -> str:
     raise ValueError(f"Unidade de medida inválida: {texto}")
 
 
-def quantidade_inteira(unidade: str | None) -> bool:
-    try:
-        sigla = normalizar_unidade(unidade)
-    except ValueError:
-        texto = (unidade or "UN").strip().lower()
-        return texto.startswith("un")
-    encontrada = unidade_por_sigla(sigla)
-    return bool(encontrada and encontrada["inteira"])
+CASAS_QUANTIDADE = 3
+
+
+def arredondar_quantidade(valor) -> float:
+    """Toda quantidade (item, NF, saldo) tem até 3 casas; evita resíduo de float como -1e-17."""
+    return round(float(valor or 0), CASAS_QUANTIDADE)

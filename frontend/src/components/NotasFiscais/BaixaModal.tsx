@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import useAuth from "@/hooks/useAuth"
 import { formatarDataBR } from "@/lib/contrato"
+import { formatarQuantidade } from "@/lib/money"
 import { contratosService, notasFiscaisService } from "../../services/api"
 
 export function BaixaModal({
@@ -144,7 +145,7 @@ export function BaixaModal({
                       <td
                         className={`px-3 py-2 text-right tabular-nums ${item.critico ? "text-critical font-semibold" : ""}`}
                       >
-                        {item.atual} → {item.resultante} {item.unidade}
+                        {formatarQuantidade(item.atual)} → {formatarQuantidade(item.resultante)} {item.unidade}
                       </td>
                     </tr>
                   ))}

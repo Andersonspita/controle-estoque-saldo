@@ -6,7 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 
 import { Button } from "@/components/ui/button"
 import { MoneyInput } from "@/components/ui/money-input"
-import { formatarMoeda, quantidadeInteira } from "@/lib/money"
+import { formatarMoeda, PASSO_QUANTIDADE } from "@/lib/money"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 
@@ -132,9 +132,6 @@ export function ManualNFModal({
         }
         if (!(item.quantidade > 0)) {
           throw new Error("A quantidade de cada item deve ser maior que zero.")
-        }
-        if (quantidadeInteira(item.unidade) && !Number.isInteger(Number(item.quantidade))) {
-          throw new Error(`A quantidade do item "${item.descricao}" deve ser inteira (${item.unidade}).`)
         }
       }
 
@@ -390,8 +387,8 @@ export function ManualNFModal({
                       <input
                         required
                         type="number"
-                        min={quantidadeInteira(item.unidade) ? 1 : 0.01}
-                        step={quantidadeInteira(item.unidade) ? 1 : "any"}
+                        min={PASSO_QUANTIDADE}
+                        step={PASSO_QUANTIDADE}
                         value={item.quantidade}
                         onChange={(e) =>
                           atualizarItem(index, { quantidade: Number(e.target.value) })

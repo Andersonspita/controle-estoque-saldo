@@ -12,7 +12,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { formatarMoeda } from "@/lib/money"
+import { formatarMoeda, formatarQuantidade } from "@/lib/money"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 import { StatusVinculoBadge } from "./vinculoStatus"
@@ -377,7 +377,7 @@ export function ImportNFModal({
                                   <p className="text-muted-foreground">Cód: {v.codigo_nf}</p>
                                 )}
                                 <p className="text-muted-foreground">
-                                  {v.quantidade} {v.unidade} ·{" "}
+                                  {formatarQuantidade(v.quantidade)} {v.unidade} ·{" "}
                                   {formatarMoeda(v.valor_unitario)}
                                 </p>
                               </td>

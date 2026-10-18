@@ -6,7 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 
 import { contratosService, fornecedoresService, unidadesMedidaService, modalidadesLicitacaoService } from "../../services/api"
 import { formatarCpfCnpj } from "@/lib/documento"
-import { formatarMoeda } from "@/lib/money"
+import { formatarMoeda, PASSO_QUANTIDADE } from "@/lib/money"
 import { dataISO } from "@/lib/contrato"
 import {
   UNIDADES_MEDIDA,
@@ -600,8 +600,8 @@ export function AddContratoModal({
                         <input
                           required
                           type="number"
-                          step="any"
-                          min="0.1"
+                          step={PASSO_QUANTIDADE}
+                          min={PASSO_QUANTIDADE}
                           value={item.quantidade_contratada}
                           onChange={(e) => {
                             const n = [...itens]

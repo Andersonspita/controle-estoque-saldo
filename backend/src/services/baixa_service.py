@@ -10,6 +10,7 @@ from ..core.audit import registrar_auditoria
 from ..database.models import NotaFiscal, ItemContrato, Movimentacao, Contrato
 from ..schemas import BaixaRequest
 from ..http_errors import MENSAGEM_GENERICA, logger
+from .unidades_medida import arredondar_quantidade
 
 
 def contrato_vencido(contrato, hoje: date | None = None) -> bool:
@@ -89,7 +90,7 @@ async def efetuar_baixa_nf(
             raise HTTPException(status_code=404, detail=f"Item de Contrato ID {item_nf.item_contrato_id} não encontrado")
 
         saldo_anterior = item_contrato.saldo_atual
-        novo_saldo = saldo_anterior - item_nf.quantidade
+        novo_saldo = arredondar_quantidade(saldo_anterior - item_nf.quantidade)
 
         # Atualiza o saldo no banco (se ficar < 0, o banco dará rollback ao final no commit)
         item_contrato.saldo_atual = novo_saldo

@@ -28,6 +28,7 @@ from ..services.aditivo import (
     valor_total_itens,
 )
 from ..services.arquivos import caminho_upload_seguro
+from ..services.unidades_medida import arredondar_quantidade
 from ..core.audit import registrar_auditoria, get_client_ip
 
 router = APIRouter(
@@ -269,7 +270,7 @@ async def update_contrato(
                 item.unidade = item_in.unidade
                 item.quantidade_contratada = item_in.quantidade_contratada
                 item.valor_unitario = item_in.valor_unitario
-                item.saldo_atual = item_in.quantidade_contratada - consumido
+                item.saldo_atual = arredondar_quantidade(item_in.quantidade_contratada - consumido)
                 ids_enviados.add(item.id)
             else:
                 proximo_numero += 1

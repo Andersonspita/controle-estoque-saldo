@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.schemas import ContratoCreate, ItemContratoCreate
-from src.services.unidades_medida import quantidade_inteira, normalizar_unidade
+from src.services.unidades_medida import arredondar_quantidade, normalizar_unidade
 
 
 def test_ano_vem_da_vigencia_inicial():
@@ -67,11 +67,10 @@ def test_normalizar_aliases_comuns():
     assert normalizar_unidade("m²") == "M2"
 
 
-def test_quantidade_inteira_nas_unidades_discretas():
-    assert quantidade_inteira("UN") is True
-    assert quantidade_inteira("CX") is True
-    assert quantidade_inteira("KG") is False
-    assert quantidade_inteira("L") is False
+def test_quantidade_arredonda_em_tres_casas_e_limpa_residuo_de_float():
+    assert arredondar_quantidade(2.5004) == 2.5
+    assert arredondar_quantidade(0.1 + 0.2) == 0.3
+    assert arredondar_quantidade(0.3 - 0.1 - 0.2) == 0
 
 
 def test_contrato_aceita_dados_da_licitacao_e_observacao():

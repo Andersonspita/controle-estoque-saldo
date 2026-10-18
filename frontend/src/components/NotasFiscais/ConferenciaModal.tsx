@@ -5,6 +5,7 @@ import { AlertTriangle, Link2, Loader2 } from "lucide-react"
 import * as Dialog from "@radix-ui/react-dialog"
 
 import { Button } from "@/components/ui/button"
+import { formatarQuantidade } from "@/lib/money"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 import { StatusVinculoBadge } from "./vinculoStatus"
@@ -131,7 +132,7 @@ export function ConferenciaModal({
                             <p className="text-muted-foreground">Cód: {v.codigo}</p>
                           )}
                           <p className="text-muted-foreground">
-                            {v.quantidade} {v.unidade}
+                            {formatarQuantidade(v.quantidade)} {v.unidade}
                           </p>
                         </td>
                         <td className="px-3 py-2">

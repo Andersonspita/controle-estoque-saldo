@@ -4,9 +4,7 @@ import {
   numeroBR,
   percentualBR,
   quantidadeBR,
-  quantidadeTotalBR,
 } from "@/lib/relatorio"
-import { unidadeEhInteira } from "@/lib/unidadesMedida"
 
 import "./relatorio.css"
 
@@ -184,7 +182,6 @@ function TabelaItens({ contrato }: { contrato: RelatorioContrato }) {
             </tr>
           ) : (
             itens.map((item) => {
-              const inteira = unidadeEhInteira(item.unidade)
               const esgotado = item.quantidade_saldo <= 0
               return (
                 <tr
@@ -204,19 +201,19 @@ function TabelaItens({ contrato }: { contrato: RelatorioContrato }) {
                   <td className="rel-centro">{item.unidade}</td>
                   <td className="rel-num">{numeroBR(item.valor_unitario)}</td>
                   <td className="rel-num rel-grupo">
-                    {quantidadeBR(item.quantidade_contratada, inteira)}
+                    {quantidadeBR(item.quantidade_contratada)}
                   </td>
                   <td className="rel-num">{numeroBR(item.valor_contratado)}</td>
                   <td className="rel-num rel-grupo">
-                    {quantidadeBR(item.quantidade_aditivada, inteira)}
+                    {quantidadeBR(item.quantidade_aditivada)}
                   </td>
                   <td className="rel-num">{numeroBR(item.valor_aditivado)}</td>
                   <td className="rel-num rel-grupo">
-                    {quantidadeBR(item.quantidade_utilizada, inteira)}
+                    {quantidadeBR(item.quantidade_utilizada)}
                   </td>
                   <td className="rel-num">{numeroBR(item.valor_utilizado)}</td>
                   <td className="rel-num rel-grupo">
-                    {quantidadeBR(item.quantidade_saldo, inteira)}
+                    {quantidadeBR(item.quantidade_saldo)}
                   </td>
                   <td className="rel-num">{numeroBR(item.valor_saldo)}</td>
                   <td className="rel-num rel-grupo">
@@ -233,19 +230,19 @@ function TabelaItens({ contrato }: { contrato: RelatorioContrato }) {
               Totais
             </td>
             <td className="rel-num rel-grupo">
-              {quantidadeTotalBR(totais.quantidade_contratada)}
+              {quantidadeBR(totais.quantidade_contratada)}
             </td>
             <td className="rel-num">{numeroBR(totais.valor_contratado)}</td>
             <td className="rel-num rel-grupo">
-              {quantidadeTotalBR(totais.quantidade_aditivada)}
+              {quantidadeBR(totais.quantidade_aditivada)}
             </td>
             <td className="rel-num">{numeroBR(totais.valor_aditivado)}</td>
             <td className="rel-num rel-grupo">
-              {quantidadeTotalBR(totais.quantidade_utilizada)}
+              {quantidadeBR(totais.quantidade_utilizada)}
             </td>
             <td className="rel-num">{numeroBR(totais.valor_utilizado)}</td>
             <td className="rel-num rel-grupo">
-              {quantidadeTotalBR(totais.quantidade_saldo)}
+              {quantidadeBR(totais.quantidade_saldo)}
             </td>
             <td className="rel-num">{numeroBR(totais.valor_saldo)}</td>
             <td className="rel-num rel-grupo">

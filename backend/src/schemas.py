@@ -1,9 +1,11 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, Field, computed_field, field_validator, model_validator
-from typing import Literal, Optional, List
+from pydantic import AfterValidator, BaseModel, EmailStr, ConfigDict, Field, computed_field, field_validator, model_validator
+from typing import Annotated, Literal, Optional, List
 from datetime import date, datetime
 
 from .services.documento import formatar_cpf_cnpj
-from .services.unidades_medida import normalizar_unidade
+from .services.unidades_medida import arredondar_quantidade, normalizar_unidade
+
+Quantidade = Annotated[float, AfterValidator(arredondar_quantidade)]
 from .services.modalidades_licitacao import normalizar_modalidade
 
 class FornecedorBase(BaseModel):
@@ -92,7 +94,6 @@ class UnidadeMedidaOut(BaseModel):
     sigla: str
     nome: str
     grupo: str
-    inteira: bool
 
 class ContratoBase(BaseModel):
     licitacao_id: Optional[int] = None
@@ -129,7 +130,7 @@ class ItemContratoCreate(BaseModel):
     unidade: str = "UN"
     marca: Optional[str] = None
     observacao: Optional[str] = None
-    quantidade_contratada: float
+    quantidade_contratada: Quantidade
     valor_unitario: float
     numero_item: Optional[int] = None
 
@@ -169,7 +170,7 @@ class ItemContratoUpdate(BaseModel):
     unidade: str = "UN"
     marca: Optional[str] = None
     observacao: Optional[str] = None
-    quantidade_contratada: float
+    quantidade_contratada: Quantidade
     valor_unitario: float
     numero_item: Optional[int] = None
 
@@ -315,7 +316,7 @@ class ItemNFEntrada(BaseModel):
     codigo: Optional[str] = None
     codigo_produto: Optional[str] = None
     descricao: str
-    quantidade: float
+    quantidade: Quantidade
     unidade: str
     valor_unitario: float
     gtin: Optional[str] = None
@@ -345,7 +346,7 @@ class VincularItensResponse(BaseModel):
 class ItemNotaFiscalCreate(BaseModel):
     codigo: Optional[str] = None
     descricao: str
-    quantidade: float
+    quantidade: Quantidade
     unidade: str
     valor_unitario: float
     item_contrato_id: Optional[int] = None

@@ -1,4 +1,4 @@
-import { formatarMoeda } from "@/lib/money"
+import { formatarMoeda, formatarQuantidade } from "@/lib/money"
 
 /** Rótulo para selects de item do contrato: nome + valor unitário + saldo. */
 export function rotuloItemContrato(item: {
@@ -21,7 +21,7 @@ export function rotuloItemContrato(item: {
   }
   if (item.saldo_atual != null) {
     const unidade = item.unidade ? ` ${item.unidade}` : ""
-    extras.push(`saldo: ${item.saldo_atual}${unidade}`)
+    extras.push(`saldo: ${formatarQuantidade(item.saldo_atual)}${unidade}`)
   }
   return extras.length ? `${base} — ${extras.join(" · ")}` : base
 }

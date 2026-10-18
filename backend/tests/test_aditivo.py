@@ -33,12 +33,21 @@ def test_percentual_usa_quantidade_inicial_mesmo_apos_outro_aditivo():
     assert item.quantidade_contratada == 120
 
 
-def test_percentual_em_un_arredonda_para_baixo():
-    assert quantidade_por_percentual(_item(quantidade_inicial=10), 25) == 2
+def test_percentual_em_un_aceita_decimal():
+    assert quantidade_por_percentual(_item(quantidade_inicial=10), 25) == 2.5
 
 
-def test_percentual_em_kg_aceita_decimal():
-    assert quantidade_por_percentual(_item(unidade="KG", quantidade_inicial=10), 25) == 2.5
+def test_percentual_trunca_na_terceira_casa():
+    # 7 x 12,345% = 0,86415 -> 0,864 (nunca passa do percentual)
+    assert quantidade_por_percentual(_item(quantidade_inicial=7), 12.345) == 0.864
+
+
+def test_percentual_exato_nao_perde_milesimo_por_float():
+    # 3 x 10% = 0,3 em float vira 0,30000000000000004 ou 0,2999...
+    item = _item(quantidade_inicial=3, quantidade_contratada=3, saldo_atual=0.1)
+    assert aplicar_percentual_quantidade(item, 10) == 0.3
+    assert item.quantidade_contratada == 3.3
+    assert item.saldo_atual == 0.4
 
 
 def test_reequilibrio_altera_so_valor_unitario():
@@ -73,3 +82,9 @@ def test_prazo_descarta_percentual():
 def test_reequilibrio_nao_aceita_zero():
     with pytest.raises(ValidationError):
         ContratoAditivoIn(numero="1", tipo="REEQUILIBRIO", percentual=0)
+
+
+def test_quantidade_do_item_do_contrato_tem_tres_casas():
+    from src.schemas import ItemContratoCreate, ItemNotaFiscalCreate
+    assert ItemContratoCreate(descricao="x", quantidade_contratada=1.23456, valor_unitario=1).quantidade_contratada == 1.235
+    assert ItemNotaFiscalCreate(descricao="x", quantidade=0.1 + 0.2, unidade="UN", valor_unitario=1).quantidade == 0.3

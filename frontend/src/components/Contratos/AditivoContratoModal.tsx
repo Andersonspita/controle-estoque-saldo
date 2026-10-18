@@ -6,7 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 
 import { Button } from "@/components/ui/button"
 import { descreverAditivo, rotuloContrato, TIPOS_ADITIVO } from "@/lib/contrato"
-import { formatarMoeda, quantidadeInteira } from "@/lib/money"
+import { arredondarQuantidade, formatarMoeda, formatarQuantidade } from "@/lib/money"
 import { contratosService } from "../../services/api"
 
 type TipoAditivo = "PRAZO" | "VALOR" | "VALOR_PRAZO" | "REEQUILIBRIO"
@@ -26,13 +26,10 @@ function diaSeguinte(data?: string | null) {
   return d.toLocaleDateString("sv-SE")
 }
 
-/** Mesmo cálculo do backend: base na quantidade inicial, unidade inteira arredonda para baixo. */
+/** Mesmo cálculo do backend: base na quantidade inicial, truncado na 3ª casa. */
 function acrescimo(item: any, percentual: number) {
   const base = Number(item.quantidade_inicial ?? item.quantidade_contratada) || 0
-  const extra = (base * percentual) / 100
-  return quantidadeInteira(item.unidade)
-    ? Math.floor(extra + 1e-9)
-    : Math.round(extra * 10000) / 10000
+  return Math.floor(base * percentual * 10 + 1e-6) / 1000
 }
 
 export function AditivoContratoModal({
@@ -259,7 +256,10 @@ export function AditivoContratoModal({
                           {item.descricao}
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                          {extra ? `${qtd} → ${qtd + extra}` : qtd} {item.unidade}
+                          {extra
+                            ? `${formatarQuantidade(qtd)} → ${formatarQuantidade(arredondarQuantidade(qtd + extra))}`
+                            : formatarQuantidade(qtd)}{" "}
+                          {item.unidade}
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
                           {novoVu !== vu
