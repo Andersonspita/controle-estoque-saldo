@@ -205,10 +205,8 @@ export function ManualNFModal({
           codigo: itemContrato.codigo || item.codigo,
           descricao: itemContrato.descricao || item.descricao,
           unidade: itemContrato.unidade || item.unidade || "UN",
-          valor_unitario:
-            item.valor_unitario > 0
-              ? item.valor_unitario
-              : itemContrato.valor_unitario || 0,
+          // Assume o preço do contrato; o usuário ainda pode ajustar.
+          valor_unitario: Number(itemContrato.valor_unitario) || 0,
         }
       }),
     )
@@ -432,9 +430,15 @@ export function ManualNFModal({
                         <Trash2 size={16} />
                       </Button>
                     </div>
-                    {item.descricao ? (
-                      <p className="col-span-12 text-xs text-muted-foreground">{item.descricao}</p>
-                    ) : null}
+                    <div className="col-span-12 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="min-w-0 truncate">{item.descricao}</span>
+                      <span className="shrink-0">
+                        Total do item:{" "}
+                        <strong className="tabular-nums text-foreground">
+                          {formatarMoeda((Number(item.quantidade) || 0) * (item.valor_unitario || 0))}
+                        </strong>
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>

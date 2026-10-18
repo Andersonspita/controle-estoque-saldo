@@ -36,6 +36,8 @@ type VinculoItem = {
   percentual_confianca: number
   status_identificacao: string
   criterio_identificacao?: string | null
+  /** Linha digitada pelo usuário (não veio da leitura do arquivo). */
+  manual?: boolean
 }
 
 type Cabecalho = { numero: string; serie: string; data_emissao: string; valor_total: number }
@@ -64,6 +66,7 @@ function linhaManual(indice: number): VinculoItem {
     item_contrato_id: null,
     percentual_confianca: 100,
     status_identificacao: "MANUAL",
+    manual: true,
   }
 }
 
@@ -87,6 +90,8 @@ export function ImportNFModal({
   const [vinculos, setVinculos] = useState<VinculoItem[]>([])
   const [loadingVinculos, setLoadingVinculos] = useState(false)
   const [falhaLeitura, setFalhaLeitura] = useState("")
+  // No preenchimento manual o total da nota acompanha a soma dos itens até o usuário digitar outro.
+  const [totalAutomatico, setTotalAutomatico] = useState(false)
 
   const { data: contratos = [], isLoading: isLoadingContratos } = useQuery({
     queryKey: ["contratos"],
@@ -145,6 +150,7 @@ export function ImportNFModal({
   const carregarDados = (data: any) => {
     setParsedData(data)
     setFalhaLeitura("")
+    setTotalAutomatico(!(Number(data.valor_total) > 0))
     setCabecalho({
       numero: data.numero ? String(data.numero) : "",
       serie: data.serie ? String(data.serie) : "",
@@ -196,8 +202,7 @@ export function ImportNFModal({
     setVinculos((prev) =>
       prev.map((v) => {
         if (v.indice_nf !== indice) return v
-        // Linha digitada à mão herda descrição, unidade e preço do item do contrato.
-        const semLeitura = !v.descricao_nf
+        // Linha digitada à mão assume descrição, unidade e preço do item do contrato.
         return {
           ...v,
           item_contrato_id: id,
@@ -206,7 +211,7 @@ export function ImportNFModal({
           percentual_confianca: 100,
           status_identificacao: "MANUAL",
           criterio_identificacao: null,
-          ...(semLeitura && itemContrato
+          ...(v.manual && itemContrato
             ? {
                 descricao_nf: itemContrato.descricao,
                 unidade: itemContrato.unidade || v.unidade,
@@ -231,6 +236,9 @@ export function ImportNFModal({
     (acc, v) => acc + (Number(v.quantidade) || 0) * (Number(v.valor_unitario) || 0),
     0,
   )
+  const valorTotalNota = totalAutomatico
+    ? Math.round(somaItens * 100) / 100
+    : cabecalho.valor_total
   const itensPendentes = vinculos.filter(
     (v) => v.item_contrato_id === null || !(Number(v.quantidade) > 0),
   ).length
@@ -284,7 +292,7 @@ export function ImportNFModal({
       chave_acesso: parsedData.chave_acesso || null,
       data_emissao: cabecalho.data_emissao || null,
       // Sem valor informado, o backend usa a soma dos itens.
-      valor_total: cabecalho.valor_total > 0 ? cabecalho.valor_total : null,
+      valor_total: valorTotalNota > 0 ? valorTotalNota : null,
       itens: itensParaImportar,
     }
     formData.append("nota_fiscal_data", JSON.stringify(nfData))
@@ -306,7 +314,7 @@ export function ImportNFModal({
             e os itens manualmente — o arquivo fica anexado.
           </Dialog.Description>
 
-          <form onSubmit={handleSubmit} className="mt-4 space-y-6">
+          <form onSubmit={handleSubmit} className="mt-4 min-w-0 space-y-6">
             <div
               className={`rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
                 file
@@ -463,12 +471,24 @@ export function ImportNFModal({
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-muted-foreground">
-                      Valor total
+                      Valor total{totalAutomatico ? " (soma dos itens)" : ""}
                     </label>
                     <MoneyInput
-                      value={cabecalho.valor_total}
-                      onValueChange={(valor) => setCabecalho({ ...cabecalho, valor_total: valor })}
+                      value={valorTotalNota}
+                      onValueChange={(valor) => {
+                        setTotalAutomatico(false)
+                        setCabecalho({ ...cabecalho, valor_total: valor })
+                      }}
                     />
+                    {!totalAutomatico && (
+                      <button
+                        type="button"
+                        className="text-[11px] text-primary underline-offset-2 hover:underline"
+                        onClick={() => setTotalAutomatico(true)}
+                      >
+                        Usar a soma dos itens
+                      </button>
+                    )}
                   </div>
                 </div>
                 {parsedData.fornecedor?.nome && (
@@ -524,7 +544,7 @@ export function ImportNFModal({
                     )}
                     {vinculos.length > 0 && (
                       <div className="min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border [-webkit-overflow-scrolling:touch]">
-                        <table className="w-full min-w-[48rem] text-xs">
+                        <table className="w-full min-w-[50rem] text-xs">
                           <thead className="bg-muted/50 text-muted-foreground">
                             <tr>
                               <th className="px-3 py-2 text-left font-medium">Item da NF</th>
@@ -536,6 +556,9 @@ export function ImportNFModal({
                               </th>
                               <th className="w-32 px-3 py-2 text-left font-medium">
                                 Valor unitário
+                              </th>
+                              <th className="w-28 px-3 py-2 text-right font-medium">
+                                Total do item
                               </th>
                               <th className="px-3 py-2 text-left font-medium">Confiança</th>
                               <th className="w-8 px-1 py-2">
@@ -608,6 +631,11 @@ export function ImportNFModal({
                                     }
                                   />
                                 </td>
+                                <td className="px-3 py-2 text-right font-medium tabular-nums whitespace-nowrap text-foreground">
+                                  {formatarMoeda(
+                                    (Number(v.quantidade) || 0) * (Number(v.valor_unitario) || 0),
+                                  )}
+                                </td>
                                 <td className="px-3 py-2">
                                   <StatusVinculoBadge
                                     status={v.status_identificacao}
@@ -644,8 +672,9 @@ export function ImportNFModal({
                       <p className="text-xs text-muted-foreground">
                         Soma dos itens:{" "}
                         <strong className="text-foreground">{formatarMoeda(somaItens)}</strong>
-                        {cabecalho.valor_total > 0 &&
-                          Math.abs(cabecalho.valor_total - somaItens) > 0.01 && (
+                        {!totalAutomatico &&
+                          valorTotalNota > 0 &&
+                          Math.abs(valorTotalNota - somaItens) > 0.01 && (
                             <span className="ml-1 text-warning">
                               (difere do valor total da nota)
                             </span>
