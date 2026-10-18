@@ -18,7 +18,7 @@ import { pageTitle } from "@/lib/brand"
 import {
   contratoVencido,
   formatarVigencia,
-  rotuloContrato,
+  numeroContrato,
   situacaoContrato,
 } from "@/lib/contrato"
 import { formatarMoeda, totaisContrato } from "@/lib/money"
@@ -208,8 +208,13 @@ function ContratosPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-mono text-[15px] font-semibold">
-                        {rotuloContrato(contrato)}
+                        {numeroContrato(contrato)}
                       </p>
+                      {formatarVigencia(contrato.data_inicio, contrato.data_fim) ? (
+                        <p className="text-xs text-muted-foreground">
+                          Vigência {formatarVigencia(contrato.data_inicio, contrato.data_fim)}
+                        </p>
+                      ) : null}
                       {contrato.objeto ? (
                         <p className="line-clamp-2 text-sm">
                           {contrato.objeto}
@@ -321,13 +326,18 @@ function ContratosPage() {
                         className="block max-w-full text-left underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                       >
                         <span className="flex items-center gap-1">
-                          {rotuloContrato(contrato)}
+                          {numeroContrato(contrato)}
                           <ChevronRight
                             size={14}
                             aria-hidden
                             className="text-muted-foreground"
                           />
                         </span>
+                        {formatarVigencia(contrato.data_inicio, contrato.data_fim) ? (
+                          <span className="block text-xs font-normal text-muted-foreground">
+                            Vigência {formatarVigencia(contrato.data_inicio, contrato.data_fim)}
+                          </span>
+                        ) : null}
                         {contrato.objeto ? (
                           <span className="block max-w-xs truncate text-xs font-normal text-muted-foreground">
                             {contrato.objeto}
