@@ -16,18 +16,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { formatarDataBR } from "@/lib/contrato"
+import { diasAteVencimento, formatarDataBR, numeroContrato } from "@/lib/contrato"
 import { contratosService } from "@/services/api"
 
 // Contratos ativos que vencem dentro deste prazo também entram no aviso.
 const DIAS_AVISO = 30
-
-function diasAte(dataFim: string) {
-  const fim = new Date(`${dataFim.slice(0, 10)}T00:00:00`)
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
-  return Math.round((fim.getTime() - hoje.getTime()) / 86_400_000)
-}
 
 function texto(dias: number, dataFim: string) {
   if (dias < 0) return `Venceu em ${formatarDataBR(dataFim)} · faça o aditivo de prazo`
@@ -45,7 +38,7 @@ export function Notificacoes() {
 
   const avisos = (contratos as any[])
     .filter((c) => c.situacao === "Ativo" && c.data_fim)
-    .map((c) => ({ contrato: c, dias: diasAte(c.data_fim) }))
+    .map((c) => ({ contrato: c, dias: diasAteVencimento(c.data_fim) as number }))
     .filter(({ dias }) => dias <= DIAS_AVISO)
     .sort((a, b) => a.dias - b.dias)
 
@@ -94,8 +87,7 @@ export function Notificacoes() {
                   />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">
-                      Contrato {contrato.numero}
-                      {contrato.ano ? `/${contrato.ano}` : ""}
+                      Contrato {numeroContrato(contrato)}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {contrato.fornecedor?.razao_social || contrato.objeto}

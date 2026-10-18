@@ -15,7 +15,12 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsMobile } from "@/hooks/useMobile"
 import { pageTitle } from "@/lib/brand"
-import { formatarVigencia, rotuloContrato } from "@/lib/contrato"
+import {
+  contratoVencido,
+  formatarVigencia,
+  rotuloContrato,
+  situacaoContrato,
+} from "@/lib/contrato"
 import { formatarMoeda, totaisContrato } from "@/lib/money"
 import { percentualRestante } from "@/lib/status"
 import { cn } from "@/lib/utils"
@@ -76,7 +81,9 @@ function ContratosPage() {
     const termo = query.trim().toLowerCase()
     return contratos
       .filter((contrato: any) => {
-        if (status === "ativos" && contrato.situacao !== "Ativo") return false
+        const vencido = contratoVencido(contrato)
+        if (status === "ativos" && (contrato.situacao !== "Ativo" || vencido)) return false
+        if (status === "vencidos" && !vencido) return false
         if (status === "encerrados" && contrato.situacao === "Ativo")
           return false
         const totais = totaisContrato(contrato)
@@ -136,6 +143,7 @@ function ContratosPage() {
         onTabChange={setStatus}
         tabs={[
           { value: "ativos", label: "Ativos" },
+          { value: "vencidos", label: "Vencidos" },
           { value: "encerrados", label: "Encerrados" },
           { value: "todos", label: "Todos" },
         ]}
@@ -219,12 +227,8 @@ function ContratosPage() {
                           `Fornecedor ID ${contrato.fornecedor_id}`}
                       </p>
                     </div>
-                    <Badge
-                      variant={
-                        contrato.situacao === "Ativo" ? "success" : "secondary"
-                      }
-                    >
-                      {contrato.situacao}
+                    <Badge variant={situacaoContrato(contrato).variant}>
+                      {situacaoContrato(contrato).rotulo}
                     </Badge>
                   </div>
                   <p className="text-lg font-bold tabular-nums">
@@ -368,14 +372,8 @@ function ContratosPage() {
                       </p>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge
-                        variant={
-                          contrato.situacao === "Ativo"
-                            ? "success"
-                            : "secondary"
-                        }
-                      >
-                        {contrato.situacao}
+                      <Badge variant={situacaoContrato(contrato).variant}>
+                        {situacaoContrato(contrato).rotulo}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">

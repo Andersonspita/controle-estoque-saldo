@@ -13,6 +13,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatarMoeda, formatarQuantidade } from "@/lib/money"
+import { numeroContrato } from "@/lib/contrato"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 import { StatusVinculoBadge } from "./vinculoStatus"
@@ -279,7 +280,7 @@ export function ImportNFModal({
                 </option>
                 {contratos.map((c: any) => (
                   <option key={c.id} value={c.id}>
-                    {c.numero}/{c.ano} - {c.fornecedor?.razao_social || "Fornecedor"} (
+                    {numeroContrato(c)} - {c.fornecedor?.razao_social || "Fornecedor"} (
                     {c.itens?.length || 0} item(ns))
                   </option>
                 ))}

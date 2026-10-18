@@ -1,4 +1,4 @@
-import { descreverAditivo, formatarDataBR } from "@/lib/contrato"
+import { descreverAditivo, formatarDataBR, numeroContrato } from "@/lib/contrato"
 import {
   dataHoraExtenso,
   numeroBR,
@@ -290,7 +290,7 @@ function FolhaContrato({
         <div className="rel-grade">
           <Campo
             rotulo="Contrato nº"
-            valor={`${contrato.numero}/${contrato.ano}`}
+            valor={numeroContrato(contrato)}
             forte
           />
           <Campo rotulo="Situação" valor={contrato.situacao} />
@@ -365,7 +365,7 @@ function FolhaContrato({
       <div className="rel-rodape">
         <span>{dataHoraExtenso(geradoEm)}</span>
         <span>
-          Contrato {contrato.numero}/{contrato.ano} · {contrato.itens.length}{" "}
+          Contrato {numeroContrato(contrato)} · {contrato.itens.length}{" "}
           {contrato.itens.length === 1 ? "item" : "itens"}
         </span>
       </div>
@@ -403,7 +403,7 @@ function FolhaConsolidada({ relatorio }: { relatorio: RelatorioSaldo }) {
             {contratos.map((contrato) => (
               <tr key={contrato.contrato_id}>
                 <td className="rel-centro">
-                  {contrato.numero}/{contrato.ano}
+                  {numeroContrato(contrato)}
                 </td>
                 <td>{contrato.fornecedor_razao_social}</td>
                 <td className="rel-centro">

@@ -32,6 +32,8 @@ def gerar_termo_contrato_vencido(
     data_baixa: datetime,
 ) -> bytes:
     e = lambda v: escape(str(v or ""))  # noqa: E731
+    # O número muitas vezes já traz o ano ("012/2024"); não repete.
+    numero_contrato = contrato_numero if not contrato_ano or "/" in str(contrato_numero) else f"{contrato_numero}/{contrato_ano}"
     nf = f"{e(nf_numero)}{'/' + e(nf_serie) if nf_serie else ''}"
     html = f"""
     <h2 style="text-align:center">TERMO DE RESPONSABILIDADE</h2>
@@ -41,7 +43,7 @@ def gerar_termo_contrato_vencido(
       <tr><td><b>Nota fiscal</b></td><td>{nf}</td></tr>
       <tr><td><b>Valor da nota</b></td><td>{_moeda(nf_valor)}</td></tr>
       <tr><td><b>Fornecedor</b></td><td>{e(fornecedor)}</td></tr>
-      <tr><td><b>Contrato</b></td><td>{e(contrato_numero)}/{e(contrato_ano)}</td></tr>
+      <tr><td><b>Contrato</b></td><td>{e(numero_contrato)}</td></tr>
       <tr><td><b>Vigência encerrada em</b></td><td>{_data_br(contrato_data_fim)}</td></tr>
       <tr><td><b>Data da baixa</b></td><td>{data_baixa:%d/%m/%Y %H:%M}</td></tr>
     </table>

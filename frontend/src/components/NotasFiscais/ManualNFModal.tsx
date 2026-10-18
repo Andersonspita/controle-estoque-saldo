@@ -7,6 +7,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { Button } from "@/components/ui/button"
 import { MoneyInput } from "@/components/ui/money-input"
 import { formatarMoeda, PASSO_QUANTIDADE } from "@/lib/money"
+import { numeroContrato } from "@/lib/contrato"
 import { rotuloItemContrato } from "@/lib/rotuloItemContrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 
@@ -260,7 +261,7 @@ export function ManualNFModal({
                 </option>
                 {contratos.map((c: any) => (
                   <option key={c.id} value={c.id}>
-                    {c.numero}/{c.ano} — {c.fornecedor?.razao_social || "Fornecedor"} (
+                    {numeroContrato(c)} — {c.fornecedor?.razao_social || "Fornecedor"} (
                     {c.itens?.length || 0} item(ns))
                   </option>
                 ))}

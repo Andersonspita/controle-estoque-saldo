@@ -11,7 +11,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { descreverAditivo, formatarVigencia } from "@/lib/contrato"
+import {
+  descreverAditivo,
+  formatarVigencia,
+  numeroContrato,
+  situacaoContrato,
+} from "@/lib/contrato"
 import {
   formatarMoeda,
   saldoMonetarioItem,
@@ -126,15 +131,10 @@ export function ContratoDetalhePanel({
             <SheetHeader className="border-b p-5 pr-12">
               <div className="flex flex-wrap items-center gap-2">
                 <SheetTitle className="font-mono text-lg">
-                  Contrato {contrato.numero}
-                  {contrato.ano ? `/${contrato.ano}` : ""}
+                  Contrato {numeroContrato(contrato)}
                 </SheetTitle>
-                <Badge
-                  variant={
-                    contrato.situacao === "Ativo" ? "success" : "secondary"
-                  }
-                >
-                  {contrato.situacao}
+                <Badge variant={situacaoContrato(contrato).variant}>
+                  {situacaoContrato(contrato).rotulo}
                 </Badge>
               </div>
               <SheetDescription className="text-sm">
