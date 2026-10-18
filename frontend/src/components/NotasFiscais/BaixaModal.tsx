@@ -6,6 +6,8 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import useAuth from "@/hooks/useAuth"
+import { formatarDataBR } from "@/lib/contrato"
 import { contratosService, notasFiscaisService } from "../../services/api"
 
 export function BaixaModal({
@@ -18,15 +20,23 @@ export function BaixaModal({
   onOpenChange: (open: boolean) => void
 }) {
   const queryClient = useQueryClient()
+  const { isAdmin } = useAuth()
   const [justificativa, setJustificativa] = useState("")
+  const [motivoVencido, setMotivoVencido] = useState("")
+  const [solicitante, setSolicitante] = useState("")
 
   const { data: contratos = [] } = useQuery({
     queryKey: ["contratos"],
     queryFn: () => contratosService.listar(),
   })
 
+  const contrato = contratos.find((c: any) => c.id === nf?.contrato_id)
+  // Mesma regra do backend: vence no dia seguinte ao data_fim.
+  const hoje = new Date().toLocaleDateString("sv-SE")
+  const vencido = Boolean(contrato?.data_fim && String(contrato.data_fim).slice(0, 10) < hoje)
+
   const previsao = useMemo(() => {
-    const itensContrato = (contratos.find((c: any) => c.id === nf?.contrato_id)?.itens || []) as any[]
+    const itensContrato = (contrato?.itens || []) as any[]
     return (nf?.itens || []).map((item: any) => {
       const contratoItem = itensContrato.find((it) => it.id === item.item_contrato_id)
       const atual = Number(contratoItem?.saldo_atual ?? 0)
@@ -42,12 +52,17 @@ export function BaixaModal({
         unidade: contratoItem?.unidade || item.unidade || "UN",
       }
     })
-  }, [contratos, nf])
+  }, [contrato, nf])
 
   const mutation = useMutation({
-    mutationFn: (data: { justificativa?: string }) =>
+    mutationFn: (data: Parameters<typeof notasFiscaisService.baixar>[1]) =>
       notasFiscaisService.baixar(nf.id, data),
     onSuccess: (data) => {
+      if (vencido) {
+        notasFiscaisService.downloadTermoContratoVencido(nf).catch(() =>
+          toast.error("Baixa feita, mas o termo não foi gerado. Tente baixá-lo novamente."),
+        )
+      }
       toast.success("Baixa realizada com sucesso!", {
         description: `Foram geradas ${data.length} movimentações no histórico.`,
       })
@@ -75,6 +90,10 @@ export function BaixaModal({
     e.preventDefault()
     mutation.mutate({
       justificativa: justificativa.trim() || undefined,
+      ...(vencido && {
+        motivo_contrato_vencido: motivoVencido.trim(),
+        solicitante: solicitante.trim(),
+      }),
     })
   }
 
@@ -96,6 +115,18 @@ export function BaixaModal({
               Se a quantidade desta nota exceder o saldo disponível, a operação será inteiramente desfeita.
             </p>
           </div>
+
+          {vencido && (
+            <div className="flex items-start gap-3 rounded-lg border border-critical/30 bg-critical-bg p-4">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-critical" />
+              <p className="text-sm text-critical">
+                O contrato {contrato?.numero} venceu em {formatarDataBR(contrato?.data_fim)}.{" "}
+                {isAdmin
+                  ? "A baixa gera um termo de responsabilidade em PDF, que deve ser assinado por você e por quem solicitou."
+                  : "Somente um administrador pode baixar nota em contrato vencido."}
+              </p>
+            </div>
+          )}
 
           {previsao.length > 0 && (
             <div className="max-h-[40vh] overflow-y-auto rounded-lg border">
@@ -133,13 +164,39 @@ export function BaixaModal({
               />
             </div>
 
+            {vencido && isAdmin && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Quem solicitou a baixa *</label>
+                  <input
+                    required
+                    value={solicitante}
+                    onChange={(e) => setSolicitante(e.target.value)}
+                    placeholder="Nome do solicitante"
+                    className="h-10 w-full rounded-lg border border-input px-3 text-sm outline-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Motivo da baixa em contrato vencido *</label>
+                  <textarea
+                    required
+                    minLength={10}
+                    value={motivoVencido}
+                    onChange={(e) => setMotivoVencido(e.target.value)}
+                    placeholder="Ex: Entrega feita dentro da vigência; aditivo de prazo em tramitação..."
+                    className="min-h-[88px] w-full rounded-lg border border-input p-3 text-sm outline-none"
+                  />
+                </div>
+              </>
+            )}
+
             <div className="sticky bottom-0 flex justify-end gap-3 border-t bg-card pt-4">
               <Dialog.Close asChild>
                 <Button type="button" variant="outline">
                   Cancelar
                 </Button>
               </Dialog.Close>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" disabled={mutation.isPending || (vencido && !isAdmin)}>
                 {mutation.isPending && <Loader2 className="animate-spin" />}
                 Confirmar baixa
               </Button>

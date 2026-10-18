@@ -157,6 +157,9 @@ export function AddContratoModal({
     0,
   )
 
+  // Contrato vencido pode ser lançado (ex.: para aditivar), só avisamos.
+  const vencido = Boolean(formData.data_fim) && formData.data_fim < new Date().toLocaleDateString("sv-SE")
+
   const mutation = useMutation({
     mutationFn: async (data: any) => {
       const salvo = editando
@@ -169,6 +172,12 @@ export function AddContratoModal({
     },
     onSuccess: () => {
       toast.success(editando ? "Contrato atualizado" : "Contrato cadastrado com sucesso!")
+      if (vencido) {
+        toast.warning("Contrato com vigência vencida", {
+          description: "Faça o aditivo de prazo. Até lá, só um administrador pode baixar notas nele.",
+          duration: 8000,
+        })
+      }
       queryClient.invalidateQueries({ queryKey: ["contratos"] })
       onOpenChange(false)
     },
@@ -360,6 +369,12 @@ export function AddContratoModal({
                   className={campo}
                 />
               </div>
+              {vencido && (
+                <p className="col-span-full rounded-lg border border-warning/30 bg-warning-bg p-3 text-sm text-warning">
+                  A vigência final já passou: o contrato será salvo como vencido. Você poderá aditivá-lo depois;
+                  baixa de nota nele só por administrador, com termo de responsabilidade.
+                </p>
+              )}
               <div className="space-y-1">
                 <label className="font-medium">Número da licitação</label>
                 <input

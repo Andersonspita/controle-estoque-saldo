@@ -1,4 +1,5 @@
 import os
+from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -6,9 +7,14 @@ from fastapi import HTTPException
 from typing import List
 
 from ..core.audit import registrar_auditoria
-from ..database.models import NotaFiscal, ItemContrato, Movimentacao
+from ..database.models import NotaFiscal, ItemContrato, Movimentacao, Contrato
 from ..schemas import BaixaRequest
 from ..http_errors import MENSAGEM_GENERICA, logger
+
+
+def contrato_vencido(contrato, hoje: date | None = None) -> bool:
+    return bool(contrato and contrato.data_fim and contrato.data_fim < (hoje or date.today()))
+
 
 async def efetuar_baixa_nf(
     nf_id: int, 
@@ -16,6 +22,7 @@ async def efetuar_baixa_nf(
     db: AsyncSession,
     usuario_id: int,
     ip: str | None = None,
+    admin: bool = False,
 ) -> List[Movimentacao]:
     
     # 1. Busca a NF bloqueando a linha (FOR UPDATE) para evitar baixa duplicada
@@ -36,6 +43,34 @@ async def efetuar_baixa_nf(
 
     if not nf.itens:
         raise HTTPException(status_code=400, detail="Nota Fiscal não possui itens vinculados")
+
+    # Contrato vencido: só o ADMIN baixa, com motivo e solicitante para o termo de responsabilidade.
+    contrato = await db.get(Contrato, nf.contrato_id)
+    dados_vencido = {}
+    if contrato_vencido(contrato):
+        if not admin:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"O contrato {contrato.numero} venceu em {contrato.data_fim:%d/%m/%Y}. "
+                    "Somente um administrador pode baixar nota em contrato vencido."
+                ),
+            )
+        motivo = (baixa_req.motivo_contrato_vencido or "").strip()
+        solicitante = (baixa_req.solicitante or "").strip()
+        if len(motivo) < 10 or not solicitante:
+            raise HTTPException(
+                status_code=422,
+                detail="Contrato vencido: informe o motivo da baixa (mín. 10 caracteres) e quem a solicitou.",
+            )
+        dados_vencido = {
+            "contrato_vencido": True,
+            "contrato_numero": contrato.numero,
+            "contrato_ano": contrato.ano,
+            "contrato_data_fim": str(contrato.data_fim),
+            "motivo_contrato_vencido": motivo,
+            "solicitante": solicitante,
+        }
 
     movimentacoes_geradas = []
     justificativa = baixa_req.justificativa or f"Baixa automática referente à NF {nf.numero}/{nf.serie}"
@@ -89,6 +124,7 @@ async def efetuar_baixa_nf(
             "status": nf.status,
             "qtd_itens": len(movimentacoes_geradas),
             "justificativa": justificativa,
+            **dados_vencido,
         },
         ip=ip,
     )

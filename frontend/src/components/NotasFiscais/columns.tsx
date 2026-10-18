@@ -2,6 +2,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import {
   ArrowUpDown,
   Download,
+  FileText,
   Link2,
   MoreHorizontal,
   Pencil,
@@ -44,6 +45,7 @@ export function colunasNotasFiscais({
   onEditar,
   onEstornar,
   onExcluir,
+  onTermo,
   baixandoId,
   podeEstornar,
 }: {
@@ -53,6 +55,8 @@ export function colunasNotasFiscais({
   onEditar: (nf: NotaFiscalRow) => void
   onEstornar: (nf: NotaFiscalRow) => void
   onExcluir: (nf: NotaFiscalRow) => void
+  /** Só para ADMIN: re-emite o termo da baixa em contrato vencido. */
+  onTermo?: (nf: NotaFiscalRow) => void
   baixandoId: number | null
   /** Estornar e excluir dependem de liberação do administrador. */
   podeEstornar: boolean
@@ -139,6 +143,11 @@ export function colunasNotasFiscais({
                 {!baixada && (
                   <DropdownMenuItem onClick={() => onEditar(nf)}>
                     <Pencil /> Editar
+                  </DropdownMenuItem>
+                )}
+                {baixada && onTermo && (
+                  <DropdownMenuItem onClick={() => onTermo(nf)}>
+                    <FileText /> Termo de contrato vencido
                   </DropdownMenuItem>
                 )}
                 {baixada && podeEstornar && (

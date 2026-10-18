@@ -216,6 +216,8 @@ function Dashboard() {
     )
     .sort((a: { dias: number }, b: { dias: number }) => a.dias - b.dias)
 
+  const vencidos = aEncerrar.filter((linha) => linha.dias < 0)
+
   const notasPendentes = notas.filter(
     (nf: any) => nf.status !== "Baixada",
   ).length
@@ -266,6 +268,23 @@ function Dashboard() {
           </Button>
         </div>
       </header>
+
+      {vencidos.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertTitle>
+            {vencidos.length === 1
+              ? "1 contrato ativo está com a vigência vencida"
+              : `${vencidos.length} contratos ativos estão com a vigência vencida`}
+          </AlertTitle>
+          <AlertDescription>
+            {vencidos
+              .map(({ contrato }) => `${contrato.numero}${contrato.ano ? `/${contrato.ano}` : ""}`)
+              .join(", ")}
+            . Faça o aditivo de prazo; até lá, só um administrador pode baixar notas nesses contratos.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {isError && (
         <Alert variant="destructive">
@@ -560,8 +579,10 @@ function Dashboard() {
                       </span>
                       <Badge variant={dias <= 30 ? "critical" : "warning"}>
                         <AlertTriangle />
-                        {dias <= 0
+                        {dias < 0
                           ? "vencido"
+                          : dias === 0
+                          ? "vence hoje"
                           : `${dias} ${dias === 1 ? "dia" : "dias"}`}
                       </Badge>
                     </div>

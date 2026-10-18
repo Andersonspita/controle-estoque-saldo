@@ -58,7 +58,7 @@ function NotasFiscaisPage() {
   const [editNF, setEditNF] = useState<any | null>(null)
   const [acaoNF, setAcaoNF] = useState<{ nf: any; acao: AcaoNF } | null>(null)
   const [status, setStatus] = useState("todas")
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   // O campo é novo no backend; o client gerado ainda não o tipa.
   const podeEstornar = Boolean((user as any)?.pode_estornar)
   const { query, setQuery } = useListSearch()
@@ -131,6 +131,12 @@ function NotasFiscaisPage() {
     onEditar: (nf: NotaFiscalRow) => setEditNF(nf),
     onEstornar: (nf: NotaFiscalRow) => setAcaoNF({ nf, acao: "estorno" }),
     onExcluir: (nf: NotaFiscalRow) => setAcaoNF({ nf, acao: "exclusao" }),
+    onTermo: isAdmin
+      ? (nf: NotaFiscalRow) =>
+          notasFiscaisService.downloadTermoContratoVencido(nf).catch(() =>
+            toast.error("Esta nota não tem baixa em contrato vencido."),
+          )
+      : undefined,
     baixandoId,
     podeEstornar,
   }

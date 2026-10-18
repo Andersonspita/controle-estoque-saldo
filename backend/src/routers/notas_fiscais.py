@@ -1,17 +1,20 @@
 import os
 import json
 import logging
+from datetime import timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
+from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from ..database.session import get_db
-from ..deps import get_current_active_user, RequireEstorno, CurrentUser
-from ..database.models import NotaFiscal, ItemNotaFiscal, Contrato, Fornecedor, ItemContrato, Movimentacao, Usuario
+from ..deps import get_current_active_user, RequireEstorno, CurrentUser, is_admin
+from ..database.models import NotaFiscal, ItemNotaFiscal, Contrato, Fornecedor, ItemContrato, Movimentacao, Usuario, LogAuditoria
 from ..http_errors import http_erro_interno
 from ..services.arquivos import caminho_upload_seguro
 from ..services.nota_fiscal import persistir_nota_fiscal, atualizar_nota_fiscal
+from ..services.termo_responsabilidade import gerar_termo_contrato_vencido
 from ..core.audit import registrar_auditoria, get_client_ip
 from ..schemas import (
     NotaFiscalCreate, ItemNotaFiscalCreate, NotaFiscalOut,
@@ -330,8 +333,53 @@ async def baixar_nota_fiscal(
         db,
         usuario_id=current_user.id,
         ip=get_client_ip(request),
+        admin=is_admin(current_user),
     )
     return movimentacoes
+
+
+@router.get("/{nf_id}/termo-contrato-vencido")
+async def termo_contrato_vencido(
+    nf_id: int,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """PDF do termo de responsabilidade da última baixa feita com o contrato vencido."""
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Apenas administradores podem emitir o termo.")
+    nf = await db.get(NotaFiscal, nf_id)
+    if not nf:
+        raise HTTPException(status_code=404, detail="Nota Fiscal não encontrada")
+    logs = (await db.execute(
+        select(LogAuditoria)
+        .where(LogAuditoria.tabela == "notas_fiscais", LogAuditoria.registro_id == str(nf_id))
+        .order_by(LogAuditoria.id.desc())
+    )).scalars().all()
+    log = next((l for l in logs if (l.dados_novos or {}).get("operacao") == "baixa"), None)
+    if not log or not log.dados_novos.get("contrato_vencido"):
+        raise HTTPException(status_code=404, detail="Esta nota não tem baixa em contrato vencido.")
+    d = log.dados_novos
+    admin = await db.get(Usuario, log.usuario_id) if log.usuario_id else None
+    fornecedor = await db.get(Fornecedor, nf.fornecedor_id)
+    pdf = gerar_termo_contrato_vencido(
+        nf_numero=nf.numero,
+        nf_serie=nf.serie,
+        nf_valor=nf.valor_total,
+        fornecedor=fornecedor.razao_social if fornecedor else "",
+        contrato_numero=d.get("contrato_numero"),
+        contrato_ano=d.get("contrato_ano"),
+        contrato_data_fim=d.get("contrato_data_fim"),
+        motivo=d.get("motivo_contrato_vencido"),
+        solicitante=d.get("solicitante"),
+        admin_nome=admin.nome if admin else "",
+        # Brasília não tem horário de verão desde 2019; data_hora é gravada em UTC.
+        data_baixa=log.data_hora.replace(tzinfo=log.data_hora.tzinfo or timezone.utc).astimezone(timezone(timedelta(hours=-3))),
+    )
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="Termo-NF-{nf.numero}.pdf"'},
+    )
 
 
 @router.put("/{nf_id}", response_model=NotaFiscalOut)

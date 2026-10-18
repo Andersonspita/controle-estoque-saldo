@@ -412,6 +412,9 @@ class AtualizarVinculosRequest(BaseModel):
 
 class BaixaRequest(BaseModel):
     justificativa: Optional[str] = None
+    # Exigidos só quando o contrato está vencido (baixa restrita ao ADMIN).
+    motivo_contrato_vencido: Optional[str] = Field(default=None, max_length=1000)
+    solicitante: Optional[str] = Field(default=None, max_length=200)
 
 
 class EstornoRequest(BaseModel):

@@ -51,9 +51,24 @@ export const notasFiscaisService = {
     return response.data
   },
 
-  baixar: async (nfId: number, baixaReq: { justificativa?: string } = {}) => {
+  baixar: async (
+    nfId: number,
+    baixaReq: { justificativa?: string; motivo_contrato_vencido?: string; solicitante?: string } = {},
+  ) => {
     const response = await api.post(`/notas-fiscais/${nfId}/baixar`, baixaReq);
     return response.data;
+  },
+
+  downloadTermoContratoVencido: async (nf: { id: number; numero?: string }) => {
+    const response = await api.get(`/notas-fiscais/${nf.id}/termo-contrato-vencido`, {
+      responseType: "blob",
+    });
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Termo-NF-${nf.numero || nf.id}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
   },
 
   parseXml: async (xmlFile: File) => {
