@@ -218,7 +218,7 @@ async def atualizar_vinculos_nf(
     ids_contrato = {item.id for item in contrato.itens}
     itens_por_id = {item.id: item for item in nf.itens}
     anteriores = [
-        {"id": item.id, "item_contrato_id": item.item_contrato_id}
+        {"id": item.id, "item_contrato_id": item.item_contrato_id, "valor_unitario": item.valor_unitario}
         for item in nf.itens
     ]
 
@@ -236,6 +236,8 @@ async def atualizar_vinculos_nf(
             )
         item_nf.item_contrato_id = vinculo.item_contrato_id
         item_nf.status_identificacao = "MANUAL"
+        if vinculo.valor_unitario is not None:
+            item_nf.valor_unitario = vinculo.valor_unitario
 
     nf.status = "Aguardando conferência"
     await registrar_auditoria(
@@ -248,7 +250,8 @@ async def atualizar_vinculos_nf(
         dados_novos={
             "operacao": "vinculos",
             "itens": [
-                {"id": v.id, "item_contrato_id": v.item_contrato_id} for v in body.itens
+                {"id": v.id, "item_contrato_id": v.item_contrato_id, "valor_unitario": v.valor_unitario}
+                for v in body.itens
             ],
             "status": nf.status,
         },
